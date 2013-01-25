@@ -13,6 +13,7 @@ public class LoggingNegamaxVisitor<Vertex, Edge> extends NegamaxVisitorBase<Vert
 {
 	private int depth_ = 0;
 	private int node_count_ = 0;
+	private PrincipalVariation<Vertex, Edge> pv_ = null;
 	private final PrintStream out_;
 	
 	/**
@@ -24,7 +25,7 @@ public class LoggingNegamaxVisitor<Vertex, Edge> extends NegamaxVisitorBase<Vert
 	}
 
 	@Override
-	public void discoverVertex( final Vertex v )
+	public boolean discoverVertex( final Vertex v )
 	{
 //		for( int d = 0; d < depth_; ++d ) {
 //			out_.print( "-" );
@@ -35,12 +36,13 @@ public class LoggingNegamaxVisitor<Vertex, Edge> extends NegamaxVisitorBase<Vert
 		if( node_count_ % 10000 == 0 ) {
 			out_.println( "Node count: " + node_count_ );
 		}
+		return false;
 	}
 
 	@Override
 	public void treeEdge( final Edge e, final Vertex dest )
 	{
-//		out_.println( "treeEdge( " + src.toString() + " ++ " + e.toString() + " +> " + dest.toString() + " )" );
+//		out_.println( "treeEdge( -- " + e.toString() + " -> " + dest.toString() + " )" );
 	}
 
 	@Override
@@ -52,6 +54,7 @@ public class LoggingNegamaxVisitor<Vertex, Edge> extends NegamaxVisitorBase<Vert
 	@Override
 	public void principalVariation( final PrincipalVariation<Vertex, Edge> pv )
 	{
+		pv_ = pv;
 		out_.println( "principalVariation()" );
 		out_.print( "[" + pv.score + "] " );
 		out_.print( "(" + pv.states.size() + ", " + pv.actions.size() + ") " );
@@ -67,6 +70,6 @@ public class LoggingNegamaxVisitor<Vertex, Edge> extends NegamaxVisitorBase<Vert
 	@Override
 	public void depthLimit( final Vertex v )
 	{
-//		out_.println( "depthLimit( " + v.toString() + " )" );
+//		out_.println( "Leaf [Depth]: " + pv_ );
 	}
 }

@@ -12,7 +12,7 @@ public interface NegamaxVisitor<Vertex, Edge>
 {
 	public abstract void initializeVertex( final Vertex v );
 	public abstract void startVertex( final Vertex v );
-	public abstract void discoverVertex( final Vertex v );
+	public abstract boolean discoverVertex( final Vertex v );
 	public abstract void examineEdge( final Edge e, final Vertex dest );
 	public abstract void treeEdge( final Edge e, final Vertex dest );
 	public abstract void prunedEdge( final Edge e, final Vertex dest );

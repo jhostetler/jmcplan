@@ -24,9 +24,8 @@ public class NegamaxVisitorBase<Vertex, Edge> implements NegamaxVisitor<Vertex, 
 	}
 
 	@Override
-	public void discoverVertex(final Vertex v) {
-		// TODO Auto-generated method stub
-		
+	public boolean discoverVertex(final Vertex v) {
+		return false;
 	}
 
 	@Override

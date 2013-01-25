@@ -25,8 +25,8 @@ public class ForwardingNegamaxVisitor<Vertex, Edge> implements NegamaxVisitor<Ve
 	{ inner_.startVertex( v ); }
 
 	@Override
-	public void discoverVertex( final Vertex v )
-	{ inner_.discoverVertex( v ); }
+	public boolean discoverVertex( final Vertex v )
+	{ return inner_.discoverVertex( v ); }
 
 	@Override
 	public void examineEdge( final Edge e, final Vertex dest )

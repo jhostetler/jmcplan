@@ -22,6 +22,8 @@ public class PrincipalVariation<S, A>
 	public S s0;
 	public final ArrayList<String> states = new ArrayList<String>();
 	public final ArrayList<A> actions = new ArrayList<A>();
+	public double alpha = -Double.MAX_VALUE;
+	public double beta = Double.MAX_VALUE;
 	public double score = 0.0;
 	public int cmove = 0;
 	public final int max_depth;
@@ -35,40 +37,31 @@ public class PrincipalVariation<S, A>
 	
 	public PrincipalVariation( final PrincipalVariation<S, A> that )
 	{
-//		states.addAll( that.states );
-//		actions.addAll( that.actions );
-//		d = that.d;
-//		score = that.score;
-		
-		throw new UnsupportedOperationException();
+		s0 = that.s0;
+		states.addAll( that.states );
+		actions.addAll( that.actions );
+		alpha = that.alpha;
+		beta = that.beta;
+		score = that.score;
+		cmove = that.cmove;
+		max_depth = that.max_depth;
 	}
 	
-	public void setState( final int idx, final S state )
+	public boolean isNarrowerThan( final PrincipalVariation<S, A> that )
 	{
-		states.set( idx, state.toString() );
+		return (alpha > that.alpha && beta <= that.beta)
+			|| (alpha >= that.alpha && beta < that.beta);
+	}
+	
+	public void setState( final int idx, final String state_token )
+	{
+		states.set( idx, state_token );
 	}
 	
 	public ArrayList<String> getStates()
 	{
 		return states;
 	}
-	
-//	public void assign( final S s, final A a, final PrincipalVariation<S, A> future, final double score )
-//	{
-//		states.add( s );
-//		states.addAll( future.states );
-//		actions.add( a );
-//		actions.addAll( future.actions );
-//		this.score = score;
-//	}
-//
-//	public void clear()
-//	{
-//		states.clear();
-//		actions.clear();
-//		d = 0;
-//		score = 0.0;
-//	}
 	
 	@Override
 	public String toString()
