@@ -212,8 +212,8 @@ public class ExpectimaxSearch<S, A extends UndoableAction<S, A>> implements Runn
 		final ActionGenerator<FastGalconState, FastGalconEvent> action_gen
 			= new FastGalconState.Actions();
 		
-		final FastGameTreeNegamax<FastGalconState, FastGalconEvent> search
-			= new FastGameTreeNegamax<FastGalconState, FastGalconEvent>(
+		final NegamaxSearch<FastGalconState, FastGalconEvent> search
+			= new NegamaxSearch<FastGalconState, FastGalconEvent>(
 				fast_state, 4,
 				action_gen, visitor );
 //				new NegamaxVisitorBase<GalconState, GalconAction>() );

@@ -71,8 +71,8 @@ public class IterativeRefinementSearch<S, A extends UndoableAction<S, A>>
 //				= new IterativeDeepeningSearch<S, DurativeUndoableAction<S, A>>(
 //					durative_sim, durative_gen.create(),
 //					new DurativeNegamaxVisitor<S, A>( visitor_, policy_epoch ), depth );
-			final FastGameTreeNegamax<S, DurativeUndoableAction<S, A>> search
-				= new FastGameTreeNegamax<S, DurativeUndoableAction<S, A>>(
+			final NegamaxSearch<S, DurativeUndoableAction<S, A>> search
+				= new NegamaxSearch<S, DurativeUndoableAction<S, A>>(
 					durative_sim, depth * sim_.getNumAgents(), durative_gen.create(),
 					new DurativeNegamaxVisitor<S, A>( visitor_ ) );
 			final long start = System.currentTimeMillis();
