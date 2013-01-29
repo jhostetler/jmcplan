@@ -39,8 +39,7 @@ public class VariableDurationActionGenerator<S, A extends UndoableAction<S, A>>
 	public DurativeUndoableAction<S, A> next()
 	{
 		final int d = depth_.getDepth();
-		return new DurativeUndoableAction<S, A>( new RepeatPolicy<S, A>( base_.next() ),
-												 epochs_[d + 1] - epochs_[d] );
+		return new DurativeUndoableAction<S, A>( new RepeatPolicy<S, A>( base_.next() ), epochs_[d] );
 	}
 
 	@Override

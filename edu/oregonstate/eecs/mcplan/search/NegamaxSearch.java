@@ -115,10 +115,10 @@ public class NegamaxSearch<S, A extends UndoableAction<S, A>> implements GameTre
 			complete_ = false;
 		}
 		else if( visitor.isGoal( s ) ) {
-			visitor.goal( s );
+			final double value = visitor.goal( s );
 			pv.setState( 0, sim_.toString() );
 			pv.cmove = 0;
-			ret = color * visitor.heuristic( s );
+			ret = color * value;
 		}
 		else if( depth == 0 ) {
 			visitor.depthLimit( s );

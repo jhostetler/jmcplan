@@ -65,9 +65,9 @@ public class NegamaxVisitorBase<Vertex, Edge> implements NegamaxVisitor<Vertex, 
 	}
 
 	@Override
-	public void goal(final Vertex v) {
+	public double goal(final Vertex v) {
 		// TODO Auto-generated method stub
-		
+		return 0.0;
 	}
 
 	@Override

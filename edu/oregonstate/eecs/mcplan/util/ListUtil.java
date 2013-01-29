@@ -17,4 +17,16 @@ public class ListUtil
 			list.add( element );
 		}
 	}
+	
+	public static String join( final String[] tokens, final String sep )
+	{
+		if( tokens.length == 0 ) {
+			return "";
+		}
+		final StringBuilder sb = new StringBuilder( tokens[0] );
+		for( int i = 1; i < tokens.length; ++i ) {
+			sb.append( sep ).append( tokens[i] );
+		}
+		return sb.toString();
+	}
 }

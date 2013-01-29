@@ -3,11 +3,13 @@
  */
 package edu.oregonstate.eecs.mcplan.search;
 
+import java.util.Arrays;
+
 import edu.oregonstate.eecs.mcplan.agents.galcon.ActionGenerator;
-import edu.oregonstate.eecs.mcplan.agents.galcon.DurativeActionGenerator;
 import edu.oregonstate.eecs.mcplan.agents.galcon.DurativeActionSimulator;
 import edu.oregonstate.eecs.mcplan.agents.galcon.DurativeUndoableAction;
 import edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction;
+import edu.oregonstate.eecs.mcplan.agents.galcon.VariableDurationActionGenerator;
 import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveSimulator;
 
 /**
@@ -56,17 +58,45 @@ public class IterativeRefinementSearch<S, A extends UndoableAction<S, A>>
 		return complete_;
 	}
 	
+	/**
+	 * Splits 'n' into 'depth' intervals of (almost) equal size. Any remainder
+	 * is spread evenly between intervals starting with the intervals
+	 * furthest in the future. This has an implicit discounting effect, as
+	 * search is more precise closer to the current time.
+	 * @param n
+	 * @param depth
+	 * @return
+	 */
+	private int[] optimalSplit( final int n, final int depth )
+	{
+		final int[] idx = new int[depth];
+		final int d = n / depth;
+		Arrays.fill( idx, d );
+		// Distribute the remainder starting with the periods
+		// furthest in the future
+		for( int i = 0; i < n % depth; ++i ) {
+			idx[(depth - 1) - i] += 1;
+		}
+		return idx;
+	}
+	
 	@Override
 	public void run()
 	{
 		System.out.println( "[IterativeRefinementSearch] run(): max_depth_ = " + max_depth_ );
 		int depth = 1;
 		while( depth <= max_depth_ ) {
-			final int policy_epoch = Math.min( sim_.horizon(), max_horizon_ ) / depth;
-			final DurativeActionSimulator<S, A> durative_sim
-				= new DurativeActionSimulator<S, A>( sim_ );
-			final DurativeActionGenerator<S, A> durative_gen
-				= new DurativeActionGenerator<S, A>( action_gen_, policy_epoch );
+			final int h = Math.min( sim_.horizon(), max_horizon_ );
+			if( depth > h ) {
+				break;
+			}
+			final int[] idx = optimalSplit( h, depth );
+			System.out.println( "[IterativeRefinementSearch] idx = " + Arrays.toString( idx ) );
+			final DurativeActionSimulator<S, A> durative_sim = new DurativeActionSimulator<S, A>( sim_ );
+			final DurativeNegamaxVisitor<S, A> durative_visitor = new DurativeNegamaxVisitor<S, A>( visitor_ );
+			final VariableDurationActionGenerator<S, A> durative_gen
+				= new VariableDurationActionGenerator<S, A>( action_gen_, idx, durative_visitor );
+			
 //			final IterativeDeepeningSearch<S, DurativeUndoableAction<S, A>> search
 //				= new IterativeDeepeningSearch<S, DurativeUndoableAction<S, A>>(
 //					durative_sim, durative_gen.create(),

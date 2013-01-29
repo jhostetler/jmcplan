@@ -55,6 +55,9 @@ public class IterativeDeepeningSearch<S, A extends UndoableAction<S, A>> impleme
 		ActionGenerator<S, A> local_gen = action_gen_.create();
 		int depth = 1;
 		while( depth <= max_depth_ ) {
+			if( depth > sim_.horizon() ) {
+				break;
+			}
 			final NegamaxSearch<S, A> search = new NegamaxSearch<S, A>(
 				sim_, depth * sim_.getNumAgents(), local_gen, visitor_ );
 			final long start = System.currentTimeMillis();

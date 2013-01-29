@@ -83,9 +83,9 @@ public class DurativeNegamaxVisitor<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public void goal( final S v )
+	public double goal( final S v )
 	{
-		base_.goal( v ); // FIXME: Not correct
+		return base_.goal( v ); // FIXME: Not correct
 	}
 
 	@Override

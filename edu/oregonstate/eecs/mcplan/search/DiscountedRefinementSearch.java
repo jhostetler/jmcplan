@@ -84,7 +84,14 @@ public class DiscountedRefinementSearch<S, A extends UndoableAction<S, A>> imple
 			p = idx[i];
 		}
 		idx[depth] = n;
-		return idx;
+		
+		// Convert intervals to durations
+		final int[] result = new int[depth];
+		for( int i = 1; i < idx.length; ++i ) {
+			result[i - 1] = idx[i] - idx[i - 1];
+		}
+		
+		return result;
 	}
 	
 	public PrincipalVariation<S, DurativeUndoableAction<S, A>> principalVariation()
@@ -99,6 +106,9 @@ public class DiscountedRefinementSearch<S, A extends UndoableAction<S, A>> imple
 		int depth = 1;
 		while( depth <= max_depth_ ) {
 			final int[] idx = optimalSplit( Math.min( sim_.horizon(), max_horizon_ ), depth );
+			if( idx[0] <= 0 ) {
+				break; // A degenerate interval
+			}
 			System.out.println( "[DiscountedIterativeRefinementSearch] idx = " + Arrays.toString( idx ) );
 			final DurativeActionSimulator<S, A> durative_sim = new DurativeActionSimulator<S, A>( sim_ );
 			final DurativeNegamaxVisitor<S, A> durative_visitor = new DurativeNegamaxVisitor<S, A>( visitor_ );

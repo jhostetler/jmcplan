@@ -3,21 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.agents.galcon;
 
-import java.io.FileNotFoundException;
-import java.util.ArrayList;
-
-import org.apache.commons.math3.random.MersenneTwister;
-
-import edu.oregonstate.eecs.mcplan.domains.galcon.FastGalconEvent;
-import edu.oregonstate.eecs.mcplan.domains.galcon.FastGalconState;
-import edu.oregonstate.eecs.mcplan.domains.galcon.GalconSimulator;
-import edu.oregonstate.eecs.mcplan.domains.galcon.LookaheadLeafHeuristic;
-import edu.oregonstate.eecs.mcplan.domains.galcon.graphics.Monitor;
-import edu.oregonstate.eecs.mcplan.domains.galcon.graphics.MonitorUpdater;
-import edu.oregonstate.eecs.mcplan.experiments.Parameters;
 import edu.oregonstate.eecs.mcplan.search.IterativeRefinementSearch;
 import edu.oregonstate.eecs.mcplan.search.NegamaxVisitor;
-import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveRunner;
 import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveSimulator;
 import edu.oregonstate.eecs.mcplan.util.Countdown;
 
@@ -93,7 +80,7 @@ public class IterativeRefinementPolicy<S, A extends UndoableAction<S, A>>
 	@Override
 	public A getAction( final long control )
 	{
-		System.out.println( "[DirectIterativeRefinement] getAction()" );
+		System.out.println( "[IterativeRefinementPolicy] getAction()" );
 		final BoundedVisitor<S, A> bv
 			= new BoundedVisitor<S, A>( visitor_, new Countdown( control ) );
 		final IterativeRefinementSearch<S, A> search
@@ -101,91 +88,15 @@ public class IterativeRefinementPolicy<S, A extends UndoableAction<S, A>>
 		search.run();
 		
 		if( search.principalVariation() != null && search.principalVariation().actions.get( 0 ) != null ) {
-			System.out.println( "[DirectIterativeRefinement] PV: " + search.principalVariation() );
+			System.out.println( "[IterativeRefinementPolicy] PV: " + search.principalVariation() );
 			policy_used_ = search.principalVariation().actions.get( 0 ).policy_;
 		}
 		else {
-			System.out.println( "[DirectIterativeRefinement] ! Using leaf heuristic" );
+			System.out.println( "[IterativeRefinementPolicy] ! Using leaf heuristic" );
 			policy_used_ = default_policy_;
 		}
 		
 		policy_used_.setState( s_ );
 		return policy_used_.getAction();
-	}
-
-	// -----------------------------------------------------------------------
-	
-	public static void main( final String[] args ) throws FileNotFoundException
-	{
-		final Parameters params = new Parameters();
-		final MersenneTwister rng = new MersenneTwister( params.master_seed );
-		final GalconSimulator sim = new GalconSimulator(
-			params.horizon, params.primitive_epoch, false, false, params.master_seed,
-			params.min_launch_percentage, params.launch_size_steps );
-		final FastGalconState fast_state = new FastGalconState(
-			sim, params.policy_epoch, params.horizon, params.min_launch_percentage, params.launch_size_steps );
-		final SimultaneousMoveSimulator<FastGalconState, FastGalconEvent> fast_sim = fast_state;
-		
-		final ArrayList<DurativeUndoableAction<FastGalconState, FastGalconEvent>> policies
-			= Util.durativeWrapPolicies( params.Pi(), params.policy_epoch );
-		final NegamaxVisitor<
-			FastGalconState,
-			DurativeUndoableAction<FastGalconState, FastGalconEvent>
-		> visitor
-			= new LookaheadLeafHeuristic<DurativeUndoableAction<FastGalconState, FastGalconEvent>>(
-				params.ir_lookahead, System.out );
-		
-		final ConstantActionGenerator<
-			FastGalconState,
-			DurativeUndoableAction<FastGalconState, FastGalconEvent>
-		> cgen;
-		cgen = new ConstantActionGenerator<
-			FastGalconState,
-			DurativeUndoableAction<FastGalconState, FastGalconEvent>>( policies );
-		final CoarseSimulation<FastGalconState, FastGalconEvent> durative_sim
-			= new CoarseSimulation<FastGalconState, FastGalconEvent>( fast_sim, params.policy_epoch );
-
-		final AnytimePolicy<
-			FastGalconState, DurativeUndoableAction<FastGalconState, FastGalconEvent>
-		> agent0
-			= new IterativeRefinementPolicy<
-				FastGalconState, DurativeUndoableAction<FastGalconState, FastGalconEvent>>(
-					params.ir_max_depth, params.ir_horizon, durative_sim, cgen.create(), visitor,
-					new RandomPolicy<FastGalconState, DurativeUndoableAction<FastGalconState, FastGalconEvent>>(
-						rng.nextInt(), cgen ) );
-		
-		final AnytimePolicy<
-			FastGalconState, DurativeUndoableAction<FastGalconState, FastGalconEvent>
-		> agent1
-			= new RandomPolicy<FastGalconState, DurativeUndoableAction<FastGalconState, FastGalconEvent>>(
-				rng.nextInt(), cgen.create() );
-		
-		final ArrayList<AnytimePolicy<FastGalconState, DurativeUndoableAction<FastGalconState, FastGalconEvent>>>
-			agents = new ArrayList<AnytimePolicy<FastGalconState, DurativeUndoableAction<FastGalconState, FastGalconEvent>>>();
-		agents.add( agent0 );
-		agents.add( agent1 );
-		
-		try {
-			Monitor.createMonitor( sim.getState().getMapWidth(), sim.getState().getMapHeight() );
-		}
-		catch (final Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			System.exit(1);
-		}
-		Monitor.getInstance().showWindow( true );
-		
-		final SimultaneousMoveRunner<
-			FastGalconState,
-			DurativeUndoableAction<FastGalconState, FastGalconEvent>
-		> runner
-			= new SimultaneousMoveRunner<FastGalconState,
-										 DurativeUndoableAction<FastGalconState, FastGalconEvent>>(
-				durative_sim, agents, params.T, params.max_time );
-		runner.addListener( new MonitorUpdater<DurativeUndoableAction<FastGalconState, FastGalconEvent>>() );
-		
-		runner.run();
-		
-		System.exit( 0 );
 	}
 }

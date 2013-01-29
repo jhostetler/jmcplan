@@ -19,7 +19,7 @@ public interface NegamaxVisitor<Vertex, Edge>
 	public abstract void principalVariation( final PrincipalVariation<Vertex, Edge> pv );
 	public abstract void finishVertex( final Vertex v );
 	public abstract void depthLimit( final Vertex v );
-	public abstract void goal( final Vertex v );
+	public abstract double goal( final Vertex v );
 	public abstract boolean isGoal( final Vertex v );
 	public abstract double heuristic( final Vertex v );
 }

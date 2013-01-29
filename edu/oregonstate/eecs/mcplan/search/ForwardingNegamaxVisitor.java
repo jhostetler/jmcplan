@@ -53,8 +53,8 @@ public class ForwardingNegamaxVisitor<Vertex, Edge> implements NegamaxVisitor<Ve
 	{ inner_.depthLimit( v ); }
 
 	@Override
-	public void goal( final Vertex v )
-	{ inner_.goal( v ); }
+	public double goal( final Vertex v )
+	{ return inner_.goal( v ); }
 
 	@Override
 	public boolean isGoal( final Vertex v )
