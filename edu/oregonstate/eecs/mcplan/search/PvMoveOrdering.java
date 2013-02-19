@@ -58,7 +58,7 @@ public class PvMoveOrdering<S, A extends UndoableAction<S, A>> implements Action
 			do {
 				a = inner_.next();
 			} while( a.equals( pv_.actions.get( pv_idx_ ) ) );
-			return a;
+			return a.create();
 		}
 	}
 
@@ -75,10 +75,12 @@ public class PvMoveOrdering<S, A extends UndoableAction<S, A>> implements Action
 	}
 
 	@Override
-	public void setState( final S s )
+	public void setState( final S s, final long t )
 	{
+		pv_idx_ = PvIdxInvalid;
 		// size() - 1 because the end state has no associated action.
-		for( int i = 0; i < pv_.states.size() - 1; ++i ) {
+//		for( int i = 0; i < pv_.states.size() - 1; ++i ) {
+		for( int i = 0; i < pv_.cmove; ++i ) {
 			// FIXME: This relies on the (depth, turn) string encoding of
 			// the state. The is a hackish way of doing it, which is necessary
 			// only because FastGalconState is also the Simulator
@@ -95,8 +97,9 @@ public class PvMoveOrdering<S, A extends UndoableAction<S, A>> implements Action
 				break;
 			}
 		}
+		assert( pv_idx_ < pv_.cmove );
 		Arrays.fill( used_, false );
-		inner_.setState( s );
+		inner_.setState( s, t );
 	}
 
 	@Override

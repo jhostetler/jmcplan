@@ -57,7 +57,7 @@ public class IterativeDeepeningHeuristicPolicy<S, A extends UndoableAction<S, A>
 	}
 	
 	@Override
-	public void setState( final S s )
+	public void setState( final S s, final long t )
 	{ }
 
 	@Override
@@ -84,7 +84,7 @@ public class IterativeDeepeningHeuristicPolicy<S, A extends UndoableAction<S, A>
 			return search.principalVariation().actions.get( 0 );
 		}
 		else {
-			default_policy_.setState( sim_.state() );
+			default_policy_.setState( sim_.state(), sim_.depth() );
 			return default_policy_.getAction();
 		}
 	}

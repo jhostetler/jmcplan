@@ -5,6 +5,7 @@ package edu.oregonstate.eecs.mcplan.search;
 
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import edu.oregonstate.eecs.mcplan.Agent;
@@ -94,11 +95,20 @@ public class NegamaxSearch<S, A extends UndoableAction<S, A>> implements GameTre
 						new PrincipalVariation<S, A>( max_depth_ ), visitor_ );
 	}
 	
+	private void setPvLeafState( final PrincipalVariation<S, A> pv, final double alpha, final double beta )
+	{
+		pv.setState( 0, sim_.toString() );
+		pv.cmove = 0;
+		pv.alpha = alpha;
+		pv.beta = beta;
+	}
+	
 	private double visit(
 		final int depth, double alpha, final double beta, final int color,
 		final PrincipalVariation<S, A> pv,
 		final NegamaxVisitor<S, A> visitor )
 	{
+		assert( alpha <= beta );
 		final S s = sim_.state();
 		// It's a tree, so these are 1-to-1
 		visitor.initializeVertex( s );
@@ -111,26 +121,36 @@ public class NegamaxSearch<S, A extends UndoableAction<S, A>> implements GameTre
 		if( stop ) {
 			pv.setState( 0, sim_.toString() );
 			pv.cmove = 0;
-			ret = alpha; // This is the "default" return value.
+			pv.alpha = alpha;
+			pv.beta = beta;
+//			ret = alpha; // This is the "default" return value.
+			ret = color * visitor.heuristic( s );
 			complete_ = false;
 		}
 		else if( visitor.isGoal( s ) ) {
 			final double value = visitor.goal( s );
 			pv.setState( 0, sim_.toString() );
 			pv.cmove = 0;
+			pv.alpha = alpha;
+			pv.beta = beta;
 			ret = color * value;
+//			ret = value;
 		}
 		else if( depth == 0 ) {
 			visitor.depthLimit( s );
 			pv.setState( 0, sim_.toString() );
 			pv.cmove = 0;
+			pv.alpha = alpha;
+			pv.beta = beta;
 			ret = color * visitor.heuristic( s );
+//			ret = visitor.heuristic( s );
 		}
 		else {
 			final ActionGenerator<S, A> local_action_gen = action_gen_.create();
-			local_action_gen.setState( s );
-			while( local_action_gen.hasNext() ) {
-				final A a = local_action_gen.next();
+			local_action_gen.setState( s, sim_.depth() );
+			final Iterator<A> actions = visitor.orderActions( s, local_action_gen );
+			while( actions.hasNext() ) {
+				final A a = actions.next();
 				sim_.takeAction( a );
 				final S sprime = sim_.state();
 				visitor.examineEdge( a, sprime );
@@ -150,7 +170,11 @@ public class NegamaxSearch<S, A extends UndoableAction<S, A>> implements GameTre
 //						System.out.println( "Improvement (" + value + " > " + alpha + ")" );
 						alpha = value;
 						pv.alpha = alpha;
-						pv.beta = beta;
+						pv.beta = beta; //-future.alpha; //beta;
+						if( pv.alpha > pv.beta ) {
+							System.out.println( "!!! alpha = " + pv.alpha + ", beta = " + pv.beta );
+							throw new AssertionError();
+						}
 						pv.score = value;
 						pv.cmove = future.cmove + 1;
 						pv.setState( 0, sim_.toString() );
@@ -182,10 +206,11 @@ public class NegamaxSearch<S, A extends UndoableAction<S, A>> implements GameTre
 	{
 		final int epoch = 10;
 		final int horizon = 5000;
+		final int Nplanets = 10;
 		final double min_launch_percentage = 0.2;
 		final int launch_size_steps = 10;
 		final GalconSimulator sim = new GalconSimulator(
-			horizon, epoch, false, false, 641, min_launch_percentage, launch_size_steps );
+			horizon, epoch, false, false, 641, Nplanets, min_launch_percentage, launch_size_steps );
 		final FastGalconState fast_state = new FastGalconState(
 			sim, horizon, epoch, min_launch_percentage, launch_size_steps );
 		final List<Agent> policies = new ArrayList<Agent>();

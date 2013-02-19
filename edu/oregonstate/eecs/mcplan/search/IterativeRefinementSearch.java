@@ -86,14 +86,21 @@ public class IterativeRefinementSearch<S, A extends UndoableAction<S, A>>
 		System.out.println( "[IterativeRefinementSearch] run(): max_depth_ = " + max_depth_ );
 		int depth = 1;
 		while( depth <= max_depth_ ) {
-			final int h = Math.min( sim_.horizon(), max_horizon_ );
-			if( depth > h ) {
+			final int H = (int) Math.min( sim_.horizon(), max_horizon_ );
+			if( depth > H ) {
 				break;
 			}
-			final int[] idx = optimalSplit( h, depth );
+			final int[] idx = optimalSplit( H, depth );
 			System.out.println( "[IterativeRefinementSearch] idx = " + Arrays.toString( idx ) );
 			final DurativeActionSimulator<S, A> durative_sim = new DurativeActionSimulator<S, A>( sim_ );
-			final DurativeNegamaxVisitor<S, A> durative_visitor = new DurativeNegamaxVisitor<S, A>( visitor_ );
+			final DurativeNegamaxVisitor<S, A> durative_visitor;
+			if( pv_ == null ) {
+				durative_visitor = new DurativeNegamaxVisitor<S, A>( visitor_ );
+			}
+			else {
+				// Principal variation move ordering heuristic
+				durative_visitor = new DurativePvMoveOrdering<S, A>( visitor_, pv_, idx );
+			}
 			final VariableDurationActionGenerator<S, A> durative_gen
 				= new VariableDurationActionGenerator<S, A>( action_gen_, idx, durative_visitor );
 			
@@ -104,7 +111,7 @@ public class IterativeRefinementSearch<S, A extends UndoableAction<S, A>>
 			final NegamaxSearch<S, DurativeUndoableAction<S, A>> search
 				= new NegamaxSearch<S, DurativeUndoableAction<S, A>>(
 					durative_sim, depth * sim_.getNumAgents(), durative_gen.create(),
-					new DurativeNegamaxVisitor<S, A>( visitor_ ) );
+					durative_visitor );
 			final long start = System.currentTimeMillis();
 			search.run();
 			final long stop = System.currentTimeMillis();
@@ -120,6 +127,10 @@ public class IterativeRefinementSearch<S, A extends UndoableAction<S, A>>
 			System.out.println( "[IterativeRefinementSearch] Depth: " + depth );
 			System.out.println( "[IterativeRefinementSearch] PV: " + pv_ );
 			System.out.println( "[IterativeRefinementSearch] Time: " + (stop - start) + " ms" );
+			
+			if( !search.isComplete() ) {
+				break;
+			}
 			
 			++depth;
 		}

@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.Iterator;
-import java.util.ListIterator;
 
 import edu.oregonstate.eecs.mcplan.agents.galcon.UndoSimulator;
 import edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction;
@@ -21,6 +20,7 @@ import edu.oregonstate.eecs.mcplan.util.ListUtil;
 public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A>> implements UndoSimulator<S, A>
 {
 	protected final Deque<ArrayList<A>> action_history_ = new ArrayDeque<ArrayList<A>>();
+	protected final Deque<Deque<Integer>> move_order_history_ = new ArrayDeque<Deque<Integer>>();
 	protected final Deque<Deque<A>> event_history_ = new ArrayDeque<Deque<A>>();
 	private long depth_ = 0;
 	private int turn_ = 0;
@@ -52,6 +52,13 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 	 */
 	public void setTurn( final int turn )
 	{
+		System.out.println( "[SimultaneousMoveSimulator] setTurn( " + turn + " )" );
+		// FIXME: We don't allow setTurn() in the middle of a turn because
+		// the current implementation can't handle it. A better implementation
+		// *could* handle it, though.
+		for( final boolean b : turn_taken_ ) {
+			assert( !b );
+		}
 		assert( turn >= 0 );
 		assert( turn < getNumAgents() );
 		turn_ = turn;
@@ -61,6 +68,13 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 	{
 		action_history_.push( new ArrayList<A>() );
 		ListUtil.populateList( action_history_.peek(), null, num_agents );
+		move_order_history_.push( new ArrayDeque<Integer>() );
+	}
+	
+	private void popActionSet()
+	{
+		action_history_.pop();
+		move_order_history_.pop();
 	}
 	
 	/* (non-Javadoc)
@@ -72,6 +86,7 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 		assert( !turn_taken_[turn_] );
 		turn_taken_[turn_] = true;
 		action_history_.peek().set( turn_, a );
+		move_order_history_.peek().push( turn_ );
 		turn_ += 1;
 		if( turn_ == getNumAgents() ) {
 			turn_ = 0;
@@ -86,12 +101,15 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 		}
 		
 		if( step ) {
-			final Iterator<A> itr = action_history_.peek().iterator();
-			while( itr.hasNext() ) {
-				final A ai = itr.next();
-//				System.out.println( "SimultaneousMoveSimulator.takeAction( " + ai.toString() + " )" );
+			assert( move_order_history_.peek().size() == getNumAgents() );
+			for( final int i : move_order_history_.peek() ) {
+				final A ai = action_history_.peek().get( i );
 				ai.doAction( state() );
 			}
+//			while( itr.hasNext() ) {
+//				final A ai = itr.next();
+//				ai.doAction( state() );
+//			}
 			// Delegate world update to subclass.
 			advance();
 			pushActionSet( getNumAgents() );
@@ -130,7 +148,7 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 //			System.out.println( "un-advance()" );
 			// Remove the (empty) stacks of actions and events for this turn.
 //			assert( action_history_.peek().isEmpty() );
-			action_history_.pop();
+			popActionSet();
 			assert( event_history_.peek().isEmpty() );
 			event_history_.pop();
 			
@@ -140,18 +158,24 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 			}
 			
 			// Undo, but do not remove, actions from this turn.
-			final ListIterator<A> action_itr
-				= action_history_.peek().listIterator( action_history_.peek().size() );
-			while( action_itr.hasPrevious() ) {
-//				System.out.println( "SimultaneousMoveSimulator.untakeAction( " + a.toString() + " )" );
-				action_itr.previous().undoAction( state() );
+			// Note: This iterator goes in reverse order, because the first
+			// element is the most-recently push()'d.
+			final Iterator<Integer> move_itr = move_order_history_.peek().iterator();
+			while( move_itr.hasNext() ) {
+				final int i = move_itr.next();
+				final A a = action_history_.peek().get( i );
+//				System.out.println( "[SimultaneousMoveSimulator] Player " + i
+//									+ ": untakeAction( " + a.toString() + " )" );
+				a.undoAction( state() );
 			}
 			Arrays.fill( turn_taken_, true );
 		}
 		// Now "untaking" the action just means removing it from the stack.
 		assert( turn_taken_[turn_] );
 		turn_taken_[turn_] = false;
-		action_history_.peek().set( turn_, null );
+		final int idx = move_order_history_.peek().pop();
+		assert( idx == turn_ );
+		action_history_.peek().set( idx, null );
 		--depth_;
 	}
 	

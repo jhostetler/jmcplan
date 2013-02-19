@@ -49,6 +49,11 @@ public class PrincipalVariation<S, A>
 	
 	public boolean isNarrowerThan( final PrincipalVariation<S, A> that )
 	{
+		if( alpha > beta || that.alpha > that.beta ) {
+			System.out.println( "!!! alpha = " + alpha + ", beta = " + beta );
+			System.out.println( "!!! that.alpha = " + that.alpha + ", that.beta = " + that.beta );
+			throw new AssertionError();
+		}
 		return (alpha > that.alpha && beta <= that.beta)
 			|| (alpha >= that.alpha && beta < that.beta);
 	}
@@ -68,6 +73,7 @@ public class PrincipalVariation<S, A>
 	{
 		final StringBuilder sb = new StringBuilder();
 		sb.append( "[" ).append( score ).append( "] " );
+		sb.append( "[" ).append( alpha ).append( ", " ).append( beta ).append( "] " );
 		final ListIterator<String> sitr = states.listIterator();
 		if( sitr.hasNext() ) {
 			sb.append( sitr.next() );

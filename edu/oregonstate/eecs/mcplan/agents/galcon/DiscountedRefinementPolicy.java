@@ -24,6 +24,7 @@ public class DiscountedRefinementPolicy<S, A extends UndoableAction<S, A>>
 	private final Policy<S, A> default_policy_;
 	
 	private S s_ = null;
+	private long t_ = 0L;
 	private Policy<S, A> policy_used_ = null;
 	
 	public DiscountedRefinementPolicy( final int max_depth,
@@ -41,12 +42,14 @@ public class DiscountedRefinementPolicy<S, A extends UndoableAction<S, A>>
 		sim_ = sim;
 		action_gen_ = action_gen;
 		default_policy_ = default_policy;
+		System.out.println( "[DiscountedRefinementPolicy] discount = " + discount_ );
 	}
 
 	@Override
-	public void setState( final S s )
+	public void setState( final S s, final long t )
 	{
 		s_ = s;
+		t_ = t;
 	}
 
 	@Override
@@ -99,7 +102,7 @@ public class DiscountedRefinementPolicy<S, A extends UndoableAction<S, A>>
 			policy_used_ = default_policy_;
 		}
 		
-		policy_used_.setState( s_ );
+		policy_used_.setState( s_, t_ );
 		return policy_used_.getAction();
 	}
 }

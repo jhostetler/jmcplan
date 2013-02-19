@@ -23,7 +23,9 @@ public class IterativeRefinementPolicy<S, A extends UndoableAction<S, A>>
 	private final Policy<S, A> default_policy_;
 	
 	private S s_ = null;
+	private long t_ = 0L;
 	private Policy<S, A> policy_used_ = null;
+	private final double value_ = 0.0;
 	
 	public IterativeRefinementPolicy( final int max_depth,
 									  final int max_horizon,
@@ -41,9 +43,10 @@ public class IterativeRefinementPolicy<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public void setState( final S s )
+	public void setState( final S s, final long t )
 	{
 		s_ = s;
+		t_ = t;
 	}
 
 	@Override
@@ -62,7 +65,7 @@ public class IterativeRefinementPolicy<S, A extends UndoableAction<S, A>>
 	@Override
 	public String getName()
 	{
-		return "DirectIterativeRefinement";
+		return "IterativeRefinement";
 	}
 
 	@Override
@@ -89,14 +92,20 @@ public class IterativeRefinementPolicy<S, A extends UndoableAction<S, A>>
 		
 		if( search.principalVariation() != null && search.principalVariation().actions.get( 0 ) != null ) {
 			System.out.println( "[IterativeRefinementPolicy] PV: " + search.principalVariation() );
-			policy_used_ = search.principalVariation().actions.get( 0 ).policy_;
+			if( policy_used_ == null ) {
+//				|| search.principalVariation().score > value_ /*Monotone switching*/ ) {
+				policy_used_ = search.principalVariation().actions.get( 0 ).policy_;
+			}
+			else {
+				System.out.println( "[IterativeRefinementPolicy] ! Not switching due to monotone constraint" );
+			}
 		}
-		else {
+		if( policy_used_ == null ) {
 			System.out.println( "[IterativeRefinementPolicy] ! Using leaf heuristic" );
 			policy_used_ = default_policy_;
 		}
 		
-		policy_used_.setState( s_ );
+		policy_used_.setState( s_, t_ );
 		return policy_used_.getAction();
 	}
 }

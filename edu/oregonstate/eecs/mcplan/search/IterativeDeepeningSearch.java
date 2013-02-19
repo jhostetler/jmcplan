@@ -101,6 +101,10 @@ public class IterativeDeepeningSearch<S, A extends UndoableAction<S, A>> impleme
 			System.out.println( "[IterativeDeepeningSearch] PV: " + pv_ );
 			System.out.println( "[IterativeDeepeningSearch] Time: " + (stop - start) + " ms" );
 			
+			if( !search.isComplete() ) {
+				break;
+			}
+			
 			++depth;
 		}
 		complete_ = true;

@@ -49,9 +49,9 @@ public class VariableDurationActionGenerator<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public void setState( final S s )
+	public void setState( final S s, final long t )
 	{
-		base_.setState( s );
+		base_.setState( s, t );
 	}
 
 	@Override

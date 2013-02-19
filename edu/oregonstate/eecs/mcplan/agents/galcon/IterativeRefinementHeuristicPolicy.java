@@ -23,6 +23,7 @@ public class IterativeRefinementHeuristicPolicy<S, A extends UndoableAction<S, A
 	private final AnytimePolicy<S, A> default_policy_;
 	
 	private S s_ = null;
+	private long t_ = 0L;
 	
 	/**
 	 * @param switch_epoch
@@ -43,9 +44,10 @@ public class IterativeRefinementHeuristicPolicy<S, A extends UndoableAction<S, A
 	}
 	
 	@Override
-	public void setState( final S s )
+	public void setState( final S s, final long t )
 	{
 		s_ = s;
+		t_ = t;
 	}
 
 	@Override
@@ -103,7 +105,7 @@ public class IterativeRefinementHeuristicPolicy<S, A extends UndoableAction<S, A
 		else {
 			System.out.println( "[IterativeRefinementPolicy] ! Using default policy" );
 			assert( s_ != null );
-			default_policy_.setState( s_ );
+			default_policy_.setState( s_, t_ );
 			final A a = default_policy_.getAction( control );
 			// FIXME: How do we get actionResult() to the default policy (or do we)?
 			return a;

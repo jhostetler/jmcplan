@@ -56,8 +56,6 @@ public class LoggingNegamaxVisitor<Vertex, Edge> extends NegamaxVisitorBase<Vert
 	{
 		pv_ = pv;
 		out_.println( "principalVariation()" );
-		out_.print( "[" + pv.score + "] " );
-		out_.print( "(" + pv.states.size() + ", " + pv.actions.size() + ") " );
 		out_.println( pv );
 	}
 

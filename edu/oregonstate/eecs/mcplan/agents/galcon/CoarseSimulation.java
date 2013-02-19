@@ -61,7 +61,7 @@ public class CoarseSimulation<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public int horizon()
+	public long horizon()
 	{
 		// FIXME: This should probably be ceil( ... )
 		return base_sim_.horizon() / epoch_;
@@ -70,6 +70,7 @@ public class CoarseSimulation<S, A extends UndoableAction<S, A>>
 	@Override
 	public void setTurn( final int turn )
 	{
+		System.out.println( "[CoarseSimulation] setTurn( " + turn + " )" );
 		super.setTurn( turn );
 		base_sim_.setTurn( turn );
 	}
@@ -84,7 +85,7 @@ public class CoarseSimulation<S, A extends UndoableAction<S, A>>
 		for( int t = 0; t < epoch_; ++t ) {
 			for( final DurativeUndoableAction<S, A> ai : action_history_.peek() ) {
 				final DurativeUndoableAction<S, A> cp = ai.create();
-				cp.policy_.setState( state() );
+				cp.policy_.setState( state(), base_sim_.depth() );
 				final A policy_action = cp.policy_.getAction();
 //					System.out.println( policy_action );
 				base_sim_.takeAction( policy_action );

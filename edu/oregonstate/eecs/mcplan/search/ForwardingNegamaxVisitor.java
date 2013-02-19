@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.search;
 
+import java.util.Iterator;
+
 /**
  * @author jhostetler
  *
@@ -63,4 +65,8 @@ public class ForwardingNegamaxVisitor<Vertex, Edge> implements NegamaxVisitor<Ve
 	@Override
 	public double heuristic( final Vertex v )
 	{ return inner_.heuristic( v ); }
+	
+	@Override
+	public Iterator<Edge> orderActions( Vertex v, final Iterator<Edge> itr )
+	{ return inner_.orderActions( null, itr ); }
 }

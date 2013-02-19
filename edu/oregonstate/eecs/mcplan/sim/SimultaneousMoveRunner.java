@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import edu.oregonstate.eecs.mcplan.agents.galcon.AnytimePolicy;
 import edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction;
 
-public class SimultaneousMoveRunner<S, A extends UndoableAction<S, A>> implements Runnable
+public abstract class SimultaneousMoveRunner<S, A extends UndoableAction<S, A>> implements Runnable
 {
 	private final SimultaneousMoveSimulator<S, A> sim_;
 	private final ArrayList<AnytimePolicy<S, A>> agents_;
@@ -24,29 +24,34 @@ public class SimultaneousMoveRunner<S, A extends UndoableAction<S, A>> implement
 		control_ = control;
 	}
 	
+	public abstract boolean isTerminalState( final S s );
+	
 	@Override
 	public void run()
 	{
-		System.out.println( "run()" );
 		fireStartState( sim_.state() );
 		for( int t = 0; t < T_; ++t ) {
 			final ArrayList<A> actions = new ArrayList<A>( agents_.size() );
 			for( int i = 0; i < agents_.size(); ++i ) {
 				final AnytimePolicy<S, A> policy = agents_.get( i );
+				System.out.println( "[SimultaneousMoveRunner] Action selection: setTurn( " + i + " )" );
 				sim_.setTurn( i );
-				policy.setState( sim_.state() );
+				policy.setState( sim_.state(), t );
 				firePreGetAction( i );
 				final A a = policy.getAction( control_ );
 				firePostGetAction( i, a );
 				actions.add( a );
 				System.out.println( "!!! [t = " + t + "] a" + i + " = " + a.toString() );
 			}
-			
+			System.out.println( "[SimultaneousMoveRunner] Execution: setTurn( 0 )" );
 			sim_.setTurn( 0 );
 			for( final A a : actions ) {
 				sim_.takeAction( a );
 			}
 			fireActionsTaken( sim_.state() );
+			if( isTerminalState( sim_.state() ) ) {
+				break;
+			}
 		}
 		fireEndState( sim_.state() );
 	}

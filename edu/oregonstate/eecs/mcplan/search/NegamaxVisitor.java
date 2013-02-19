@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.search;
 
+import java.util.Iterator;
+
 
 /**
  * @author jhostetler
@@ -22,4 +24,5 @@ public interface NegamaxVisitor<Vertex, Edge>
 	public abstract double goal( final Vertex v );
 	public abstract boolean isGoal( final Vertex v );
 	public abstract double heuristic( final Vertex v );
+	public abstract Iterator<Edge> orderActions( final Vertex v, final Iterator<Edge> itr );
 }

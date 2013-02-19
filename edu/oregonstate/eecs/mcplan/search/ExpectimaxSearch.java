@@ -112,7 +112,7 @@ public class ExpectimaxSearch<S, A extends UndoableAction<S, A>> implements Runn
 		}
 		else {
 			final ActionGenerator<S, A> local_action_gen = action_gen_.create();
-			local_action_gen.setState( s );
+			local_action_gen.setState( s, sim_.depth() );
 			while( local_action_gen.hasNext() ) {
 				final A a = local_action_gen.next();
 				sim_.takeAction( a );
@@ -162,10 +162,11 @@ public class ExpectimaxSearch<S, A extends UndoableAction<S, A>> implements Runn
 	{
 		final int epoch = 10;
 		final int horizon = 5000;
+		final int Nplanets = 10;
 		final double min_launch_percentage = 0.2;
 		final int launch_size_steps = 10;
 		final GalconSimulator sim = new GalconSimulator(
-			horizon, epoch, false, false, 641, min_launch_percentage, launch_size_steps );
+			horizon, epoch, false, false, 641, Nplanets, min_launch_percentage, launch_size_steps );
 		final FastGalconState fast_state = new FastGalconState(
 			sim, horizon, epoch, min_launch_percentage, launch_size_steps );
 		final List<Agent> policies = new ArrayList<Agent>();

@@ -22,7 +22,7 @@ public class IterativeDeepeningPolicy<S, A extends UndoableAction<S, A>>
 	private final Policy<S, A> default_policy_;
 	
 	private S s_ = null;
-	private final Policy<S, A> policy_used_ = null;
+	private long t_ = 0L;
 	
 	public IterativeDeepeningPolicy( final int max_depth,
 									 final SimultaneousMoveSimulator<S, A> sim,
@@ -38,9 +38,10 @@ public class IterativeDeepeningPolicy<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public void setState( final S s )
+	public void setState( final S s, final long t )
 	{
 		s_ = s;
+		t_ = t;
 	}
 
 	@Override
@@ -52,8 +53,7 @@ public class IterativeDeepeningPolicy<S, A extends UndoableAction<S, A>>
 	@Override
 	public void actionResult( final A a, final S sprime, final double r )
 	{
-		assert( policy_used_ != null );
-		policy_used_.actionResult( a, sprime, r );
+		// TODO:
 	}
 
 	@Override
@@ -77,7 +77,7 @@ public class IterativeDeepeningPolicy<S, A extends UndoableAction<S, A>>
 	@Override
 	public A getAction( final long control )
 	{
-		System.out.println( "[DirectIterativeDeepening] getAction()" );
+		System.out.println( "[IterativeDeepening] getAction()" );
 		final BoundedVisitor<S, A> bv
 			= new BoundedVisitor<S, A>( visitor_, new Countdown( control ) );
 		final IterativeDeepeningSearch<S, A> search
@@ -85,12 +85,12 @@ public class IterativeDeepeningPolicy<S, A extends UndoableAction<S, A>>
 		search.run();
 		
 		if( search.principalVariation() != null && search.principalVariation().actions.get( 0 ) != null ) {
-			System.out.println( "[DirectIterativeDeepening] PV: " + search.principalVariation() );
+			System.out.println( "[IterativeDeepening] PV: " + search.principalVariation() );
 			return search.principalVariation().actions.get( 0 );
 		}
 		else {
-			System.out.println( "[DirectIterativeDeepening] ! Using leaf heuristic" );
-			default_policy_.setState( s_ );
+			System.out.println( "[IterativeDeepening] ! Using leaf heuristic" );
+			default_policy_.setState( s_, t_ );
 			return default_policy_.getAction();
 		}
 	}

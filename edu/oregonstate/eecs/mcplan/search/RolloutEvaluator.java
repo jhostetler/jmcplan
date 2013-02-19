@@ -41,7 +41,7 @@ public final class RolloutEvaluator<S extends State, A> implements Runnable
 	 * @param max_depth Maximum rollout depth. Specify -1 to simulate to the
 	 * end of the game.
 	 */
-	public RolloutEvaluator( final Simulator<S, A> simulator, final List<Agent> policies, 
+	public RolloutEvaluator( final Simulator<S, A> simulator, final List<Agent> policies,
 							 final int episodes, final int max_depth )
 	{
 		simulator_ = simulator;
@@ -91,11 +91,12 @@ public final class RolloutEvaluator<S extends State, A> implements Runnable
 	
 	public static void main( final String[] args )
 	{
-		final GalconSimulator sim = new GalconSimulator( 5000, 10, false, false, 641, 0.1, 10 );
+		final int Nplanets = 10;
+		final GalconSimulator sim = new GalconSimulator( 5000, 10, false, false, 641, Nplanets, 0.1, 10 );
 		final List<Agent> policies = new ArrayList<Agent>();
 		policies.add( new ExpandPolicy( "true 1.0 0.1 1.0 10000 0.1 2.0".split( " " ) ) );
 		policies.add( new ExpandPolicy( "true 1.0 0.1 1.0 100000 0.1 2.0".split( " " ) ) );
-		final RolloutEvaluator<GalconState, GalconAction> eval = 
+		final RolloutEvaluator<GalconState, GalconAction> eval =
 			new RolloutEvaluator<GalconState, GalconAction>( sim, policies, 1, -1 );
 		eval.run();
 		System.out.println( eval.reward( 0 ) );
