@@ -9,8 +9,10 @@ import java.util.Arrays;
 import java.util.Deque;
 import java.util.Iterator;
 
-import edu.oregonstate.eecs.mcplan.agents.galcon.UndoSimulator;
-import edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.util.ListUtil;
 
 /**
@@ -19,6 +21,8 @@ import edu.oregonstate.eecs.mcplan.util.ListUtil;
  */
 public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A>> implements UndoSimulator<S, A>
 {
+	private static final Logger log = LoggerFactory.getLogger( SimultaneousMoveSimulator.class );
+	
 	protected final Deque<ArrayList<A>> action_history_ = new ArrayDeque<ArrayList<A>>();
 	protected final Deque<Deque<Integer>> move_order_history_ = new ArrayDeque<Deque<Integer>>();
 	protected final Deque<Deque<A>> event_history_ = new ArrayDeque<Deque<A>>();
@@ -104,6 +108,7 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 			assert( move_order_history_.peek().size() == getNumAgents() );
 			for( final int i : move_order_history_.peek() ) {
 				final A ai = action_history_.peek().get( i );
+				log.debug( "do action {}", ai.toString() );
 				ai.doAction( state() );
 			}
 //			while( itr.hasNext() ) {
@@ -154,7 +159,9 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 			
 			// Revert world to previous turn
 			while( !event_history_.peek().isEmpty() ) {
-				event_history_.peek().pop().undoAction( state() );
+				final A a = event_history_.peek().pop();
+				log.debug( "undo event {}", a.toString() );
+				a.undoAction( state() );
 			}
 			
 			// Undo, but do not remove, actions from this turn.
@@ -166,6 +173,7 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 				final A a = action_history_.peek().get( i );
 //				System.out.println( "[SimultaneousMoveSimulator] Player " + i
 //									+ ": untakeAction( " + a.toString() + " )" );
+				log.debug( "undo action {}", a.toString() );
 				a.undoAction( state() );
 			}
 			Arrays.fill( turn_taken_, true );
@@ -181,6 +189,7 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 	
 	protected final void applyEvent( final A e )
 	{
+		log.debug( "do event {}", e.toString() );
 		e.doAction( state() );
 		event_history_.peek().push( e );
 	}

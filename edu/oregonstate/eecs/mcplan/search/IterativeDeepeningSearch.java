@@ -3,9 +3,9 @@
  */
 package edu.oregonstate.eecs.mcplan.search;
 
-import edu.oregonstate.eecs.mcplan.agents.galcon.ActionGenerator;
-import edu.oregonstate.eecs.mcplan.agents.galcon.UndoSimulator;
-import edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction;
+import edu.oregonstate.eecs.mcplan.ActionGenerator;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
+import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 
 /**
  * @author jhostetler

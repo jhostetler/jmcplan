@@ -2,10 +2,10 @@ package edu.oregonstate.eecs.mcplan.sim;
 
 import java.util.ArrayList;
 
-import edu.oregonstate.eecs.mcplan.agents.galcon.AnytimePolicy;
-import edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction;
+import edu.oregonstate.eecs.mcplan.AnytimePolicy;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 
-public abstract class SimultaneousMoveRunner<S, A extends UndoableAction<S, A>> implements Runnable
+public class SimultaneousMoveRunner<S, A extends UndoableAction<S, A>> implements Runnable
 {
 	private final SimultaneousMoveSimulator<S, A> sim_;
 	private final ArrayList<AnytimePolicy<S, A>> agents_;
@@ -23,8 +23,6 @@ public abstract class SimultaneousMoveRunner<S, A extends UndoableAction<S, A>> 
 		T_ = T;
 		control_ = control;
 	}
-	
-	public abstract boolean isTerminalState( final S s );
 	
 	@Override
 	public void run()
@@ -49,7 +47,7 @@ public abstract class SimultaneousMoveRunner<S, A extends UndoableAction<S, A>> 
 				sim_.takeAction( a );
 			}
 			fireActionsTaken( sim_.state() );
-			if( isTerminalState( sim_.state() ) ) {
+			if( sim_.isTerminalState( sim_.state() ) ) {
 				break;
 			}
 		}

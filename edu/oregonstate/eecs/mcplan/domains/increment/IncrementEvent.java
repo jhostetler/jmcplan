@@ -3,7 +3,7 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.increment;
 
-import edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 
 /**
  * @author jhostetler

@@ -93,4 +93,11 @@ public class IncrementSimulator extends SimultaneousMoveSimulator<IncrementState
 		return reward_history_.peek();
 	}
 
+	@Override
+	public boolean isTerminalState( final IncrementState s )
+	{
+		// TODO Auto-generated method stub
+		return false;
+	}
+
 }

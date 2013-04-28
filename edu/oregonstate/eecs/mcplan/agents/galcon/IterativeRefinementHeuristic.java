@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.agents.galcon;
 
+import edu.oregonstate.eecs.mcplan.ActionGenerator;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.search.ForwardingNegamaxVisitor;
 import edu.oregonstate.eecs.mcplan.search.IterativeRefinementSearch;
 import edu.oregonstate.eecs.mcplan.search.NegamaxVisitor;

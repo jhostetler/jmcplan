@@ -3,12 +3,15 @@
  */
 package edu.oregonstate.eecs.mcplan.search;
 
+import java.util.List;
+
+import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.Pair;
-import edu.oregonstate.eecs.mcplan.agents.galcon.ActionGenerator;
-import edu.oregonstate.eecs.mcplan.agents.galcon.Policy;
-import edu.oregonstate.eecs.mcplan.agents.galcon.UndoSimulator;
-import edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction;
-import edu.oregonstate.eecs.mcplan.experiments.MeanVarianceAccumulator;
+import edu.oregonstate.eecs.mcplan.Policy;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
+import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
+import edu.oregonstate.eecs.mcplan.util.CircularListIterator;
+import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 
 /**
  * @author jhostetler
@@ -20,7 +23,7 @@ public class RolloutSearch<S, A extends UndoableAction<S, A>> implements GameTre
 	private final ActionGenerator<S, A> action_gen_;
 	private final double c_;
 	private final long max_time_;
-	private final Policy<S, A> rollout_policy_;
+	private final List<Policy<S, A>> rollout_policies_;
 	private final MctsVisitor<S, A> visitor_;
 	
 	private PrincipalVariation<S, A> pv_ = null;
@@ -37,17 +40,18 @@ public class RolloutSearch<S, A extends UndoableAction<S, A>> implements GameTre
 	 * @param max_time
 	 */
 	public RolloutSearch( final UndoSimulator<S, A> sim, final ActionGenerator<S, A> action_gen,
-						  final double c, final long max_time, final Policy<S, A> rollout_policy,
+						  final double c, final long max_time, final List<Policy<S, A>> rollout_policies,
 						  final MctsVisitor<S, A> visitor )
 	{
 		sim_ = sim;
 		action_gen_ = action_gen;
 		c_ = c;
 		max_time_ = max_time;
-		rollout_policy_ = rollout_policy;
+		rollout_policies_ = rollout_policies;
 		visitor_ = visitor;
+		assert( sim.getNumAgents() == rollout_policies_.size() );
 		
-		action_gen_.setState( sim_.state(), sim_.depth() );
+		action_gen_.setState( sim_.state(), sim_.depth(), sim_.getTurn() );
 		q_ = new MeanVarianceAccumulator[action_gen_.size()];
 		for( int i = 0; i < q_.length; ++i ) {
 			q_[i] = new MeanVarianceAccumulator();
@@ -60,7 +64,7 @@ public class RolloutSearch<S, A extends UndoableAction<S, A>> implements GameTre
 		A best_action = null;
 		int best_idx = 0;
 		double best_score = -Double.MAX_VALUE;
-		action_gen_.setState( sim_.state(), sim_.depth() );
+		action_gen_.setState( sim_.state(), sim_.depth(), sim_.getTurn() );
 		int idx = 0;
 		while( action_gen_.hasNext() ) {
 			final A a = action_gen_.next();
@@ -68,6 +72,8 @@ public class RolloutSearch<S, A extends UndoableAction<S, A>> implements GameTre
 				return Pair.makePair( a, idx );
 			}
 			final double exploit = q_[idx].mean();
+			assert( ns_ > 0 );
+			assert( na_[idx] > 0 );
 			final double explore = c_ * Math.sqrt( Math.log( ns_ ) / na_[idx] );
 			final double score = exploit + explore;
 			if( score > best_score ) {
@@ -84,11 +90,14 @@ public class RolloutSearch<S, A extends UndoableAction<S, A>> implements GameTre
 	private double rollout()
 	{
 		int depth = 0;
+		final CircularListIterator<Policy<S, A>> pitr =
+			new CircularListIterator<Policy<S, A>>( rollout_policies_, sim_.getTurn() );
 		while( !visitor_.isTerminal( sim_.state() ) ) {
-			rollout_policy_.setState( sim_.state(), sim_.depth() );
-			final A a = rollout_policy_.getAction();
+			final Policy<S, A> pi = pitr.next();
+			pi.setState( sim_.state(), sim_.depth() );
+			final A a = pi.getAction();
 			sim_.takeAction( a );
-			rollout_policy_.actionResult( a, sim_.state(), sim_.getReward() );
+			pi.actionResult( a, sim_.state(), sim_.getReward() );
 			visitor_.rolloutAction( a, sim_.state() );
 			++depth;
 		}
@@ -120,7 +129,7 @@ public class RolloutSearch<S, A extends UndoableAction<S, A>> implements GameTre
 			t = System.currentTimeMillis();
 		}
 		
-		action_gen_.setState( sim_.state(), sim_.depth() );
+		action_gen_.setState( sim_.state(), sim_.depth(), sim_.getTurn() );
 		A best_action = null;
 		int best_count = 0;
 		int idx = 0;

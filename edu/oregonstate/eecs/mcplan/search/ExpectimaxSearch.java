@@ -7,16 +7,16 @@ import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.Agent;
-import edu.oregonstate.eecs.mcplan.agents.galcon.ActionGenerator;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.agents.galcon.ExpandPolicy;
-import edu.oregonstate.eecs.mcplan.agents.galcon.UndoSimulator;
-import edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction;
 import edu.oregonstate.eecs.mcplan.domains.galcon.FastGalconEvent;
 import edu.oregonstate.eecs.mcplan.domains.galcon.FastGalconNothingAction;
 import edu.oregonstate.eecs.mcplan.domains.galcon.FastGalconState;
 import edu.oregonstate.eecs.mcplan.domains.galcon.FastPlanet;
 import edu.oregonstate.eecs.mcplan.domains.galcon.GalconSimulator;
+import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 
 /**
  * @author jhostetler

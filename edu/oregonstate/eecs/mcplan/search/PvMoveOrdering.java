@@ -5,8 +5,8 @@ package edu.oregonstate.eecs.mcplan.search;
 
 import java.util.Arrays;
 
-import edu.oregonstate.eecs.mcplan.agents.galcon.ActionGenerator;
-import edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction;
+import edu.oregonstate.eecs.mcplan.ActionGenerator;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 
 /**
  * Implements the principal variation move ordering heuristic.

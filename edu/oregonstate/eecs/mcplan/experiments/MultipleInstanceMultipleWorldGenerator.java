@@ -17,7 +17,7 @@ import edu.oregonstate.eecs.mcplan.util.Generator;
  * 
  * @author jhostetler
  */
-public class MultipleInstanceMultipleWorldGenerator<P, W extends Copyable<W>>
+public class MultipleInstanceMultipleWorldGenerator<P, W extends Copyable<? extends W>>
 	extends Generator<ExperimentalSetup<P, W>>
 {
 	private final Environment master_;

@@ -7,8 +7,8 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
 
-import edu.oregonstate.eecs.mcplan.agents.galcon.DurativeUndoableAction;
-import edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction;
+import edu.oregonstate.eecs.mcplan.DurativeUndoableAction;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 
 /**
  * FIXME: There's really no way to implement this correctly, since we need

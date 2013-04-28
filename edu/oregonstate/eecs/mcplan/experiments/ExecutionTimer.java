@@ -5,8 +5,9 @@ package edu.oregonstate.eecs.mcplan.experiments;
 
 import java.util.ArrayList;
 
-import edu.oregonstate.eecs.mcplan.agents.galcon.Policy;
+import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveListener;
+import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 
 /**
  * @author jhostetler

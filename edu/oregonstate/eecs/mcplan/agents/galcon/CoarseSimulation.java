@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.agents.galcon;
 
+import edu.oregonstate.eecs.mcplan.DurativeUndoableAction;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveSimulator;
 
 /**
@@ -112,5 +114,10 @@ public class CoarseSimulation<S, A extends UndoableAction<S, A>>
 		// Don't change for now!
 		return "[d: " + base_sim_.depth() + ", p: " + getTurn() + "]";
 	}
-	
+
+	@Override
+	public boolean isTerminalState( final S s )
+	{
+		return base_sim_.isTerminalState( s );
+	}
 }

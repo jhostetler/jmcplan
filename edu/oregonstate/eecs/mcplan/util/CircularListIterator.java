@@ -21,8 +21,19 @@ public class CircularListIterator<T> implements ListIterator<T>
 	 */
 	public CircularListIterator( final List<T> list )
 	{
+		this( list, 0 );
+	}
+	
+	public CircularListIterator( final List<T> list, final int idx )
+	{
 		list_ = list;
-		itr_ = list_.listIterator();
+		itr_ = list_.listIterator( idx );
+	}
+	
+	public CircularListIterator( final CircularListIterator<T> that )
+	{
+		list_ = that.list_;
+		itr_ = list_.listIterator( that.nextIndex() );
 	}
 
 	@Override

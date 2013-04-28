@@ -2,8 +2,8 @@ package edu.oregonstate.eecs.mcplan.search;
 
 import java.util.Iterator;
 
-import edu.oregonstate.eecs.mcplan.agents.galcon.DurativeUndoableAction;
-import edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction;
+import edu.oregonstate.eecs.mcplan.DurativeUndoableAction;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 
 public class DurativeNegamaxVisitorBridge<S, A extends UndoableAction<S, A>>
 	implements NegamaxVisitor<S, A>

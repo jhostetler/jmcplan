@@ -5,7 +5,7 @@ package edu.oregonstate.eecs.mcplan.sim;
 
 import java.util.ArrayList;
 
-import edu.oregonstate.eecs.mcplan.agents.galcon.Policy;
+import edu.oregonstate.eecs.mcplan.Policy;
 
 /**
  * @author jhostetler

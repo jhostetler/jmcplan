@@ -3,6 +3,10 @@
  */
 package edu.oregonstate.eecs.mcplan.agents.galcon;
 
+import edu.oregonstate.eecs.mcplan.ActionGenerator;
+import edu.oregonstate.eecs.mcplan.DurativeUndoableAction;
+import edu.oregonstate.eecs.mcplan.RepeatPolicy;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.search.DepthRecorder;
 
 /**
@@ -49,9 +53,9 @@ public class VariableDurationActionGenerator<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public void setState( final S s, final long t )
+	public void setState( final S s, final long t, final int turn )
 	{
-		base_.setState( s, t );
+		base_.setState( s, t, turn );
 	}
 
 	@Override

@@ -3,7 +3,7 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.increment;
 
-import edu.oregonstate.eecs.mcplan.agents.galcon.AnytimePolicy;
+import edu.oregonstate.eecs.mcplan.AnytimePolicy;
 
 /**
  * This policy for the IncrementGame increments the specified counter in

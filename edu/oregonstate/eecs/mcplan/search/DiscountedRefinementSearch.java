@@ -5,11 +5,11 @@ package edu.oregonstate.eecs.mcplan.search;
 
 import java.util.Arrays;
 
-import edu.oregonstate.eecs.mcplan.agents.galcon.ActionGenerator;
-import edu.oregonstate.eecs.mcplan.agents.galcon.DurativeActionSimulator;
-import edu.oregonstate.eecs.mcplan.agents.galcon.DurativeUndoableAction;
-import edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction;
+import edu.oregonstate.eecs.mcplan.ActionGenerator;
+import edu.oregonstate.eecs.mcplan.DurativeUndoableAction;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.agents.galcon.VariableDurationActionGenerator;
+import edu.oregonstate.eecs.mcplan.sim.DurativeActionSimulator;
 import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveSimulator;
 
 /**
