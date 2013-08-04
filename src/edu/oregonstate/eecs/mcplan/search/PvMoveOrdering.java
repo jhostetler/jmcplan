@@ -75,7 +75,7 @@ public class PvMoveOrdering<S, A extends UndoableAction<S, A>> implements Action
 	}
 
 	@Override
-	public void setState( final S s, final long t )
+	public void setState( final S s, final long t, final int turn )
 	{
 		pv_idx_ = PvIdxInvalid;
 		// size() - 1 because the end state has no associated action.
@@ -99,7 +99,7 @@ public class PvMoveOrdering<S, A extends UndoableAction<S, A>> implements Action
 		}
 		assert( pv_idx_ < pv_.cmove );
 		Arrays.fill( used_, false );
-		inner_.setState( s, t );
+		inner_.setState( s, t, turn );
 	}
 
 	@Override

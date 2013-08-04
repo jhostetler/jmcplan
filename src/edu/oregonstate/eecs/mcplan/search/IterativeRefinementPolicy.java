@@ -1,15 +1,12 @@
 /**
  * 
  */
-package edu.oregonstate.eecs.mcplan.agents.galcon;
+package edu.oregonstate.eecs.mcplan.search;
 
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
 import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.search.BoundedVisitor;
-import edu.oregonstate.eecs.mcplan.search.IterativeRefinementSearch;
-import edu.oregonstate.eecs.mcplan.search.NegamaxVisitor;
 import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveSimulator;
 import edu.oregonstate.eecs.mcplan.util.Countdown;
 
@@ -24,7 +21,7 @@ public class IterativeRefinementPolicy<S, A extends UndoableAction<S, A>>
 	private final int max_depth_;
 	private final int max_horizon_;
 	private final SimultaneousMoveSimulator<S, A> sim_;
-	private final ActionGenerator<S, A> action_gen_;
+	private final ActionGenerator<S, AnytimePolicy<S, A>> action_gen_;
 	private final Policy<S, A> default_policy_;
 	
 	private S s_ = null;
@@ -35,7 +32,7 @@ public class IterativeRefinementPolicy<S, A extends UndoableAction<S, A>>
 	public IterativeRefinementPolicy( final int max_depth,
 									  final int max_horizon,
 									  final SimultaneousMoveSimulator<S, A> sim,
-									  final ActionGenerator<S, A> action_gen,
+									  final ActionGenerator<S, AnytimePolicy<S, A>> action_gen,
 									  final NegamaxVisitor<S, A> visitor,
 									  final Policy<S, A> default_policy )
 	{

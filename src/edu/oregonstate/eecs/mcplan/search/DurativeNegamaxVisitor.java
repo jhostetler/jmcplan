@@ -7,7 +7,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Iterator;
 
-import edu.oregonstate.eecs.mcplan.DurativeUndoableAction;
+import edu.oregonstate.eecs.mcplan.DurativeAction;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
 
 /**
@@ -24,7 +24,7 @@ import edu.oregonstate.eecs.mcplan.UndoableAction;
  * adapter would only affect the search control functions.
  */
 public class DurativeNegamaxVisitor<S, A extends UndoableAction<S, A>>
-	implements NegamaxVisitor<S, DurativeUndoableAction<S, A>>, DepthRecorder
+	implements NegamaxVisitor<S, DurativeAction<S, A>>, DepthRecorder
 {
 	private final NegamaxVisitor<S, A> base_;
 	private int depth_ = -1;
@@ -52,6 +52,11 @@ public class DurativeNegamaxVisitor<S, A extends UndoableAction<S, A>>
 		return time_;
 	}
 	
+	protected int turn()
+	{
+		return depth_ % 2; // TODO: Generalize to any number of players
+	}
+	
 	@Override
 	public void initializeVertex( final S v )
 	{
@@ -72,7 +77,7 @@ public class DurativeNegamaxVisitor<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public void examineEdge( final DurativeUndoableAction<S, A> e, final S dest )
+	public void examineEdge( final DurativeAction<S, A> e, final S dest )
 	{
 		// FIXME: Not (practically) implementable
 		final long t = e.T_;
@@ -82,20 +87,20 @@ public class DurativeNegamaxVisitor<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public final void treeEdge( final DurativeUndoableAction<S, A> e, final S dest )
+	public final void treeEdge( final DurativeAction<S, A> e, final S dest )
 	{
 		// FIXME: Not (practically) implementable
 	}
 
 	@Override
-	public void prunedEdge( final DurativeUndoableAction<S, A> e, final S dest )
+	public void prunedEdge( final DurativeAction<S, A> e, final S dest )
 	{
 		// FIXME: Not (practically) implementable
 	}
 
 	@Override
 	public void principalVariation(
-			final PrincipalVariation<S, DurativeUndoableAction<S, A>> pv )
+			final PrincipalVariation<S, DurativeAction<S, A>> pv )
 	{
 		// TODO Auto-generated method stub
 		
@@ -135,8 +140,8 @@ public class DurativeNegamaxVisitor<S, A extends UndoableAction<S, A>>
 	}
 	
 	@Override
-	public Iterator<DurativeUndoableAction<S, A>> orderActions(
-		final S s, final Iterator<DurativeUndoableAction<S, A>> itr )
+	public Iterator<DurativeAction<S, A>> orderActions(
+		final S s, final Iterator<DurativeAction<S, A>> itr )
 	{
 		return itr;
 	}

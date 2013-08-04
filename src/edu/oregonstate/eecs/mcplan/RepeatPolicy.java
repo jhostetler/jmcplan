@@ -8,11 +8,11 @@ package edu.oregonstate.eecs.mcplan;
  * @author jhostetler
  *
  */
-public class RepeatPolicy<S, A extends UndoableAction<S, A>> implements AnytimePolicy<S, A>
+public class RepeatPolicy<S, A extends UndoableAction<S>> implements AnytimePolicy<S>
 {
-	private final UndoableAction<S, A> a_;
+	private final UndoableAction<S> a_;
 	
-	public static <S, A extends UndoableAction<S, A>> RepeatPolicy<S, A> create( final A a )
+	public static <S, A extends UndoableAction<S>> RepeatPolicy<S, A> create( final A a )
 	{
 		return new RepeatPolicy<S, A>( a );
 	}
@@ -26,17 +26,17 @@ public class RepeatPolicy<S, A extends UndoableAction<S, A>> implements AnytimeP
 	}
 
 	@Override
-	public void setState( final S s, long t )
+	public void setState( final S s, final long t )
 	{ }
 
 	@Override
-	public A getAction()
+	public UndoableAction<S> getAction()
 	{
 		return a_.create();
 	}
 
 	@Override
-	public void actionResult( final A a, final S sprime, final double r )
+	public void actionResult( final UndoableAction<S> a, final S sprime, final double r )
 	{ }
 
 	@Override
@@ -58,7 +58,7 @@ public class RepeatPolicy<S, A extends UndoableAction<S, A>> implements AnytimeP
 	}
 
 	@Override
-	public A getAction( final long control )
+	public UndoableAction<S> getAction( final long control )
 	{
 		return getAction();
 	}

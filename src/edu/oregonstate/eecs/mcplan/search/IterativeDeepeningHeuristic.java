@@ -1,13 +1,10 @@
 /**
  * 
  */
-package edu.oregonstate.eecs.mcplan.agents.galcon;
+package edu.oregonstate.eecs.mcplan.search;
 
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.search.ForwardingNegamaxVisitor;
-import edu.oregonstate.eecs.mcplan.search.IterativeDeepeningSearch;
-import edu.oregonstate.eecs.mcplan.search.NegamaxVisitor;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 
 /**

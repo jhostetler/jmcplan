@@ -8,16 +8,16 @@ package edu.oregonstate.eecs.mcplan;
 /**
  * Adapts an ActionGenerator to generate DurativeUndoableActions.
  */
-public class DurativeActionGenerator<S, A extends UndoableAction<S, A>>
-	implements ActionGenerator<S, DurativeUndoableAction<S, A>>
+public class DurativeActionGenerator<S, A>
+	implements ActionGenerator<S, DurativeAction<S, A>>
 {
-	private final ActionGenerator<S, A> base_;
+	private final ActionGenerator<S, ? extends Policy<S, A>> base_;
 	private final int epoch_;
 	
 	/**
 	 * 
 	 */
-	public DurativeActionGenerator( final ActionGenerator<S, A> base, final int epoch )
+	public DurativeActionGenerator( final ActionGenerator<S, ? extends Policy<S, A>> base, final int epoch )
 	{
 		base_ = base;
 		epoch_ = epoch;
@@ -30,9 +30,9 @@ public class DurativeActionGenerator<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public DurativeUndoableAction<S, A> next()
+	public DurativeAction<S, A> next()
 	{
-		return new DurativeUndoableAction<S, A>( new RepeatPolicy<S, A>( base_.next() ), epoch_ );
+		return new DurativeAction<S, A>( base_.next(), epoch_ );
 	}
 
 	@Override
@@ -48,7 +48,7 @@ public class DurativeActionGenerator<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public ActionGenerator<S, DurativeUndoableAction<S, A>> create()
+	public ActionGenerator<S, DurativeAction<S, A>> create()
 	{
 		return new DurativeActionGenerator<S, A>( base_.create(), epoch_ );
 	}

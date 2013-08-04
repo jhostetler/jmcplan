@@ -3,21 +3,21 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.voyager;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.List;
 
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.oregonstate.eecs.mcplan.util.F;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * @author jhostetler
  *
  */
-public class LaunchAction extends VoyagerEvent
+public class LaunchAction implements UndoableAction<VoyagerState>
 {
 	public static final Logger log = LoggerFactory.getLogger( LaunchAction.class );
 	
@@ -26,7 +26,7 @@ public class LaunchAction extends VoyagerEvent
 	public final int[] population;
 	
 	private Player old_owner_ = null;
-	private List<EntityType> old_production_ = null;
+	private EntityType old_production_ = null;
 	private int[] old_stored_production_ = null;
 	private Spaceship spaceship_ = null;
 	private boolean done_ = false;
@@ -41,8 +41,8 @@ public class LaunchAction extends VoyagerEvent
 		this.dest = dest;
 		this.population = population;
 		assert( !src.equals( dest ) );
-		assert( F.sum( population ) > 0 );
-		assert( F.all( new F.Pred.GreaterEqInt( 0 ), population ) );
+		assert( Fn.sum( population ) > 0 );
+		assert( Fn.all( Fn.Pred.GreaterEq( 0 ), population ) );
 		for( int i = 0; i < population.length; ++i ) {
 			assert( src.population()[i] >= population[i] );
 		}
@@ -69,7 +69,7 @@ public class LaunchAction extends VoyagerEvent
 			src.incrementPopulation( EntityType.values()[i], population[i] );
 		}
 		src.setOwner( old_owner_ );
-		src.setProductionSchedule( old_production_ );
+		src.setProduction( old_production_ );
 		src.setStoredProduction( old_stored_production_ );
 		done_ = false;
 	}
@@ -83,19 +83,21 @@ public class LaunchAction extends VoyagerEvent
 		assert( !done_ );
 		log.debug( "do {}", toString() );
 		old_owner_ = src.owner();
-		old_production_ = src.productionSchedule();
+		old_production_ = src.nextProduced();
 		old_stored_production_ = Arrays.copyOf( src.storedProduction(), src.storedProduction().length );
 		for( int i = 0; i < population.length; ++i ) {
 			src.decrementPopulation( EntityType.values()[i], population[i] );
 		}
 		assert( src.totalPopulation() >= 0 );
 		spaceship_ = new Spaceship.Builder()
-			.dest( dest ).owner( src.owner() ).population( population )
-			.src( src ).x( src.x ).y( src.y ).finish();
+			.owner( src.owner() ).src( src ).x( src.x ).y( src.y )
+			.dest( dest ).population( population )
+			.hash( s.hash )
+			.finish( s.spaceship_factory );
 		if( src.totalPopulation() == 0 ) {
 			src.setOwner( Player.Neutral );
-			src.setProductionSchedule( new ArrayList<EntityType>() );
-			src.setStoredProduction( new int[EntityType.values().length] );
+			src.setProduction( EntityType.defaultProduction() );
+			src.setStoredProduction( Fn.repeat( 0, EntityType.values().length ) );
 		}
 		s.spaceships.add( spaceship_ );
 		done_ = true;
@@ -114,8 +116,9 @@ public class LaunchAction extends VoyagerEvent
 	 * @see edu.oregonstate.eecs.mcplan.agents.galcon.Action#create()
 	 */
 	@Override
-	public VoyagerEvent create()
+	public UndoableAction<VoyagerState> create()
 	{
+//		throw new AssertionError();
 		return new LaunchAction( src, dest, population );
 	}
 	
@@ -123,6 +126,25 @@ public class LaunchAction extends VoyagerEvent
 	public String toString()
 	{
 		return repr_;
+	}
+	
+	@Override
+	public int hashCode()
+	{
+		return new HashCodeBuilder( 17, 31 )
+			.append( src ).append( dest ).append( population ).toHashCode();
+	}
+	
+	@Override
+	public boolean equals( final Object obj )
+	{
+		if( obj == null || !(obj instanceof LaunchAction) ) {
+			return false;
+		}
+		final LaunchAction that = (LaunchAction) obj;
+		return src.equals( that.src )
+			   && dest.equals( that.dest )
+			   && Arrays.equals( population, that.population );
 	}
 
 }

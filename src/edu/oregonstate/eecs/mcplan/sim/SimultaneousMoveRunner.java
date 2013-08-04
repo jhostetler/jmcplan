@@ -2,41 +2,60 @@ package edu.oregonstate.eecs.mcplan.sim;
 
 import java.util.ArrayList;
 
-import edu.oregonstate.eecs.mcplan.AnytimePolicy;
+import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
 
-public class SimultaneousMoveRunner<S, A extends UndoableAction<S, A>> implements Runnable
+public class SimultaneousMoveRunner<S, A extends UndoableAction<S>> implements Runnable
 {
 	private final SimultaneousMoveSimulator<S, A> sim_;
-	private final ArrayList<AnytimePolicy<S, A>> agents_;
+	private final ArrayList<? extends Policy<S, A>> agents_;
 	private final int T_;
-	private final int control_;
 	private final ArrayList<SimultaneousMoveListener<S, A>> listeners_
 		= new ArrayList<SimultaneousMoveListener<S, A>>();
+	private final boolean use_burnin_ = false; // FIXME: Burn-in is messing up first move; disabling for now
 	
 	public SimultaneousMoveRunner( final SimultaneousMoveSimulator<S, A> sim,
-								   final ArrayList<AnytimePolicy<S, A>> agents,
-								   final int T, final int control )
+								   final ArrayList<? extends Policy<S, A>> agents,
+								   final int T )
 	{
 		sim_ = sim;
 		agents_ = agents;
 		T_ = T;
-		control_ = control;
 	}
 	
 	@Override
 	public void run()
 	{
 		fireStartState( sim_.state() );
+		
+		if( use_burnin_ ) {
+			// The first player to move always ends up achieving fewer rollouts
+			// on his first turn compared to the second player. I think this
+			// is due to startup costs of the JVM or some kind of
+			// profiling-based optimizations. My solution is to do a "practice"
+			// round for all players before starting the experiment. This
+			// appears to work.
+			// TODO: The visitors passed to policies like UctPolicy will still
+			// be called for the fake searches. What are the consequences?
+			for( int i = 0; i < agents_.size(); ++i ) {
+				final Policy<S, A> policy = agents_.get( i );
+				System.out.println( "[SimultaneousMoveRunner] Burn-in: Player " + i );
+				sim_.setTurn( i );
+				final int t0 = 0;
+				policy.setState( sim_.state(), t0 );
+				final A a = policy.getAction();
+			}
+		}
+				
 		for( int t = 0; t < T_; ++t ) {
 			final ArrayList<A> actions = new ArrayList<A>( agents_.size() );
 			for( int i = 0; i < agents_.size(); ++i ) {
-				final AnytimePolicy<S, A> policy = agents_.get( i );
+				final Policy<S, A> policy = agents_.get( i );
 				System.out.println( "[SimultaneousMoveRunner] Action selection: setTurn( " + i + " )" );
 				sim_.setTurn( i );
 				policy.setState( sim_.state(), t );
 				firePreGetAction( i );
-				final A a = policy.getAction( control_ );
+				final A a = policy.getAction();
 				firePostGetAction( i, a );
 				actions.add( a );
 				System.out.println( "!!! [t = " + t + "] a" + i + " = " + a.toString() );
@@ -73,7 +92,7 @@ public class SimultaneousMoveRunner<S, A extends UndoableAction<S, A>> implement
 		}
 	}
 	
-	private void firePostGetAction( final int i, final A a )
+	private void firePostGetAction( final int i, final UndoableAction<S> a )
 	{
 		for( final SimultaneousMoveListener<S, A> listener : listeners_ ) {
 			listener.postGetAction( i, a );

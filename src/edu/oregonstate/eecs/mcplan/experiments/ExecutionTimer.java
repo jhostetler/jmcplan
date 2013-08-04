@@ -6,6 +6,7 @@ package edu.oregonstate.eecs.mcplan.experiments;
 import java.util.ArrayList;
 
 import edu.oregonstate.eecs.mcplan.Policy;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveListener;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 
@@ -13,7 +14,7 @@ import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
  * @author jhostetler
  *
  */
-public class ExecutionTimer<S, A> implements SimultaneousMoveListener<S, A>
+public class ExecutionTimer<S, A extends UndoableAction<S>> implements SimultaneousMoveListener<S, A>
 {
 	private MeanVarianceAccumulator[] mv_ = null;
 	private MedianAccumulator[] median_ = null;
@@ -55,7 +56,7 @@ public class ExecutionTimer<S, A> implements SimultaneousMoveListener<S, A>
 	}
 
 	@Override
-	public void postGetAction( final int player, final A action )
+	public void postGetAction( final int player, final UndoableAction<S> action )
 	{
 		final long tdiff = System.currentTimeMillis() - start_time_;
 		System.out.println( "*** Elapsed time = " + tdiff );

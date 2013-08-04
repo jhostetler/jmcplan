@@ -1,11 +1,10 @@
 /**
  * 
  */
-package edu.oregonstate.eecs.mcplan.agents.galcon;
+package edu.oregonstate.eecs.mcplan.sim;
 
-import edu.oregonstate.eecs.mcplan.DurativeUndoableAction;
+import edu.oregonstate.eecs.mcplan.DurativeAction;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveSimulator;
 
 /**
  * An adapter that "coarsens" the time resolution of a base simulator. The
@@ -26,8 +25,14 @@ import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveSimulator;
  *
  */
 public class CoarseSimulation<S, A extends UndoableAction<S, A>>
-	extends SimultaneousMoveSimulator<S, DurativeUndoableAction<S, A>>
+	extends SimultaneousMoveSimulator<S, DurativeAction<S, A>>
 {
+	public static <S, A extends UndoableAction<S, A>>
+	CoarseSimulation<S, A> create( final SimultaneousMoveSimulator<S, A> base_sim, final int epoch )
+	{
+		return new CoarseSimulation<S, A>( base_sim, epoch );
+	}
+	
 	private final SimultaneousMoveSimulator<S, A> base_sim_;
 	private final int epoch_;
 	
@@ -80,13 +85,13 @@ public class CoarseSimulation<S, A extends UndoableAction<S, A>>
 	@Override
 	protected void advance()
 	{
-		for( final DurativeUndoableAction<S, A> ai : action_history_.peek() ) {
+		for( final DurativeAction<S, A> ai : action_history_.peek() ) {
 			assert( ai.T_ == epoch_ );
 		}
 		
 		for( int t = 0; t < epoch_; ++t ) {
-			for( final DurativeUndoableAction<S, A> ai : action_history_.peek() ) {
-				final DurativeUndoableAction<S, A> cp = ai.create();
+			for( final DurativeAction<S, A> ai : action_history_.peek() ) {
+				final DurativeAction<S, A> cp = ai.create();
 				cp.policy_.setState( state(), base_sim_.depth() );
 				final A policy_action = cp.policy_.getAction();
 //					System.out.println( policy_action );

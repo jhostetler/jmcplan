@@ -9,6 +9,6 @@ package edu.oregonstate.eecs.mcplan.experiments;
  */
 public abstract class Parameters implements CsvWriter
 {
-	public abstract int policy_horizon();
-	public abstract int max_time();
+//	public abstract int policy_horizon();
+//	public abstract int max_time();
 }

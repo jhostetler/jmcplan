@@ -42,7 +42,7 @@ public class GibbsDistribution extends AbstractIntegerDistribution
 			return 1.0;
 		}
 		else {
-			final double s = F.sum( F.slice( xs_, 0, i + 1 ) );
+			final double s = Fn.sum( Fn.slice( xs_, 0, i + 1 ) );
 			return s / Z_;
 		}
 	}
@@ -61,7 +61,7 @@ public class GibbsDistribution extends AbstractIntegerDistribution
 	@Override
 	public double getNumericalMean()
 	{
-		if( mv_dirty_ = true ) {
+		if( mv_dirty_ ) {
 			calculateMeanVariance();
 		}
 		return mean_;
@@ -70,7 +70,7 @@ public class GibbsDistribution extends AbstractIntegerDistribution
 	@Override
 	public double getNumericalVariance()
 	{
-		if( mv_dirty_ = true ) {
+		if( mv_dirty_ ) {
 			calculateMeanVariance();
 		}
 		return var_;
@@ -93,10 +93,10 @@ public class GibbsDistribution extends AbstractIntegerDistribution
 			throws OutOfRangeException
 	{
 		if( p == 0.0 ) {
-			return 0;
+			return getSupportLowerBound();
 		}
 		else if( p == 1.0 ) {
-			return xs_.size() - 1;
+			return getSupportUpperBound();
 		}
 		double s = 0;
 		int i = 0;

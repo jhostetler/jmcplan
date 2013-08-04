@@ -2,16 +2,16 @@ package edu.oregonstate.eecs.mcplan.search;
 
 import java.util.Iterator;
 
-import edu.oregonstate.eecs.mcplan.DurativeUndoableAction;
+import edu.oregonstate.eecs.mcplan.DurativeAction;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
 
 public class DurativeNegamaxVisitorBridge<S, A extends UndoableAction<S, A>>
 	implements NegamaxVisitor<S, A>
 {
 	private final NegamaxVisitor<S, A> primitive_visitor_;
-	private final NegamaxVisitor<S, DurativeUndoableAction<S, A>> durative_visitor_;
+	private final NegamaxVisitor<S, DurativeAction<S, A>> durative_visitor_;
 	
-	private class SpecialDurativeVisitor implements NegamaxVisitor<S, DurativeUndoableAction<S, A>>
+	private class SpecialDurativeVisitor implements NegamaxVisitor<S, DurativeAction<S, A>>
 	{
 		// These forward to durative_visitor_
 		
@@ -34,26 +34,26 @@ public class DurativeNegamaxVisitorBridge<S, A extends UndoableAction<S, A>>
 		}
 
 		@Override
-		public void examineEdge( final DurativeUndoableAction<S, A> e, final S dest )
+		public void examineEdge( final DurativeAction<S, A> e, final S dest )
 		{
 			durative_visitor_.examineEdge( e, dest );
 		}
 
 		@Override
-		public void treeEdge( final DurativeUndoableAction<S, A> e, final S dest )
+		public void treeEdge( final DurativeAction<S, A> e, final S dest )
 		{
 			durative_visitor_.treeEdge( e, dest );
 		}
 
 		@Override
-		public void prunedEdge( final DurativeUndoableAction<S, A> e, final S dest )
+		public void prunedEdge( final DurativeAction<S, A> e, final S dest )
 		{
 			durative_visitor_.prunedEdge( e, dest );
 		}
 
 		@Override
 		public void principalVariation(
-				final PrincipalVariation<S, DurativeUndoableAction<S, A>> pv )
+				final PrincipalVariation<S, DurativeAction<S, A>> pv )
 		{
 			durative_visitor_.principalVariation( pv );
 		}
@@ -71,8 +71,8 @@ public class DurativeNegamaxVisitorBridge<S, A extends UndoableAction<S, A>>
 		}
 		
 		@Override
-		public Iterator<DurativeUndoableAction<S, A>> orderActions(
-			final S v, final Iterator<DurativeUndoableAction<S, A>> itr )
+		public Iterator<DurativeAction<S, A>> orderActions(
+			final S v, final Iterator<DurativeAction<S, A>> itr )
 		{
 			return durative_visitor_.orderActions( v, itr );
 		}
@@ -99,7 +99,7 @@ public class DurativeNegamaxVisitorBridge<S, A extends UndoableAction<S, A>>
 	}
 	
 	public DurativeNegamaxVisitorBridge( final NegamaxVisitor<S, A> primitive_visitor,
-										 final NegamaxVisitor<S, DurativeUndoableAction<S, A>> durative_visitor,
+										 final NegamaxVisitor<S, DurativeAction<S, A>> durative_visitor,
 										 final int[] schedule )
 	{
 		primitive_visitor_ = primitive_visitor;

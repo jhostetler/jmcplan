@@ -5,11 +5,17 @@ import org.apache.commons.math3.random.MersenneTwister;
 
 public class RandomPolicy<S, A> implements AnytimePolicy<S, A>
 {
+	public static <S, A>
+	RandomPolicy<S, A> create( final int turn, final long seed, final ActionGenerator<S, A> action_gen )
+	{
+		return new RandomPolicy<S, A>( turn, seed, action_gen );
+	}
+	
 	private final int turn_;
-	private final ActionGenerator<S, A> action_gen_;
+	private final ActionGenerator<S, ? extends A> action_gen_;
 	private final MersenneTwister rng_;
 	
-	public RandomPolicy( final int turn, final int seed, final ActionGenerator<S, A> action_gen )
+	public RandomPolicy( final int turn, final long seed, final ActionGenerator<S, ? extends A> action_gen )
 	{
 		turn_ = turn;
 		action_gen_ = action_gen;

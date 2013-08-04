@@ -1,9 +1,8 @@
 package edu.oregonstate.eecs.mcplan.sim;
 
-import edu.oregonstate.eecs.mcplan.UndoableAction;
 
 
-public interface UndoSimulator<S, A extends UndoableAction<S, A>>
+public interface UndoSimulator<S, A>
 {
 	public abstract S state();
 
@@ -12,6 +11,8 @@ public interface UndoSimulator<S, A extends UndoableAction<S, A>>
 	public abstract void untakeLastAction();
 
 	public abstract long depth();
+	
+	public abstract long t();
 	
 	public abstract int getNumAgents();
 

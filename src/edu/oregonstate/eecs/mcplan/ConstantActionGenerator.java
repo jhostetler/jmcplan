@@ -6,15 +6,14 @@ package edu.oregonstate.eecs.mcplan;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-import edu.oregonstate.eecs.mcplan.agents.galcon.Action;
 
 /**
  * An ActionGenerator that generates the same list of actions in every state.
  * 
  * @author jhostetler
  */
-public class ConstantActionGenerator<S, A extends Action<S, A>>
-	implements ActionGenerator<S, A>
+public class ConstantActionGenerator<S, A extends Action<S>>
+	implements ActionGenerator<S, Action<S>>
 {
 	private final ArrayList<A> actions_;
 	private Iterator<A> itr_;
@@ -32,7 +31,7 @@ public class ConstantActionGenerator<S, A extends Action<S, A>>
 	}
 
 	@Override
-	public A next()
+	public Action<S> next()
 	{
 		return itr_.next().create();
 	}
@@ -50,7 +49,7 @@ public class ConstantActionGenerator<S, A extends Action<S, A>>
 	}
 
 	@Override
-	public ActionGenerator<S, A> create()
+	public ConstantActionGenerator<S, A> create()
 	{
 		return new ConstantActionGenerator<S, A>( new ArrayList<A>( actions_ ) );
 	}

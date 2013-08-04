@@ -1,7 +1,7 @@
 /**
  * 
  */
-package edu.oregonstate.eecs.mcplan.search;
+package edu.oregonstate.eecs.mcplan.graph;
 
 /**
  * @author jhostetler

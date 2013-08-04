@@ -3,13 +3,14 @@
  */
 package edu.oregonstate.eecs.mcplan;
 
-import edu.oregonstate.eecs.mcplan.agents.galcon.Action;
 
 /**
  * @author jhostetler
  *
  */
-public interface UndoableAction<S, A> extends Action<S, A>
+public interface UndoableAction<S> extends Action<S>, VirtualConstructor<UndoableAction<S>>
 {
 	public abstract void undoAction( final S s );
+	@Override
+	public abstract UndoableAction<S> create();
 }

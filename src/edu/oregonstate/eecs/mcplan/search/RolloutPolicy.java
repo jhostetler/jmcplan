@@ -1,7 +1,7 @@
 /**
  * 
  */
-package edu.oregonstate.eecs.mcplan;
+package edu.oregonstate.eecs.mcplan.search;
 
 import java.util.Arrays;
 import java.util.List;
@@ -9,8 +9,11 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.oregonstate.eecs.mcplan.search.MctsVisitor;
-import edu.oregonstate.eecs.mcplan.search.RolloutSearch;
+import edu.oregonstate.eecs.mcplan.ActionGenerator;
+import edu.oregonstate.eecs.mcplan.AnytimePolicy;
+import edu.oregonstate.eecs.mcplan.Policy;
+import edu.oregonstate.eecs.mcplan.Tokenizable;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 
@@ -18,18 +21,19 @@ import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
  * @author jhostetler
  *
  */
-public class RolloutPolicy<S, A extends UndoableAction<S, A>> implements AnytimePolicy<S, A>
+public class RolloutPolicy<S extends Tokenizable<T>, T, A extends VirtualConstructor<A>>
+	implements AnytimePolicy<S, A>
 {
 	private static final Logger log = LoggerFactory.getLogger( RolloutPolicy.class );
 	
 	private final UndoSimulator<S, A> sim_;
-	private final ActionGenerator<S, A> action_gen_;
+	private final ActionGenerator<S, ? extends A> action_gen_;
 	private final double c_;
 	private final List<Policy<S, A>> rollout_policies_;
-	private final MctsVisitor<S, A> visitor_;
+	private final MctsNegamaxVisitor<S, A> visitor_;
 	
-	public RolloutPolicy( final UndoSimulator<S, A> sim, final ActionGenerator<S, A> action_gen,
-						  final double c, final List<Policy<S, A>> rollout_policies, final MctsVisitor<S, A> visitor )
+	public RolloutPolicy( final UndoSimulator<S, A> sim, final ActionGenerator<S, ? extends A> action_gen,
+						  final double c, final List<Policy<S, A>> rollout_policies, final MctsNegamaxVisitor<S, A> visitor )
 	{
 		sim_ = sim;
 		action_gen_ = action_gen;
@@ -75,7 +79,8 @@ public class RolloutPolicy<S, A extends UndoableAction<S, A>> implements Anytime
 	@Override
 	public A getAction( final long control )
 	{
-		final RolloutSearch<S, A> search = new RolloutSearch<S, A>(
+		System.out.println( "[RolloutPolicy] getAction()" );
+		final RolloutSearch<S, T, A> search = new RolloutSearch<S, T, A>(
 			sim_, action_gen_, c_, control, rollout_policies_, visitor_ );
 		search.run();
 		final double[] qmean = new double[search.q_.length];
@@ -85,6 +90,7 @@ public class RolloutPolicy<S, A extends UndoableAction<S, A>> implements Anytime
 			qmean[i] = mv.mean();
 			qvar[i] = mv.variance();
 		}
+		System.out.println( "Ping!" );
 		log.info( "qmean = {}", Arrays.toString( qmean ) );
 		log.info( "qvar = {}", Arrays.toString( qvar ) );
 		log.info( "na = {}", Arrays.toString( search.na_ ) );

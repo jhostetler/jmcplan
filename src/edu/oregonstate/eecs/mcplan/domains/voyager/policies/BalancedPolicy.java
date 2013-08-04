@@ -8,9 +8,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.EntityType;
 import edu.oregonstate.eecs.mcplan.domains.voyager.LaunchAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.NothingAction;
@@ -18,9 +21,7 @@ import edu.oregonstate.eecs.mcplan.domains.voyager.Planet;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
 import edu.oregonstate.eecs.mcplan.domains.voyager.SetProductionAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Voyager;
-import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerEvent;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
-import edu.oregonstate.eecs.mcplan.util.CircularListIterator;
 import edu.oregonstate.eecs.mcplan.util.GibbsDistribution;
 
 /**
@@ -33,20 +34,48 @@ import edu.oregonstate.eecs.mcplan.util.GibbsDistribution;
  * 
  * @author jhostetler
  */
-public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
+public class BalancedPolicy implements AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
 {
+	// TODO: Seeding
+	private static final MersenneTwister rng = new MersenneTwister( 42 );
+	
 	private final Player player_;
 	private final RandomGenerator rng_;
 	private final double min_strength_ratio_;
 	private final double max_strength_ratio_;
 	private final double win_margin_;
+	private final String repr_;
+	
 	private final double combat_worker_ratio_ = 0.25;
 	private final double reinforce_soldier_ratio_ = 0.5;
 	
 	private VoyagerState s_ = null;
 	private long t_ = 0;
 	
-	public BalancedPolicy( final Player player, final RandomGenerator rng,
+	@Override
+	public int hashCode()
+	{
+		return new HashCodeBuilder( 29, 43 )
+			.append( player_ ).append( min_strength_ratio_ ).append( max_strength_ratio_ )
+			.append( win_margin_ ).append( combat_worker_ratio_ ).append( reinforce_soldier_ratio_ ).toHashCode();
+	}
+	
+	@Override
+	public boolean equals( final Object obj )
+	{
+		if( obj == null || !(obj instanceof BalancedPolicy) ) {
+			return false;
+		}
+		final BalancedPolicy that = (BalancedPolicy) obj;
+		return player_ == that.player_
+			   && min_strength_ratio_ == that.min_strength_ratio_
+			   && max_strength_ratio_ == that.max_strength_ratio_
+			   && win_margin_ == that.win_margin_
+			   && combat_worker_ratio_ == that.combat_worker_ratio_
+			   && reinforce_soldier_ratio_ == that.reinforce_soldier_ratio_;
+	}
+	
+	public BalancedPolicy( final Player player, final long seed,
 						   final double min_strength_ratio,
 						   final double max_strength_ratio, final double win_margin )
 	{
@@ -55,6 +84,18 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 		min_strength_ratio_ = min_strength_ratio;
 		max_strength_ratio_ = max_strength_ratio;
 		win_margin_ = win_margin;
+		repr_ = "BalancedPolicy" + player.id + "[" + min_strength_ratio_ + ", " + max_strength_ratio_ + ", " + win_margin_ + "]";
+	}
+	
+	public BalancedPolicy( final Player player, final long seed, final String[] params )
+	{
+		player_ = player;
+		rng_ = new MersenneTwister( seed );
+		assert( params.length == 3 );
+		min_strength_ratio_ = Double.parseDouble( params[0] );
+		max_strength_ratio_ = Double.parseDouble( params[1] );
+		win_margin_ = Double.parseDouble( params[2] );
+		repr_ = "BalancedPolicy[" + min_strength_ratio_ + ", " + max_strength_ratio_ + ", " + win_margin_ + "]";
 	}
 	
 	@Override
@@ -64,22 +105,11 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 		t_ = t;
 	}
 	
-	private static ArrayList<Planet> playerPlanets( final VoyagerState s, final Player p )
-	{
-		final ArrayList<Planet> planets = new ArrayList<Planet>();
-		for( final Planet planet : s.planets ) {
-			if( planet.owner() == p ) {
-				planets.add( planet );
-			}
-		}
-		return planets;
-	}
-	
-	private static int strength( final int[] population )
+	private static int defense( final int[] population )
 	{
 		int capture_strength = 0;
 		for( final EntityType type : EntityType.values() ) {
-			capture_strength += population[type.ordinal()] * type.strength();
+			capture_strength += population[type.ordinal()] * type.defense();
 		}
 		return capture_strength;
 	}
@@ -93,7 +123,7 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 	 * @see edu.oregonstate.eecs.mcplan.Policy#getAction()
 	 */
 	@Override
-	public VoyagerEvent getAction()
+	public UndoableAction<VoyagerState> getAction()
 	{
 		final ArrayList<Planet> friendly_planets = new ArrayList<Planet>();
 		final ArrayList<Planet> nonfriendly_planets = new ArrayList<Planet>();
@@ -106,7 +136,7 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 			if( p.owner() == player_ ) {
 				friendly_planets.add( p );
 				for( final EntityType type : EntityType.values() ) {
-					friendly_strength += p.population( type ) * type.strength();
+					friendly_strength += p.population( type ) * type.defense();
 					friendly_pop[type.ordinal()] += p.population( type );
 				}
 				worker_balance += p.population( EntityType.Worker );
@@ -116,7 +146,7 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 				nonfriendly_planets.add( p );
 				if( p.owner() == player_.enemy() ) {
 					for( final EntityType type : EntityType.values() ) {
-						enemy_strength += p.population( type ) * type.strength();
+						enemy_strength += p.population( type ) * type.attack();
 						enemy_pop[type.ordinal()] += p.population( type );
 					}
 				}
@@ -130,16 +160,16 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 			final ArrayList<Planet> expecting_planets = new ArrayList<Planet>();
 			for( final Planet p : friendly_planets ) {
 				final EntityType next = p.nextProduced();
-				final int investment = p.storedProduction()[next.ordinal()] + Voyager.production( p );
-				if( next != null && next.cost() <= investment ) {
-					final CircularListIterator<EntityType> prod_itr = p.productionIterator();
+				final int investment = p.storedProduction()[next.ordinal()];
+				// Investment condition means planet completed production last turn
+				if( next != null && investment < Voyager.production( p ) ) {
 					if( too_weak ) {
-						if( prod_itr.hasNext() && prod_itr.next() == EntityType.Worker ) {
+						if( p.nextProduced() == EntityType.Worker ) {
 							expecting_planets.add( p );
 						}
 					}
 					else { // too_strong
-						if( prod_itr.hasNext() && prod_itr.next() == EntityType.Soldier ) {
+						if( p.nextProduced() == EntityType.Soldier ) {
 							expecting_planets.add( p );
 						}
 					}
@@ -152,10 +182,10 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 				} );
 				for( final Planet p : expecting_planets ) {
 					if( too_weak ) {
-						return new SetProductionAction(	p, Arrays.asList( EntityType.Soldier ) );
+						return new SetProductionAction(	p, EntityType.Soldier );
 					}
 					else if( worker_balance < 0 ) {
-						return new SetProductionAction( p, Arrays.asList( EntityType.Worker ) );
+						return new SetProductionAction( p, EntityType.Worker );
 					}
 				}
 			}
@@ -169,6 +199,7 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 		int fullness = 0;
 		for( final Planet p : friendly_planets ) {
 			final int w = p.population( EntityType.Worker );
+			final int weff = w + Voyager.enroute( s_, p, player_, EntityType.Worker );
 			if( w > p.capacity ) {
 				final int over = w - p.capacity;
 				if( over > overfullness ) {
@@ -176,8 +207,8 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 					overfull = p;
 				}
 			}
-			else if( w < p.capacity ) {
-				final int under = p.capacity - w;
+			else if( weff < p.capacity ) {
+				final int under = p.capacity - weff;
 				if( under > underfullness ) {
 					underfullness = under;
 					underfull = p;
@@ -194,7 +225,8 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 				launch_pop[EntityType.Worker.ordinal()] = Math.min( underfullness, overfullness );
 				return new LaunchAction( overfull, underfull, launch_pop );
 			}
-			else if( fullest != null && !fullest.equals( underfull ) ) {
+			else if( underfull.population( EntityType.Worker ) == 0
+					 && fullest != null && !fullest.equals( underfull ) ) {
 				final int[] launch_pop = new int[EntityType.values().length];
 				launch_pop[EntityType.Worker.ordinal()] = 1;
 				return new LaunchAction( fullest, underfull, launch_pop );
@@ -220,18 +252,18 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 		final int fn_idx = distance_softmax.sample();
 		final Planet near_friendly = friendly_planets.get( fn_idx / nonfriendly_planets.size() );
 		final Planet near_nonfriendly = nonfriendly_planets.get( fn_idx % nonfriendly_planets.size() );
-		double nn_strength = strength( near_nonfriendly.population() );
+		double nn_strength = defense( near_nonfriendly.population() );
 		nn_strength += win_margin_ * enemy_strength;
 		final int points_needed = Math.max( (int) Math.ceil( nn_strength ), 1 );
 		final int[] nf_pop = Arrays.copyOf( near_friendly.population(), EntityType.values().length );
 		nf_pop[EntityType.Worker.ordinal()]
 			= (int) Math.floor( combat_worker_ratio_ * nf_pop[EntityType.Worker.ordinal()] );
-		final int nf_strength = strength( nf_pop );
+		final int nf_strength = defense( nf_pop );
 		final int spare_workers = Math.max( 0, nf_pop[EntityType.Worker.ordinal()] - 1 );
 		final int spare_soldiers = Math.max( 0, nf_pop[EntityType.Soldier.ordinal()] - 1 );
 		final int usable_workers = Math.min( near_nonfriendly.capacity, spare_workers );
 		final int soldiers_needed = Math.max( 0, (int) Math.ceil(
-			(points_needed - (usable_workers * EntityType.Worker.strength())) / (double) EntityType.Soldier.strength() ) );
+			points_needed / (double) EntityType.Soldier.attack() ) );
 		if( spare_soldiers >= soldiers_needed ) {
 			final int[] launch_pop = new int[EntityType.values().length];
 			launch_pop[EntityType.Soldier.ordinal()] = soldiers_needed;
@@ -262,7 +294,7 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 		for( final Planet p : friendly_planets ) {
 			final int w = p.population( EntityType.Worker );
 			if( w >= p.capacity && p.nextProduced() == EntityType.Worker ) {
-				return new SetProductionAction( p, Arrays.asList( EntityType.Soldier ) );
+				return new SetProductionAction( p, EntityType.Soldier );
 			}
 		}
 		
@@ -270,7 +302,7 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 	}
 
 	@Override
-	public void actionResult( final VoyagerEvent a, final VoyagerState sprime, final double r )
+	public void actionResult( final UndoableAction<VoyagerState> a, final VoyagerState sprime, final double r )
 	{
 		// TODO Auto-generated method stub
 		
@@ -279,7 +311,13 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 	@Override
 	public String getName()
 	{
-		return "BalancedPolicy";
+		return repr_;
+	}
+	
+	@Override
+	public String toString()
+	{
+		return repr_;
 	}
 
 	@Override
@@ -297,7 +335,7 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, VoyagerEvent>
 	}
 
 	@Override
-	public VoyagerEvent getAction( final long control )
+	public UndoableAction<VoyagerState> getAction( final long control )
 	{
 		return getAction();
 	}

@@ -6,29 +6,31 @@ package edu.oregonstate.eecs.mcplan.search;
 import java.util.Arrays;
 
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
-import edu.oregonstate.eecs.mcplan.DurativeUndoableAction;
-import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.agents.galcon.VariableDurationActionGenerator;
+import edu.oregonstate.eecs.mcplan.DurativeAction;
+import edu.oregonstate.eecs.mcplan.Option;
+import edu.oregonstate.eecs.mcplan.Policy;
+import edu.oregonstate.eecs.mcplan.VariableDurationActionGenerator;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.sim.DurativeActionSimulator;
-import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveSimulator;
+import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 
 /**
  * @author jhostetler
  *
  */
-public class DiscountedRefinementSearch<S, A extends UndoableAction<S, A>> implements Runnable
+public class DiscountedRefinementSearch<S, A extends VirtualConstructor<A>> implements Runnable
 {
-	private final SimultaneousMoveSimulator<S, A> sim_;
-	private final ActionGenerator<S, A> action_gen_;
+	private final UndoSimulator<S, A> sim_;
+	private final ActionGenerator<S, Policy<S, A>> action_gen_;
 	private final NegamaxVisitor<S, A> visitor_;
 	private final int max_depth_;
 	private final int max_horizon_;
 	private final double discount_;
 	
-	private PrincipalVariation<S, DurativeUndoableAction<S, A>> pv_ = null;
+	private PrincipalVariation<S, DurativeAction<S, A>> pv_ = null;
 	
-	public DiscountedRefinementSearch( final SimultaneousMoveSimulator<S, A> sim,
-									  final ActionGenerator<S, A> action_gen,
+	public DiscountedRefinementSearch( final UndoSimulator<S, A> sim,
+									  final ActionGenerator<S, Policy<S, A>> action_gen,
 									  final NegamaxVisitor<S, A> visitor,
 									  final int max_depth, final int max_horizon, final double discount )
 	{
@@ -139,7 +141,7 @@ public class DiscountedRefinementSearch<S, A extends UndoableAction<S, A>> imple
 //		return result;
 //	}
 	
-	public PrincipalVariation<S, DurativeUndoableAction<S, A>> principalVariation()
+	public PrincipalVariation<S, DurativeAction<S, A>> principalVariation()
 	{
 		return pv_;
 	}
@@ -170,8 +172,8 @@ public class DiscountedRefinementSearch<S, A extends UndoableAction<S, A>> imple
 			}
 			final VariableDurationActionGenerator<S, A> durative_gen
 				= new VariableDurationActionGenerator<S, A>( action_gen_, idx, durative_visitor );
-			final NegamaxSearch<S, DurativeUndoableAction<S, A>> search
-				= new NegamaxSearch<S, DurativeUndoableAction<S, A>>(
+			final NegamaxSearch<S, Option<S, A>> search
+				= new NegamaxSearch<S, Option<S, A>>(
 					durative_sim, depth * sim_.getNumAgents(), durative_gen, durative_visitor );
 			final long start = System.currentTimeMillis();
 			search.run();

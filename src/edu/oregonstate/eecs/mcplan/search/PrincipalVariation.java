@@ -12,15 +12,15 @@ import edu.oregonstate.eecs.mcplan.util.ListUtil;
  * @author jhostetler
  *
  */
-public class PrincipalVariation<S, A>
+public class PrincipalVariation<T, A>
 {
 //	public final LinkedList<S> states = new LinkedList<S>();
 //	public final LinkedList<A> actions = new LinkedList<A>();
 //	public int d = 0;
 //	public double score = 0.0;
 	
-	public S s0;
-	public final ArrayList<String> states = new ArrayList<String>();
+	public T s0;
+	public final ArrayList<T> states = new ArrayList<T>();
 	public final ArrayList<A> actions = new ArrayList<A>();
 	public double alpha = -Double.MAX_VALUE;
 	public double beta = Double.MAX_VALUE;
@@ -35,7 +35,7 @@ public class PrincipalVariation<S, A>
 		ListUtil.populateList( actions, null, this.max_depth );
 	}
 	
-	public PrincipalVariation( final PrincipalVariation<S, A> that )
+	public PrincipalVariation( final PrincipalVariation<T, A> that )
 	{
 		s0 = that.s0;
 		states.addAll( that.states );
@@ -47,7 +47,7 @@ public class PrincipalVariation<S, A>
 		max_depth = that.max_depth;
 	}
 	
-	public boolean isNarrowerThan( final PrincipalVariation<S, A> that )
+	public boolean isNarrowerThan( final PrincipalVariation<T, A> that )
 	{
 		if( alpha > beta || that.alpha > that.beta ) {
 			System.out.println( "!!! alpha = " + alpha + ", beta = " + beta );
@@ -58,12 +58,12 @@ public class PrincipalVariation<S, A>
 			|| (alpha >= that.alpha && beta < that.beta);
 	}
 	
-	public void setState( final int idx, final String state_token )
+	public void setState( final int idx, final T state_token )
 	{
 		states.set( idx, state_token );
 	}
 	
-	public ArrayList<String> getStates()
+	public ArrayList<T> getStates()
 	{
 		return states;
 	}
@@ -74,7 +74,7 @@ public class PrincipalVariation<S, A>
 		final StringBuilder sb = new StringBuilder();
 		sb.append( "[" ).append( score ).append( "] " );
 		sb.append( "[" ).append( alpha ).append( ", " ).append( beta ).append( "] " );
-		final ListIterator<String> sitr = states.listIterator();
+		final ListIterator<T> sitr = states.listIterator();
 		if( sitr.hasNext() ) {
 			sb.append( sitr.next() );
 		}

@@ -6,9 +6,10 @@ package edu.oregonstate.eecs.mcplan.search;
 import java.util.Arrays;
 
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
-import edu.oregonstate.eecs.mcplan.DurativeUndoableAction;
+import edu.oregonstate.eecs.mcplan.AnytimePolicy;
+import edu.oregonstate.eecs.mcplan.DurativeAction;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.agents.galcon.VariableDurationActionGenerator;
+import edu.oregonstate.eecs.mcplan.VariableDurationActionGenerator;
 import edu.oregonstate.eecs.mcplan.sim.DurativeActionSimulator;
 import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveSimulator;
 
@@ -17,19 +18,19 @@ import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveSimulator;
  *
  */
 public class IterativeRefinementSearch<S, A extends UndoableAction<S, A>>
-	implements GameTreeSearch<S, DurativeUndoableAction<S, A>>
+	implements GameTreeSearch<S, DurativeAction<S, A>>
 {
 	private final SimultaneousMoveSimulator<S, A> sim_;
-	private final ActionGenerator<S, A> action_gen_;
+	private final ActionGenerator<S, AnytimePolicy<S, A>> action_gen_;
 	private final NegamaxVisitor<S, A> visitor_;
 	private final int max_depth_;
 	private final int max_horizon_;
 	
-	private PrincipalVariation<S, DurativeUndoableAction<S, A>> pv_ = null;
+	private PrincipalVariation<S, DurativeAction<S, A>> pv_ = null;
 	private boolean complete_ = false;
 	
 	public IterativeRefinementSearch( final SimultaneousMoveSimulator<S, A> sim,
-									  final ActionGenerator<S, A> action_gen,
+									  final ActionGenerator<S, AnytimePolicy<S, A>> action_gen,
 									  final NegamaxVisitor<S, A> visitor,
 									  final int max_depth, final int max_horizon )
 	{
@@ -47,7 +48,7 @@ public class IterativeRefinementSearch<S, A extends UndoableAction<S, A>>
 	}
 	
 	@Override
-	public PrincipalVariation<S, DurativeUndoableAction<S, A>> principalVariation()
+	public PrincipalVariation<S, DurativeAction<S, A>> principalVariation()
 	{
 		return pv_;
 	}
@@ -108,8 +109,8 @@ public class IterativeRefinementSearch<S, A extends UndoableAction<S, A>>
 //				= new IterativeDeepeningSearch<S, DurativeUndoableAction<S, A>>(
 //					durative_sim, durative_gen.create(),
 //					new DurativeNegamaxVisitor<S, A>( visitor_, policy_epoch ), depth );
-			final NegamaxSearch<S, DurativeUndoableAction<S, A>> search
-				= new NegamaxSearch<S, DurativeUndoableAction<S, A>>(
+			final NegamaxSearch<S, DurativeAction<S, A>> search
+				= new NegamaxSearch<S, DurativeAction<S, A>>(
 					durative_sim, depth * sim_.getNumAgents(), durative_gen.create(),
 					durative_visitor );
 			final long start = System.currentTimeMillis();

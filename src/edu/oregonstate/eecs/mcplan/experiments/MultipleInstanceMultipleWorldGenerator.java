@@ -7,8 +7,6 @@ import java.io.File;
 import java.util.List;
 import java.util.ListIterator;
 
-import org.apache.commons.math3.random.MersenneTwister;
-
 import edu.oregonstate.eecs.mcplan.util.Generator;
 
 /**
@@ -54,7 +52,6 @@ public class MultipleInstanceMultipleWorldGenerator<P, W extends Copyable<? exte
 	{
 		final Environment env = new Environment.Builder()
 			.root_directory( new File( pdir_, "w" + widx_ ) )
-			.rng( new MersenneTwister( master_.rng.nextLong() ) )
 			.finish();
 		return env;
 	}

@@ -32,7 +32,7 @@ public enum Player
 	private Player()
 	{
 		this.id = this.ordinal();
-		repr_ = "[Player " + id + "]";
+		repr_ = "Player" + id;
 	}
 	
 	public Player enemy()

@@ -3,29 +3,30 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.voyager;
 
-import java.util.List;
-
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 
 /**
  * @author jhostetler
  *
  */
-public class SetProductionAction extends VoyagerEvent
+public class SetProductionAction implements UndoableAction<VoyagerState>
 {
 	private static final Logger log = LoggerFactory.getLogger( SetProductionAction.class );
 	
 	private final Planet p_;
-	private List<EntityType> old_production_ = null;
-	private final List<EntityType> new_production_;
+	private EntityType old_production_ = null;
+	private final EntityType new_production_;
 	private boolean done_ = false;
 	private final String repr_;
 	
 	/**
 	 * 
 	 */
-	public SetProductionAction( final Planet p, final List<EntityType> production )
+	public SetProductionAction( final Planet p, final EntityType production )
 	{
 		p_ = p;
 		new_production_ = production;
@@ -40,7 +41,7 @@ public class SetProductionAction extends VoyagerEvent
 	{
 		log.debug( "undo {}", repr_ );
 		assert( done_ );
-		p_.setProductionSchedule( old_production_ );
+		p_.setProduction( old_production_ );
 		done_ = false;
 	}
 
@@ -52,8 +53,8 @@ public class SetProductionAction extends VoyagerEvent
 	{
 		log.debug( "do {}", repr_ );
 		assert( !done_ );
-		old_production_ = p_.productionSchedule();
-		p_.setProductionSchedule( new_production_ );
+		old_production_ = p_.nextProduced();
+		p_.setProduction( new_production_ );
 		done_ = true;
 	}
 
@@ -80,5 +81,21 @@ public class SetProductionAction extends VoyagerEvent
 	{
 		return repr_;
 	}
+	
+	@Override
+	public int hashCode()
+	{
+		return new HashCodeBuilder( 19, 37 )
+			.append( p_ ).append( new_production_ ).toHashCode();
+	}
 
+	@Override
+	public boolean equals( final Object obj )
+	{
+		if( obj == null || !(obj instanceof SetProductionAction) ) {
+			return false;
+		}
+		final SetProductionAction that = (SetProductionAction) obj;
+		return p_.equals( that.p_ ) && new_production_ == that.new_production_;
+	}
 }

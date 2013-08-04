@@ -8,9 +8,12 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.Agent;
-import edu.oregonstate.eecs.mcplan.UndoableAction;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.agents.galcon.ExpandPolicy;
 import edu.oregonstate.eecs.mcplan.domains.galcon.FastGalconEvent;
 import edu.oregonstate.eecs.mcplan.domains.galcon.FastGalconNothingAction;
@@ -23,8 +26,10 @@ import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
  * @author jhostetler
  *
  */
-public class NegamaxSearch<S, A extends UndoableAction<S, A>> implements GameTreeSearch<S, A>
+public class NegamaxSearch<S, A extends VirtualConstructor<A>> implements GameTreeSearch<S, A>
 {
+	private static final Logger log = LoggerFactory.getLogger( NegamaxSearch.class );
+	
 	private final UndoSimulator<S, A> sim_;
 	private final int max_depth_;
 	private double alpha_ = 0.0;
@@ -146,11 +151,13 @@ public class NegamaxSearch<S, A extends UndoableAction<S, A>> implements GameTre
 //			ret = visitor.heuristic( s );
 		}
 		else {
+			// Must make a copy to preserve state
 			final ActionGenerator<S, A> local_action_gen = action_gen_.create();
-			local_action_gen.setState( s, sim_.depth() );
+			local_action_gen.setState( s, sim_.depth(), sim_.getTurn() );
 			final Iterator<A> actions = visitor.orderActions( s, local_action_gen );
 			while( actions.hasNext() ) {
 				final A a = actions.next();
+				log.info( "Turn {}: Considering {}", sim_.getTurn(), a.toString() );
 				sim_.takeAction( a );
 				final S sprime = sim_.state();
 				visitor.examineEdge( a, sprime );

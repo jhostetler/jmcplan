@@ -1,12 +1,8 @@
 /**
  * 
  */
-package edu.oregonstate.eecs.mcplan.agents.galcon;
+package edu.oregonstate.eecs.mcplan;
 
-import edu.oregonstate.eecs.mcplan.ActionGenerator;
-import edu.oregonstate.eecs.mcplan.DurativeUndoableAction;
-import edu.oregonstate.eecs.mcplan.RepeatPolicy;
-import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.search.DepthRecorder;
 
 /**
@@ -14,9 +10,9 @@ import edu.oregonstate.eecs.mcplan.search.DepthRecorder;
  *
  */
 public class VariableDurationActionGenerator<S, A extends UndoableAction<S, A>>
-	implements ActionGenerator<S, DurativeUndoableAction<S, A>>
+	implements ActionGenerator<S, DurativeAction<S, A>>
 {
-	private final ActionGenerator<S, A> base_;
+	private final ActionGenerator<S, AnytimePolicy<S, A>> base_;
 	private final int[] epochs_;
 	private final DepthRecorder depth_;
 	
@@ -25,7 +21,7 @@ public class VariableDurationActionGenerator<S, A extends UndoableAction<S, A>>
 	 * @param epochs List of epochs.
 	 * @param depth An object that knows what depth the search is at.
 	 */
-	public VariableDurationActionGenerator( final ActionGenerator<S, A> base, final int[] epochs,
+	public VariableDurationActionGenerator( final ActionGenerator<S, AnytimePolicy<S, A>> base, final int[] epochs,
 											final DepthRecorder depth )
 	{
 		base_ = base.create();
@@ -40,10 +36,10 @@ public class VariableDurationActionGenerator<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public DurativeUndoableAction<S, A> next()
+	public DurativeAction<S, A> next()
 	{
 		final int d = depth_.getDepth();
-		return new DurativeUndoableAction<S, A>( new RepeatPolicy<S, A>( base_.next() ), epochs_[d] );
+		return new DurativeAction<S, A>( base_.next(), epochs_[d] );
 	}
 
 	@Override
@@ -59,7 +55,7 @@ public class VariableDurationActionGenerator<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public ActionGenerator<S, DurativeUndoableAction<S, A>> create()
+	public ActionGenerator<S, DurativeAction<S, A>> create()
 	{
 		return new VariableDurationActionGenerator<S, A>( base_.create(), epochs_, depth_ );
 	}

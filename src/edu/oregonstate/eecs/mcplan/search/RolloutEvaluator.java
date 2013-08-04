@@ -10,7 +10,7 @@ import java.util.TreeMap;
 
 import edu.oregonstate.eecs.mcplan.Agent;
 import edu.oregonstate.eecs.mcplan.Simulator;
-import edu.oregonstate.eecs.mcplan.State;
+import edu.oregonstate.eecs.mcplan.OldState;
 import edu.oregonstate.eecs.mcplan.agents.galcon.ExpandPolicy;
 import edu.oregonstate.eecs.mcplan.domains.galcon.GalconAction;
 import edu.oregonstate.eecs.mcplan.domains.galcon.GalconSimulator;
@@ -22,7 +22,7 @@ import edu.oregonstate.eecs.mcplan.util.CircularListIterator;
  * 
  * @author jhostetler
  */
-public final class RolloutEvaluator<S extends State, A> implements Runnable
+public final class RolloutEvaluator<S extends OldState, A> implements Runnable
 {
 	final Simulator<S, A> simulator_;
 	final List<Agent> policies_;

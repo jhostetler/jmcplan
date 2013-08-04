@@ -15,6 +15,22 @@ import java.util.Iterator;
  */
 public abstract class Generator<T> implements Iterator<T>
 {
+	public static <T> Generator<T> fromIterator( final Iterator<T> itr )
+	{
+		return new Generator<T>() {
+			@Override
+			public boolean hasNext() { return itr.hasNext(); }
+			@Override
+			public T next() { return itr.next(); }
+		};
+	}
+	
+	@Override
+	public abstract boolean hasNext();
+	
+	@Override
+	public abstract T next();
+	
 	@Override
 	@Deprecated
 	public final void remove()

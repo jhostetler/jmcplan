@@ -1,15 +1,12 @@
 /**
  * 
  */
-package edu.oregonstate.eecs.mcplan.agents.galcon;
+package edu.oregonstate.eecs.mcplan.search;
 
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
 import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.search.BoundedVisitor;
-import edu.oregonstate.eecs.mcplan.search.DiscountedRefinementSearch;
-import edu.oregonstate.eecs.mcplan.search.NegamaxVisitor;
 import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveSimulator;
 import edu.oregonstate.eecs.mcplan.util.Countdown;
 
@@ -17,37 +14,29 @@ import edu.oregonstate.eecs.mcplan.util.Countdown;
  * @author jhostetler
  *
  */
-public class DiscountedRefinementPolicy<S, A extends UndoableAction<S, A>>
+public class IterativeDeepeningPolicy<S, A extends UndoableAction<S, A>>
 	implements AnytimePolicy<S, A>
 {
 	private final NegamaxVisitor<S, A> visitor_;
 	private final int max_depth_;
-	private final int max_horizon_;
-	private final double discount_;
 	private final SimultaneousMoveSimulator<S, A> sim_;
 	private final ActionGenerator<S, A> action_gen_;
 	private final Policy<S, A> default_policy_;
 	
 	private S s_ = null;
 	private long t_ = 0L;
-	private Policy<S, A> policy_used_ = null;
 	
-	public DiscountedRefinementPolicy( final int max_depth,
-								 final int max_horizon,
-								 final double discount,
-								 final SimultaneousMoveSimulator<S, A> sim,
-								 final ActionGenerator<S, A> action_gen,
-								 final NegamaxVisitor<S, A> visitor,
-								 final Policy<S, A> default_policy )
+	public IterativeDeepeningPolicy( final int max_depth,
+									 final SimultaneousMoveSimulator<S, A> sim,
+									 final ActionGenerator<S, A> action_gen,
+									 final NegamaxVisitor<S, A> visitor,
+									 final Policy<S, A> default_policy )
 	{
 		visitor_ = visitor;
 		max_depth_ = max_depth;
-		max_horizon_ = max_horizon;
-		discount_ = discount;
 		sim_ = sim;
 		action_gen_ = action_gen;
 		default_policy_ = default_policy;
-		System.out.println( "[DiscountedRefinementPolicy] discount = " + discount_ );
 	}
 
 	@Override
@@ -66,14 +55,13 @@ public class DiscountedRefinementPolicy<S, A extends UndoableAction<S, A>>
 	@Override
 	public void actionResult( final A a, final S sprime, final double r )
 	{
-		assert( policy_used_ != null );
-		policy_used_.actionResult( a, sprime, r );
+		// TODO:
 	}
 
 	@Override
 	public String getName()
 	{
-		return "DiscountedRefinement";
+		return "IterativeDeepening";
 	}
 
 	@Override
@@ -91,23 +79,21 @@ public class DiscountedRefinementPolicy<S, A extends UndoableAction<S, A>>
 	@Override
 	public A getAction( final long control )
 	{
-		System.out.println( "[DiscountedRefinement] getAction()" );
+		System.out.println( "[IterativeDeepening] getAction()" );
 		final BoundedVisitor<S, A> bv
 			= new BoundedVisitor<S, A>( visitor_, new Countdown( control ) );
-		final DiscountedRefinementSearch<S, A> search
-			= new DiscountedRefinementSearch<S, A>( sim_, action_gen_, bv, max_depth_, max_horizon_, discount_ );
+		final IterativeDeepeningSearch<S, A> search
+			= new IterativeDeepeningSearch<S, A>( sim_, action_gen_, bv, max_depth_ );
 		search.run();
 		
 		if( search.principalVariation() != null && search.principalVariation().actions.get( 0 ) != null ) {
-			System.out.println( "[DiscountedRefinement] PV: " + search.principalVariation() );
-			policy_used_ = search.principalVariation().actions.get( 0 ).policy_;
+			System.out.println( "[IterativeDeepening] PV: " + search.principalVariation() );
+			return search.principalVariation().actions.get( 0 );
 		}
 		else {
-			System.out.println( "[DiscountedRefinement] ! Using leaf heuristic" );
-			policy_used_ = default_policy_;
+			System.out.println( "[IterativeDeepening] ! Using leaf heuristic" );
+			default_policy_.setState( s_, t_ );
+			return default_policy_.getAction();
 		}
-		
-		policy_used_.setState( s_, t_ );
-		return policy_used_.getAction();
 	}
 }

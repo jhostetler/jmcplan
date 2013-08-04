@@ -3,11 +3,13 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.voyager;
 
+import edu.oregonstate.eecs.mcplan.UndoableAction;
+
 /**
  * @author jhostetler
  *
  */
-public class NothingAction extends VoyagerEvent
+public class NothingAction implements UndoableAction<VoyagerState>
 {
 	private boolean done_ = false;
 	
@@ -59,5 +61,17 @@ public class NothingAction extends VoyagerEvent
 	public String toString()
 	{
 		return "NothingAction";
+	}
+	
+	@Override
+	public int hashCode()
+	{
+		return 1;
+	}
+	
+	@Override
+	public boolean equals( final Object obj )
+	{
+		return obj != null && obj instanceof NothingAction;
 	}
 }

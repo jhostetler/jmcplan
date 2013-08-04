@@ -19,28 +19,30 @@ import edu.oregonstate.eecs.mcplan.util.ListUtil;
  * @author jhostetler
  *
  */
-public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A>> implements UndoSimulator<S, A>
+public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S>> implements UndoSimulator<S, A>
 {
 	private static final Logger log = LoggerFactory.getLogger( SimultaneousMoveSimulator.class );
 	
-	protected final Deque<ArrayList<A>> action_history_ = new ArrayDeque<ArrayList<A>>();
+	protected final Deque<ArrayList<A>> action_history_
+		= new ArrayDeque<ArrayList<A>>();
 	protected final Deque<Deque<Integer>> move_order_history_ = new ArrayDeque<Deque<Integer>>();
-	protected final Deque<Deque<A>> event_history_ = new ArrayDeque<Deque<A>>();
+	protected final Deque<Deque<UndoableAction<S>>> event_history_ = new ArrayDeque<Deque<UndoableAction<S>>>();
 	private long depth_ = 0;
 	private int turn_ = 0;
+	private long t_ = 0;
 	private final boolean[] turn_taken_;
 	
 	public SimultaneousMoveSimulator()
 	{
 		pushActionSet( getNumAgents() );
-		event_history_.push( new ArrayDeque<A>() );
+		event_history_.push( new ArrayDeque<UndoableAction<S>>() );
 		turn_taken_ = new boolean[getNumAgents()];
 	}
 	
 	protected SimultaneousMoveSimulator( final int num_agents )
 	{
 		pushActionSet( num_agents );
-		event_history_.push( new ArrayDeque<A>() );
+		event_history_.push( new ArrayDeque<UndoableAction<S>>() );
 		turn_taken_ = new boolean[num_agents];
 	}
 	
@@ -108,7 +110,7 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 			assert( move_order_history_.peek().size() == getNumAgents() );
 			for( final int i : move_order_history_.peek() ) {
 				final A ai = action_history_.peek().get( i );
-				log.debug( "do action {}", ai.toString() );
+				log.trace( "do action {}", ai.toString() );
 				ai.doAction( state() );
 			}
 //			while( itr.hasNext() ) {
@@ -118,8 +120,9 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 			// Delegate world update to subclass.
 			advance();
 			pushActionSet( getNumAgents() );
-			event_history_.push( new ArrayDeque<A>() );
+			event_history_.push( new ArrayDeque<UndoableAction<S>>() );
 			Arrays.fill( turn_taken_, false );
+			++t_;
 		}
 		++depth_;
 	}
@@ -159,8 +162,8 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 			
 			// Revert world to previous turn
 			while( !event_history_.peek().isEmpty() ) {
-				final A a = event_history_.peek().pop();
-				log.debug( "undo event {}", a.toString() );
+				final UndoableAction<S> a = event_history_.peek().pop();
+				log.trace( "undo event {}", a.toString() );
 				a.undoAction( state() );
 			}
 			
@@ -173,10 +176,11 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 				final A a = action_history_.peek().get( i );
 //				System.out.println( "[SimultaneousMoveSimulator] Player " + i
 //									+ ": untakeAction( " + a.toString() + " )" );
-				log.debug( "undo action {}", a.toString() );
+				log.trace( "undo action {}", a.toString() );
 				a.undoAction( state() );
 			}
 			Arrays.fill( turn_taken_, true );
+			--t_;
 		}
 		// Now "untaking" the action just means removing it from the stack.
 		assert( turn_taken_[turn_] );
@@ -187,11 +191,18 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 		--depth_;
 	}
 	
-	protected final void applyEvent( final A e )
+	protected final void applyEvent( final UndoableAction<S> e )
 	{
-		log.debug( "do event {}", e.toString() );
+		log.trace( "do event {}", e.toString() );
 		e.doAction( state() );
 		event_history_.peek().push( e );
+	}
+	
+	@Override
+	public final long t()
+	{
+//		System.out.println( "t() = " + t_ );
+		return t_;
 	}
 	
 	/* (non-Javadoc)
@@ -225,12 +236,5 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S, A
 	public String detailString()
 	{
 		return "";
-	}
-	
-	// -----------------------------------------------------------------------
-	
-	public static void main( final String[] args )
-	{
-		
 	}
 }

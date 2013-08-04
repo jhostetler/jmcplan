@@ -12,18 +12,15 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferStrategy;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import javax.swing.JFrame;
 
-import org.apache.commons.math3.random.MersenneTwister;
-import org.apache.commons.math3.random.RandomGenerator;
-
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
 import edu.oregonstate.eecs.mcplan.Policy;
-import edu.oregonstate.eecs.mcplan.RolloutPolicy;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.policies.BalancedPolicy;
+import edu.oregonstate.eecs.mcplan.search.RolloutPolicy;
 import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveListener;
 import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveRunner;
 
@@ -193,7 +190,7 @@ public class VoyagerVisualization extends JFrame
 		}
 	}
 	
-	private static class CanvasUpdater implements SimultaneousMoveListener<VoyagerState, VoyagerEvent>
+	private static class CanvasUpdater implements SimultaneousMoveListener<VoyagerState, UndoableAction<VoyagerState>>
 	{
 		private final VoyagerCanvas canvas_;
 		private final int sleep_;
@@ -205,7 +202,7 @@ public class VoyagerVisualization extends JFrame
 		}
 		
 		@Override
-		public <P extends Policy<VoyagerState, VoyagerEvent>> void startState(
+		public <P extends Policy<VoyagerState, UndoableAction<VoyagerState>>> void startState(
 				final VoyagerState s, final ArrayList<P> policies )
 		{
 			canvas_.updateState( s );
@@ -216,7 +213,7 @@ public class VoyagerVisualization extends JFrame
 		{ }
 
 		@Override
-		public void postGetAction( final int player, final VoyagerEvent action )
+		public void postGetAction( final int player, final UndoableAction<VoyagerState> action )
 		{ }
 
 		@Override
@@ -262,50 +259,39 @@ public class VoyagerVisualization extends JFrame
 		canvas_.updateState( state );
 	}
 	
-	public void attach( final SimultaneousMoveRunner<VoyagerState, VoyagerEvent> runner )
+	public <A extends UndoableAction<VoyagerState>>
+	void attach( final SimultaneousMoveRunner<VoyagerState, UndoableAction<VoyagerState>> runner )
 	{
 		runner.addListener( new CanvasUpdater( canvas_, sleep_ ) );
 	}
 	
 	public static void main( final String[] args )
 	{
-		final VoyagerParameters params = new VoyagerParameters.Builder().finish();
+		final VoyagerParameters params = new VoyagerParameters.Builder().master_seed( 641 ).Nplanets( 3 ).finish();
 		final VoyagerVisualization vis = new VoyagerVisualization( params, new Dimension( 720, 720 ), 100 );
-		final VoyagerInstance instance = new VoyagerInstance( params, 42 );
-		final RandomGenerator master_rng = new MersenneTwister( instance.seed );
+		final VoyagerInstance instance = new VoyagerInstance( params );
 		
-		final ArrayList<AnytimePolicy<VoyagerState, VoyagerEvent>> policies
-			= new ArrayList<AnytimePolicy<VoyagerState, VoyagerEvent>>();
-		policies.add( new BalancedPolicy( Player.Min, new MersenneTwister( master_rng.nextInt() ),
-										  0.8, 2.0, 0.1 ) );
+		final ArrayList<AnytimePolicy<VoyagerState, ? extends UndoableAction<VoyagerState>>> policies
+			= new ArrayList<AnytimePolicy<VoyagerState, ? extends UndoableAction<VoyagerState>>>();
+		policies.add( new BalancedPolicy( Player.Min, instance.nextSeed(), 0.8, 2.0, 0.1 ) );
 		final VoyagerActionGenerator action_gen = new VoyagerActionGenerator();
 		@SuppressWarnings( "unchecked" )
-		final List<Policy<VoyagerState, VoyagerEvent>> rollout_policies = Arrays.asList(
-			(Policy<VoyagerState, VoyagerEvent>) new BalancedPolicy(
-				Player.Min, new MersenneTwister( master_rng.nextInt() ), 0.8, 2.0, 0.1 ),
-			(Policy<VoyagerState, VoyagerEvent>) new BalancedPolicy(
-				Player.Max, new MersenneTwister( master_rng.nextInt() ), 0.8, 2.0, 0.1 ) );
-		policies.add( new RolloutPolicy<VoyagerState, VoyagerEvent>(
+		final List<Policy<VoyagerState, ? extends UndoableAction<VoyagerState>>> rollout_policies;
+		rollout_policies.add( new BalancedPolicy( Player.Min, instance.nextSeed(), 0.8, 2.0, 0.1 ) );
+		rollout_policies.add( new BalancedPolicy( Player.Max, instance.nextSeed(), 0.8, 2.0, 0.1 ) );
+		policies.add( new RolloutPolicy<VoyagerState, VoyagerStateToken>(
 			instance.simulator(), action_gen, 1.0, rollout_policies,
-			new ControlMctsVisitor() {
-				@Override public double terminal( final VoyagerState s ) {
-					final Player winner = Voyager.winner( s );
-					if( winner == Player.Max ) {
-						return 1;
-					}
-					else {
-						return 0;
-					}
-				}
-			} ) );
+			new ControlMctsVisitor( Player.Max ) ) );
 //		policies.add( new RandomPolicy<VoyagerState, VoyagerEvent>(
 //			Player.Max.ordinal(), master_rng.nextInt(), action_gen ) );
 //		policies.add( new BalancedPolicy( Player.Max, new MersenneTwister( master_rng.nextInt() ),
 //										  0.5, 0.6, 0.1 ) );
 //		policies.add( new RandomPolicy<VoyagerState, VoyagerEvent>( 1, 44, new VoyagerActions() ) );
 		final SimultaneousMoveRunner<VoyagerState, VoyagerEvent> runner
-			= new SimultaneousMoveRunner<VoyagerState, VoyagerEvent>( instance.simulator(), policies, 4096, 8000 );
+			= new SimultaneousMoveRunner<VoyagerState, VoyagerEvent>( instance.simulator(), policies, 512, 2000 );
 		vis.attach( runner );
 		runner.run();
+		
+		System.exit( 0 );
 	}
 }

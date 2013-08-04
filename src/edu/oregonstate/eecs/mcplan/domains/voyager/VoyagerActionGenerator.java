@@ -4,21 +4,21 @@
 package edu.oregonstate.eecs.mcplan.domains.voyager;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
 
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
+import edu.oregonstate.eecs.mcplan.UndoableAction;
 
 /**
  * @author jhostetler
  *
  */
-public class VoyagerActionGenerator implements ActionGenerator<VoyagerState, VoyagerEvent>
+public class VoyagerActionGenerator implements ActionGenerator<VoyagerState, UndoableAction<VoyagerState>>
 {
 	private Player player_ = null;
-	private List<VoyagerEvent> actions_ = new ArrayList<VoyagerEvent>();
-	private ListIterator<VoyagerEvent> itr_ = null;
+	private List<UndoableAction<VoyagerState>> actions_ = new ArrayList<UndoableAction<VoyagerState>>();
+	private ListIterator<UndoableAction<VoyagerState>> itr_ = null;
 	
 	@Override
 	public boolean hasNext()
@@ -27,13 +27,13 @@ public class VoyagerActionGenerator implements ActionGenerator<VoyagerState, Voy
 	}
 
 	@Override
-	public VoyagerEvent next()
+	public UndoableAction<VoyagerState> next()
 	{
 		return itr_.next();
 	}
 
 	@Override
-	public ActionGenerator<VoyagerState, VoyagerEvent> create()
+	public VoyagerActionGenerator create()
 	{
 		return new VoyagerActionGenerator();
 	}
@@ -58,10 +58,10 @@ public class VoyagerActionGenerator implements ActionGenerator<VoyagerState, Voy
 			}
 		}
 		if( p.nextProduced() == EntityType.Worker ) {
-			actions_.add( new SetProductionAction( p, Arrays.asList( EntityType.Soldier ) ) );
+			actions_.add( new SetProductionAction( p, EntityType.Soldier ) );
 		}
 		else {
-			actions_.add( new SetProductionAction( p, Arrays.asList( EntityType.Worker ) ) );
+			actions_.add( new SetProductionAction( p, EntityType.Worker ) );
 		}
 	}
 
@@ -69,7 +69,7 @@ public class VoyagerActionGenerator implements ActionGenerator<VoyagerState, Voy
 	public void setState( final VoyagerState s, final long t, final int turn )
 	{
 		player_ = Player.values()[turn];
-		actions_ = new ArrayList<VoyagerEvent>();
+		actions_ = new ArrayList<UndoableAction<VoyagerState>>();
 		for( final Planet p : s.planets ) {
 			if( p.owner() == player_ ) {
 				addPlanetActions( s, p );
