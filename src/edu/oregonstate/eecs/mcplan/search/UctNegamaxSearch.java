@@ -253,7 +253,7 @@ public class UctNegamaxSearch<S, F extends Representer<S, F>, A extends VirtualC
 	{
 		final S s = sim_.state();
 		final double r;
-		if( sim_.isTerminalState( s ) ) {
+		if( sim_.isTerminalState( ) ) {
 			r = color * visitor.terminal( s );
 		}
 		else {
@@ -264,7 +264,7 @@ public class UctNegamaxSearch<S, F extends Representer<S, F>, A extends VirtualC
 			final S sprime = sim_.state();
 			visitor.defaultAction( a, sprime );
 			r = -rollout( -color, visitor );
-			pi.actionResult( a, sprime, r );
+			pi.actionResult( sprime, r );
 			sim_.untakeLastAction();
 		}
 		return r;
@@ -275,7 +275,7 @@ public class UctNegamaxSearch<S, F extends Representer<S, F>, A extends VirtualC
 		final S s = sim_.state();
 		sn.n += 1;
 		final double r;
-		if( sim_.isTerminalState( s ) ) {
+		if( sim_.isTerminalState( ) ) {
 			r = color * visitor.terminal( s );
 		}
 		else {

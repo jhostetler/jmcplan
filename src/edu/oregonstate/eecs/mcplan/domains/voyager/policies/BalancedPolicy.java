@@ -302,7 +302,7 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, UndoableActio
 	}
 
 	@Override
-	public void actionResult( final UndoableAction<VoyagerState> a, final VoyagerState sprime, final double r )
+	public void actionResult( final VoyagerState sprime, final double[] r )
 	{
 		// TODO Auto-generated method stub
 		

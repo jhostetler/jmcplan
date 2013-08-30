@@ -18,11 +18,14 @@ import edu.oregonstate.eecs.mcplan.RandomPolicy;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
+import edu.oregonstate.eecs.mcplan.search.ActionNode;
 import edu.oregonstate.eecs.mcplan.search.DefaultMctsVisitor;
+import edu.oregonstate.eecs.mcplan.search.StateNode;
 import edu.oregonstate.eecs.mcplan.search.TimeLimitMctsVisitor;
 import edu.oregonstate.eecs.mcplan.search.UctSearch;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 import edu.oregonstate.eecs.mcplan.util.Countdown;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * This is a very simple "irrelevant state variable" test case. It has horizon
@@ -201,18 +204,18 @@ public class Irrelevance
 		{ return 0; }
 
 		@Override
-		public double getReward()
+		public double[] getReward()
 		{
 			if( "LL".equals( s_.s ) || "RL".equals( s_.s ) ) {
-				return 1.0;
+				return new double[] { 1.0 };
 			}
 			else {
-				return 0.0;
+				return new double[] { 0.0 };
 			}
 		}
 
 		@Override
-		public boolean isTerminalState( final State s )
+		public boolean isTerminalState( )
 		{ return s_.s.length() == 2; }
 
 		@Override
@@ -268,7 +271,7 @@ public class Irrelevance
 		}
 	}
 	
-	public static class ActionGen implements ActionGenerator<State, UndoableAction<State>>
+	public static class ActionGen extends ActionGenerator<State, UndoableAction<State>>
 	{
 		private final RandomGenerator rng_;
 		private final ArrayList<UndoableAction<State>> as_ = new ArrayList<UndoableAction<State>>();
@@ -292,10 +295,6 @@ public class Irrelevance
 		{ return new ActionGen( rng_ ); }
 
 		@Override
-		public void remove()
-		{ throw new UnsupportedOperationException(); }
-
-		@Override
 		public void setState( final State s, final long t, final int turn )
 		{
 			as_.clear();
@@ -309,7 +308,7 @@ public class Irrelevance
 		{ return as_.size(); }
 	}
 	
-	public static class Visitor extends DefaultMctsVisitor<State, UndoableAction<State>>
+	public static class Visitor<A> extends DefaultMctsVisitor<State, A>
 	{
 		@Override
 		public double[] terminal( final State s, final int turn )
@@ -342,7 +341,20 @@ public class Irrelevance
 			= new UctSearch<State, IdentityRepresenter, UndoableAction<State>>(
 				sim, new IdentityRepresenter(), new ActionGen( rng ),
 				c, rng,	rollout_policies,
-				TimeLimitMctsVisitor.create( new Visitor(), new Countdown( 1000 ) ) );
+				TimeLimitMctsVisitor.create( new Visitor<UndoableAction<State>>(), new Countdown( 1000 ) ) )
+			{
+				@Override
+				public double[] backup( final StateNode<Representation<State, IdentityRepresenter>, UndoableAction<State>> s )
+				{
+					double max_q = -Double.MAX_VALUE;
+					for( final ActionNode<Representation<State, IdentityRepresenter>, UndoableAction<State>> an : Fn.in( s.successors() ) ) {
+						if( an.q( 0 ) > max_q ) {
+							max_q = an.q( 0 );
+						}
+					}
+					return new double[] { max_q };
+				}
+			};
 		uct.run();
 		uct.printTree( System.out );
 		uct.cluster2ndLevel();

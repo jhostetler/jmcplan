@@ -16,12 +16,11 @@ public interface Policy<S, A>
 	/**
 	 * This function may be called by the execution environment to provide
 	 * reward feedback. The default implementation is a no-op.
-	 * @param s
-	 * @param a
 	 * @param sprime
 	 * @param r
+	 * @param s
 	 */
-	public abstract void actionResult( final A a, final S sprime, final double r );
+	public abstract void actionResult( final S sprime, final double[] r );
 	
 	public abstract String getName();
 	

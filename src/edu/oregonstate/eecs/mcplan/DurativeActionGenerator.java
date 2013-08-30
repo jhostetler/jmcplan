@@ -9,7 +9,7 @@ package edu.oregonstate.eecs.mcplan;
  * Adapts an ActionGenerator to generate DurativeUndoableActions.
  */
 public class DurativeActionGenerator<S, A>
-	implements ActionGenerator<S, DurativeAction<S, A>>
+	extends ActionGenerator<S, DurativeAction<S, A>>
 {
 	private final ActionGenerator<S, ? extends Policy<S, A>> base_;
 	private final int epoch_;
@@ -33,12 +33,6 @@ public class DurativeActionGenerator<S, A>
 	public DurativeAction<S, A> next()
 	{
 		return new DurativeAction<S, A>( base_.next(), epoch_ );
-	}
-
-	@Override
-	public void remove()
-	{
-		throw new UnsupportedOperationException();
 	}
 
 	@Override

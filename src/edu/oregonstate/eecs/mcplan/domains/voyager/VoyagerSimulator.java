@@ -27,7 +27,12 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 {
 	public static final Logger log = LoggerFactory.getLogger( VoyagerSimulator.class );
 	
-	public static class PartialProductionEvent implements UndoableAction<VoyagerState>
+	/**
+	 * Applies production points toward a particular EntityType on a particular
+	 * Planet. This event never creates a new unit, even if there are enough
+	 * production points to pay for the unit.
+	 */
+	private static class PartialProductionEvent implements UndoableAction<VoyagerState>
 	{
 		private final Planet planet_;
 		private final EntityType type_;
@@ -74,7 +79,11 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 		{ return repr_; }
 	}
 	
-	public static class EntityCreateEvent implements UndoableAction<VoyagerState>
+	/**
+	 * Creates a new unit on a particular Planet. Does not affect stored
+	 * production points.
+	 */
+	private static class EntityCreateEvent implements UndoableAction<VoyagerState>
 	{
 		public final Planet planet_;
 		public final EntityType type_;
@@ -121,7 +130,10 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 		{ return repr_; }
 	}
 	
-	public static class SpaceshipForwardEvent implements UndoableAction<VoyagerState>
+	/**
+	 * Moves a Spaceship forward one time step.
+	 */
+	private static class SpaceshipForwardEvent implements UndoableAction<VoyagerState>
 	{
 		public final Spaceship spaceship_;
 		private boolean done_ = false;
@@ -164,7 +176,12 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 		{ return repr_; }
 	}
 	
-	public static class SpaceshipArrivalEvent implements UndoableAction<VoyagerState>
+	/**
+	 * Represents the arrival of a Spaceship. For implementation reasons, the
+	 * 'doAction()' method doesn't actually do anything. However, you must
+	 * still use SpaceshipArrivalEvents to get appropriate 'undo' behavior.
+	 */
+	private static class SpaceshipArrivalEvent implements UndoableAction<VoyagerState>
 	{
 		public final Spaceship spaceship_;
 		
@@ -207,7 +224,11 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 		}
 	}
 	
-	public static class ReinforceEvent implements UndoableAction<VoyagerState>
+	/**
+	 * Represents the arrival of forces to a Planet owned by the owner of the
+	 * arriving forces.
+	 */
+	private static class ReinforceEvent implements UndoableAction<VoyagerState>
 	{
 		public final Planet planet;
 		public final int[] population_change;
@@ -257,7 +278,11 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 		{ return repr_; }
 	}
 	
-	public static class BattleEvent implements UndoableAction<VoyagerState>
+	/**
+	 * Represents the arrival of forces to a Planet owned by an enemy of the
+	 * owner of the forces.
+	 */
+	private static class BattleEvent implements UndoableAction<VoyagerState>
 	{
 		public final Planet planet;
 		public final Player attacker;
@@ -295,35 +320,6 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 			planet.setStoredProduction( old_stored_ );
 			done_ = false;
 		}
-		
-		private Pair<EntityType, EntityType> minimaxMatchup( final int[] a, final int[] d )
-		{
-			double max_p = -Double.MAX_VALUE;
-			int max_i = -1;
-			int min_j = -1;
-			for( int i = 0; i < a.length; ++i ) {
-				if( a[i] == 0 ) {
-					continue;
-				}
-				double min_p = Double.MAX_VALUE;
-				for( int j = 0; j < d.length; ++j ) {
-					if( d[j] == 0 ) {
-						continue;
-					}
-					if( min_p > EntityType.matchups[i][j] ) {
-						min_p = EntityType.matchups[i][j];
-						min_j = j;
-					}
-				}
-				if( min_p > max_p ) {
-					max_p = min_p;
-					max_i = i;
-				}
-			}
-			assert( max_i >= 0 );
-			assert( min_j >= 0 );
-			return Pair.makePair( EntityType.values()[max_i], EntityType.values()[min_j] );
-		}
 
 		@Override
 		public void doAction( final VoyagerState s )
@@ -341,7 +337,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 			int total = total_change;
 			while( total > 0 && planet.totalPopulation() > 0 ) {
 				final Pair<EntityType, EntityType> matchup
-					= minimaxMatchup( attack_force, planet.population() );
+					= Voyager.minimaxMatchup( attack_force, planet.population() );
 				final double sample = rng_.nextDouble();
 				final double p = Voyager.winProbability( attack_strength, defense_strength );
 //				log.info( "a = {}, d = {}, p = {}", attack_strength, defense_strength, p );
@@ -391,7 +387,12 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 		{ return repr_; }
 	}
 	
-	public static class JumpBallEvent implements UndoableAction<VoyagerState>
+	/**
+	 * Represents the simultaneous arrival of two opposing forces at a
+	 * Neutral Planet. There is no defender advantage in this situation,
+	 * hence "jump ball".
+	 */
+	private static class JumpBallEvent implements UndoableAction<VoyagerState>
 	{
 		public final Planet planet;
 		final int[][] jump;
@@ -423,35 +424,6 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 			planet.setStoredProduction( Fn.repeat( 0, EntityType.values().length ) );
 			done_ = false;
 		}
-		
-		private Pair<EntityType, EntityType> minimaxMatchup( final int[] a, final int[] d )
-		{
-			double max_p = -Double.MAX_VALUE;
-			int max_i = -1;
-			int min_j = -1;
-			for( int i = 0; i < a.length; ++i ) {
-				if( a[i] == 0 ) {
-					continue;
-				}
-				double min_p = Double.MAX_VALUE;
-				for( int j = 0; j < d.length; ++j ) {
-					if( d[j] == 0 ) {
-						continue;
-					}
-					if( min_p > EntityType.attack_matchups[i][j] ) {
-						min_p = EntityType.attack_matchups[i][j];
-						min_j = j;
-					}
-				}
-				if( min_p > max_p ) {
-					max_p = min_p;
-					max_i = i;
-				}
-			}
-			assert( max_i >= 0 );
-			assert( min_j >= 0 );
-			return Pair.makePair( EntityType.values()[max_i], EntityType.values()[min_j] );
-		}
 
 		@Override
 		public void doAction( final VoyagerState s )
@@ -474,7 +446,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 			
 			while( totals[Player.Min.ordinal()] > 0 && totals[Player.Max.ordinal()] > 0 ) {
 				final Pair<EntityType, EntityType> matchup
-					= minimaxMatchup( jump_cp[Player.Min.ordinal()], jump_cp[Player.Max.ordinal()] );
+					= Voyager.minimaxMatchup( jump_cp[Player.Min.ordinal()], jump_cp[Player.Max.ordinal()] );
 				final double sample = rng_.nextDouble();
 				if( sample < p ) {
 					jump_cp[Player.Max.ordinal()][matchup.second.ordinal()] -= 1;
@@ -513,6 +485,12 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 		{ return repr_; }
 	}
 	
+	/**
+	 * Changes the seed of the random number generator used by the simulator.
+	 * This is used to implement deterministic simulations. Note that
+	 * reseeding the RNG is a costly operation, so this event is mostly
+	 * useful for debugging.
+	 */
 	private static class ReseedEvent implements UndoableAction<VoyagerState>
 	{
 		private final VoyagerSimulator sim_;
@@ -738,15 +716,15 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 	}
 
 	@Override
-	public double getReward()
+	public double[] getReward()
 	{
 		// TODO Auto-generated method stub
-		return 0;
+		return new double[getNumAgents()];
 	}
 
 	@Override
-	public boolean isTerminalState( final VoyagerState s )
+	public boolean isTerminalState()
 	{
-		return t_ >= horizon_ || Voyager.winner( s ) != null;
+		return t_ >= horizon_ || Voyager.winner( state() ) != null;
 	}
 }

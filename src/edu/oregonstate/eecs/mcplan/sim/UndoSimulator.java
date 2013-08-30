@@ -18,9 +18,9 @@ public interface UndoSimulator<S, A>
 
 	public abstract int getTurn();
 
-	public abstract double getReward();
+	public abstract double[] getReward();
 	
-	public abstract boolean isTerminalState( final S s );
+	public abstract boolean isTerminalState();
 	
 	public abstract long horizon();
 

@@ -23,10 +23,10 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S>> 
 {
 	private static final Logger log = LoggerFactory.getLogger( SimultaneousMoveSimulator.class );
 	
-	protected final Deque<ArrayList<A>> action_history_
+	private final Deque<ArrayList<A>> action_history_
 		= new ArrayDeque<ArrayList<A>>();
-	protected final Deque<Deque<Integer>> move_order_history_ = new ArrayDeque<Deque<Integer>>();
-	protected final Deque<Deque<UndoableAction<S>>> event_history_ = new ArrayDeque<Deque<UndoableAction<S>>>();
+	private final Deque<Deque<Integer>> move_order_history_ = new ArrayDeque<Deque<Integer>>();
+	private final Deque<Deque<UndoableAction<S>>> event_history_ = new ArrayDeque<Deque<UndoableAction<S>>>();
 	private long depth_ = 0;
 	private int turn_ = 0;
 	private long t_ = 0;
@@ -227,7 +227,7 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S>> 
 	 * @see edu.oregonstate.eecs.mcplan.agents.galcon.UndoSimulator#getReward()
 	 */
 	@Override
-	public abstract double getReward();
+	public abstract double[] getReward();
 	
 	/* (non-Javadoc)
 	 * @see edu.oregonstate.eecs.mcplan.agents.galcon.UndoSimulator#detailString()

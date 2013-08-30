@@ -57,10 +57,10 @@ public class DurativeAction<S, A> extends Option<S, A>
 	}
 
 	@Override
-	public void actionResult( final A a, final S sprime, final double r )
+	public void actionResult( final S sprime, final double[] r )
 	{
 		// TODO: Accumulate option reward?
-		pi.actionResult( a, sprime, r );
+		pi.actionResult( sprime, r );
 	}
 
 	@Override

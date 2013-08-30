@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.util;
 
+import gnu.trove.list.array.TDoubleArrayList;
+
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,7 +14,7 @@ import java.util.ListIterator;
 import java.util.NoSuchElementException;
 
 /**
- * F for "functional".
+ * Fn for "functional".
  * 
  * @author jhostetler
  */
@@ -234,6 +236,11 @@ public final class Fn
 		public abstract int apply( final T a );
 	}
 	
+	public static interface DoubleFunction1<T>
+	{
+		public abstract double apply( final T a );
+	}
+	
 	public static interface Function2<R, A, B>
 	{
 		public abstract R apply( final A a, final B b );
@@ -341,9 +348,9 @@ public final class Fn
 	private static final class LazyMapSlice<S, T> extends Generator<T>
 	{
 		private final Function1<T, S> f_;
-		private final Generator<S> xs_;
+		private final Iterator<S> xs_;
 		
-		public LazyMapSlice( final Function1<T, S> f, final Generator<S> xs )
+		public LazyMapSlice( final Function1<T, S> f, final Iterator<S> xs )
 		{ f_ = f; xs_ = xs; }
 		
 		@Override
@@ -355,9 +362,9 @@ public final class Fn
 	private static final class LazyMapIntSlice<T> implements IntSlice
 	{
 		private final IntFunction1<T> f_;
-		private final Generator<T> xs_;
+		private final Iterator<T> xs_;
 		
-		public LazyMapIntSlice( final IntFunction1<T> f, final Generator<T> xs )
+		public LazyMapIntSlice( final IntFunction1<T> f, final Iterator<T> xs )
 		{ f_ = f; xs_ = xs; }
 		
 		@Override
@@ -366,14 +373,51 @@ public final class Fn
 		public int next() { return f_.apply( xs_.next() ); }
 	}
 	
+	private static final class LazyMapDoubleSlice<T> implements DoubleSlice
+	{
+		private final DoubleFunction1<T> f_;
+		private final Iterator<T> xs_;
+		
+		public LazyMapDoubleSlice( final DoubleFunction1<T> f, final Iterator<T> xs )
+		{ f_ = f; xs_ = xs; }
+		
+		@Override
+		public boolean hasNext() { return xs_.hasNext(); }
+		@Override
+		public double next() { return f_.apply( xs_.next() ); }
+	}
+	
 	public static <S, T> Generator<T> map( final Function1<T, S> f, final Generator<S> xs )
 	{
 		return new LazyMapSlice<S, T>( f, xs );
 	}
 	
+	public static <S, T> Generator<T> map( final Function1<T, S> f, final Iterable<S> xs )
+	{
+		return new LazyMapSlice<S, T>( f, xs.iterator() );
+	}
+	
 	public static <T> IntSlice map( final IntFunction1<T> f, final Generator<T> xs )
 	{
 		return new LazyMapIntSlice<T>( f, xs );
+	}
+	
+	public static <T> DoubleSlice map( final DoubleFunction1<T> f, final Generator<T> xs )
+	{
+		return new LazyMapDoubleSlice<T>( f, xs );
+	}
+	
+	// -----------------------------------------------------------------------
+	// fold
+	// -----------------------------------------------------------------------
+	
+	public static final <A, B> A foldl( final Function2<A, A, B> f, final A x, final Iterator<B> xs )
+	{
+		A xp = x;
+		while( xs.hasNext() ) {
+			xp = f.apply( xp, xs.next() );
+		}
+		return xp;
 	}
 	
 	// -----------------------------------------------------------------------
@@ -657,6 +701,41 @@ public final class Fn
 	}
 	
 	// -----------------------------------------------------------------------
+	// reverse
+	// -----------------------------------------------------------------------
+	
+	private static final class ReverseListView<T> extends Generator<T>
+	{
+		private final ListIterator<T> itr_;
+		public ReverseListView( final List<T> list )
+		{ itr_ = list.listIterator( list.size() ); }
+		
+		@Override
+		public boolean hasNext()
+		{ return itr_.hasPrevious(); }
+		
+		@Override
+		public T next()
+		{ return itr_.previous(); }
+	}
+	
+	private static final class Reversed<T> implements Iterable<T>
+	{
+		private final List<T> list_;
+		public Reversed( final List<T> list )
+		{ list_ = list; }
+		
+		@Override
+		public Iterator<T> iterator()
+		{ return new ReverseListView<T>( list_ ); }
+	}
+	
+	public static <T> Iterable<T> reverse( final List<T> xs )
+	{
+		return new Reversed<T>( xs );
+	}
+	
+	// -----------------------------------------------------------------------
 	// take
 	// -----------------------------------------------------------------------
 	
@@ -693,6 +772,56 @@ public final class Fn
 		return result;
 	}
 	
+	public static double[] takeAll( final DoubleSlice xs )
+	{
+		final TDoubleArrayList list = new TDoubleArrayList();
+		while( xs.hasNext() ) {
+			list.add( xs.next() );
+		}
+		return list.toArray();
+	}
+	
+	// -----------------------------------------------------------------------
+	// in
+	// -----------------------------------------------------------------------
+	
+	private static class OnceIterable<T> implements Iterable<T>
+	{
+		private boolean used_ = false;
+		private final Iterator<T> itr_;
+		
+		public OnceIterable( final Iterator<T> itr )
+		{ itr_ = itr; }
+		
+		@Override
+		public Iterator<T> iterator()
+		{
+			if( used_ ) {
+				throw new IllegalStateException( "OnceIterable already invoked");
+			}
+			used_ = true;
+			return itr_;
+		}
+	};
+	
+	/**
+	 * Adapts an Iterator into an Iterable so that it can be used in a for-each
+	 * loop. The returned Iterable will throw an exception if 'iterator()' is
+	 * called on it more than once.
+	 * <p>
+	 * This will generally be called with a temporary as the final step of a
+	 * functional operation, as in
+	 * <code>
+	 *     for( foo : Fn.in( Fn.map( ... ) ) )
+	 * </code>
+	 * @param itr
+	 * @return
+	 */
+	public static <T> Iterable<T> in( final Iterator<T> itr )
+	{
+		return new OnceIterable<T>( itr );
+	}
+	
 	// -----------------------------------------------------------------------
 	// memcpy
 	// -----------------------------------------------------------------------
@@ -709,6 +838,15 @@ public final class Fn
 		assert( dest.length == src.length );
 		for( int i = 0; i < n; ++i ) {
 			dest[i] = src[i];
+		}
+		return dest;
+	}
+	
+	public static <T> ArrayList<T> memcpy( final ArrayList<T> dest, final ArrayList<T> src )
+	{
+		assert( dest.size() == src.size() );
+		for( int i = 0; i < dest.size(); ++i ) {
+			dest.set( i, src.get( i ) );
 		}
 		return dest;
 	}
@@ -748,6 +886,38 @@ public final class Fn
 	// -----------------------------------------------------------------------
 	// misc
 	// -----------------------------------------------------------------------
+	
+	/**
+	 * Returns a new vector containing a - b.
+	 * @param a
+	 * @param b
+	 * @return
+	 */
+	public static int[] vminus( final int[] a, final int[] b )
+	{
+		assert( a.length == b.length );
+		final int[] result = new int[a.length];
+		for( int i = 0; i < a.length; ++i ) {
+			result[i] = a[i] - b[i];
+		}
+		return result;
+	}
+	
+	/**
+	 * Returns a new vector containing a - b.
+	 * @param a
+	 * @param b
+	 * @return
+	 */
+	public static double[] vminus( final double[] a, final double[] b )
+	{
+		assert( a.length == b.length );
+		final double[] result = new double[a.length];
+		for( int i = 0; i < a.length; ++i ) {
+			result[i] = a[i] - b[i];
+		}
+		return result;
+	}
 	
 	/**
 	 * 'a' is modified in-place by subtracting 'b' element-wise.

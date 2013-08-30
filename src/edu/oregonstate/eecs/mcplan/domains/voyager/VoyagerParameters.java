@@ -80,6 +80,8 @@ public class VoyagerParameters extends Parameters
 	public final int leaf_lookahead;
 	public final double leaf_lookahead_percent;
 	
+	public final int max_eta;
+	
 	public VoyagerParameters( final long master_seed, final int Nplanets, final int Nsites,
 							  final int max_population, final double ship_speed, final int policy_epoch,
 							  final int max_depth, final int[] max_time, final double discount,
@@ -98,6 +100,8 @@ public class VoyagerParameters extends Parameters
 		this.leaf_lookahead_percent = leaf_lookahead_percent;
 		policy_horizon = primitive_horizon / policy_epoch;
 		this.max_depth = Math.min( max_depth, policy_horizon );
+		
+		max_eta = (int) Math.ceil( Math.sqrt( 2 * 4*Nsites*Nsites ) / ship_speed );
 	}
 	
 	@Override

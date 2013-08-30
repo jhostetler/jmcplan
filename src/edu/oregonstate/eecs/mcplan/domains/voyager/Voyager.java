@@ -6,6 +6,8 @@ package edu.oregonstate.eecs.mcplan.domains.voyager;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.oregonstate.eecs.mcplan.Pair;
+
 /**
  * @author jhostetler
  *
@@ -179,5 +181,34 @@ public final class Voyager
 			}
 		}
 		return total;
+	}
+	
+	public static Pair<EntityType, EntityType> minimaxMatchup( final int[] a, final int[] d )
+	{
+		double max_p = -Double.MAX_VALUE;
+		int max_i = -1;
+		int min_j = -1;
+		for( int i = 0; i < a.length; ++i ) {
+			if( a[i] == 0 ) {
+				continue;
+			}
+			double min_p = Double.MAX_VALUE;
+			for( int j = 0; j < d.length; ++j ) {
+				if( d[j] == 0 ) {
+					continue;
+				}
+				if( min_p > EntityType.attack_matchups[i][j] ) {
+					min_p = EntityType.attack_matchups[i][j];
+					min_j = j;
+				}
+			}
+			if( min_p > max_p ) {
+				max_p = min_p;
+				max_i = i;
+			}
+		}
+		assert( max_i >= 0 );
+		assert( min_j >= 0 );
+		return Pair.makePair( EntityType.values()[max_i], EntityType.values()[min_j] );
 	}
 }

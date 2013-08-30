@@ -66,7 +66,7 @@ public class SimultaneousMoveRunner<S, A extends UndoableAction<S>> implements R
 				sim_.takeAction( a );
 			}
 			fireActionsTaken( sim_.state() );
-			if( sim_.isTerminalState( sim_.state() ) ) {
+			if( sim_.isTerminalState( ) ) {
 				break;
 			}
 		}

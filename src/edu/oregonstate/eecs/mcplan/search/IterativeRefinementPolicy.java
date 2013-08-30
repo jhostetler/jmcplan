@@ -58,10 +58,10 @@ public class IterativeRefinementPolicy<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public void actionResult( final A a, final S sprime, final double r )
+	public void actionResult( final S sprime, final double[] r )
 	{
 		assert( policy_used_ != null );
-		policy_used_.actionResult( a, sprime, r );
+		policy_used_.actionResult( sprime, r );
 	}
 
 	@Override

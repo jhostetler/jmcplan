@@ -7,6 +7,8 @@ import java.util.Comparator;
 
 import edu.oregonstate.eecs.mcplan.SortedList;
 import edu.oregonstate.eecs.mcplan.State;
+import gnu.trove.list.TDoubleList;
+import gnu.trove.list.array.TDoubleArrayList;
 
 /**
  * Represents the state of a Voyager game.
@@ -82,5 +84,48 @@ public class VoyagerState implements State<VoyagerState, VoyagerStateToken>
 	public VoyagerStateToken token()
 	{
 		return new VoyagerStateToken( this );
+	}
+	
+	public double[] featureVector()
+	{
+		final TDoubleList fv = new TDoubleArrayList();
+		for( final Planet p : planets ) {
+			addPlanetFeatures( p, fv );
+		}
+		final int ship_offset = fv.size();
+		final int Nplayer_ships = (hash.max_eta + 1) * EntityType.values().length;
+		fv.addAll( new double[hash.Nplanets * Player.competitors * Nplayer_ships] );
+		final int planet_numbers = Player.competitors * Nplayer_ships;
+		
+		// Format:
+		// for each planet -> for each player -> for each eta -> for each type
+		for( final Spaceship ship : spaceships ) {
+			final int i = ship_offset // Offset to ship features
+						+ ship.dest.id * planet_numbers // Offset to dest planet
+						+ ship.owner.ordinal() * Nplayer_ships // Offset to player
+						+ ship.arrival_time * EntityType.values().length; // Offset to eta
+			for( int t = 0; t < EntityType.values().length; ++t ) {
+				fv.set( i + t, fv.get( i + t ) + ship.population[t] );
+			}
+		}
+		return fv.toArray();
+	}
+	
+	private void addPlanetFeatures( final Planet p, final TDoubleList fv )
+	{
+		for( final Player player : Player.values() ) {
+			if( p.owner() == player ) {
+				fv.add( 1.0 );
+			}
+			else {
+				fv.add( 0.0 );
+			}
+		}
+		for( final EntityType type : EntityType.values() ) {
+			fv.add( p.population( type ) );
+		}
+		for( final EntityType type : EntityType.values() ) {
+			fv.add( p.storedProduction( type ) );
+		}
 	}
 }

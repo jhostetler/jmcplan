@@ -53,7 +53,7 @@ public class IterativeDeepeningPolicy<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public void actionResult( final A a, final S sprime, final double r )
+	public void actionResult( final S sprime, final double[] r )
 	{
 		// TODO:
 	}

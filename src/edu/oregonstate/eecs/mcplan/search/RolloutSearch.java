@@ -98,12 +98,12 @@ public class RolloutSearch<S extends Tokenizable<T>, T, A extends VirtualConstru
 		final CircularListIterator<Policy<S, A>> pitr =
 			new CircularListIterator<Policy<S, A>>( rollout_policies_, sim_.getTurn() );
 		while( t_ >= tstart_ && t_ < tend_
-			   && !sim_.isTerminalState( sim_.state() ) && !visitor_.isTerminal( sim_.state() ) ) {
+			   && !sim_.isTerminalState( ) && !visitor_.isTerminal( sim_.state() ) ) {
 			final Policy<S, A> pi = pitr.next();
 			pi.setState( sim_.state(), sim_.depth() );
 			final A a = pi.getAction();
 			sim_.takeAction( a );
-			pi.actionResult( a, sim_.state(), sim_.getReward() );
+			pi.actionResult( sim_.state(), sim_.getReward() );
 			visitor_.defaultAction( a, sim_.state() );
 			++depth;
 			t_ = System.currentTimeMillis();

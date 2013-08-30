@@ -3,7 +3,7 @@
  */
 package edu.oregonstate.eecs.mcplan;
 
-import java.util.Iterator;
+import edu.oregonstate.eecs.mcplan.util.Generator;
 
 /**
  * An iterator-like type that generates the legal actions in a state.
@@ -12,7 +12,7 @@ import java.util.Iterator;
  * particular state or player. That's what the parameters in setState() are
  * for.
  */
-public interface ActionGenerator<S, A> extends Iterator<A>
+public abstract class ActionGenerator<S, A> extends Generator<A>
 {
 	/**
 	 * Create an independent, identically-initialized instance of this class.
@@ -21,13 +21,6 @@ public interface ActionGenerator<S, A> extends Iterator<A>
 	 * @return
 	 */
 	public abstract ActionGenerator<S, A> create();
-	
-	/**
-	 * Inherited from Iterator<A>. Must throw UnsupportedOperationException.
-	 * @param a
-	 */
-	@Override
-	public abstract void remove();
 	
 	public abstract void setState( final S s, final long t, final int turn );
 	

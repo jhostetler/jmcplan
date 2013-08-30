@@ -56,7 +56,7 @@ public class CoarseSimulation<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public double getReward()
+	public double[] getReward()
 	{
 		return base_sim_.getReward();
 	}
@@ -97,7 +97,7 @@ public class CoarseSimulation<S, A extends UndoableAction<S, A>>
 //					System.out.println( policy_action );
 				base_sim_.takeAction( policy_action );
 				final double r = base_sim_.getReward();
-				cp.policy_.actionResult( policy_action, state(), r );
+				cp.policy_.actionResult( state(), r );
 			}
 		}
 	}
@@ -121,8 +121,8 @@ public class CoarseSimulation<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public boolean isTerminalState( final S s )
+	public boolean isTerminalState( )
 	{
-		return base_sim_.isTerminalState( s );
+		return base_sim_.isTerminalState( );
 	}
 }

@@ -33,7 +33,7 @@ public class IncrementFocusPolicy implements AnytimePolicy<IncrementState, Incre
 	}
 
 	@Override
-	public void actionResult( final IncrementEvent a, final IncrementState sprime, final double r )
+	public void actionResult( final IncrementState sprime, final double[] r )
 	{ }
 
 	@Override

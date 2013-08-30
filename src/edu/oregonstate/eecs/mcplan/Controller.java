@@ -211,7 +211,7 @@ public class Controller<S extends State<S, T>, T, A>
 				sim_.takeAction( a );
 			}
 			fireActionsTaken( sim_.state() );
-			if( sim_.isTerminalState( sim_.state() ) ) {
+			if( sim_.isTerminalState( ) ) {
 				break;
 			}
 		}
@@ -267,7 +267,7 @@ public class Controller<S extends State<S, T>, T, A>
 	{
 		s_ = sim_.state();
 		turn_ = player;
-		if( sim_.isTerminalState( s ) ) {
+		if( sim_.isTerminalState( ) ) {
 			return true;
 		}
 		

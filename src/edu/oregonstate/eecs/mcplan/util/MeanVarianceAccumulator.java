@@ -4,8 +4,7 @@
 package edu.oregonstate.eecs.mcplan.util;
 
 /**
- * @author jhostetler
- *
+ * Incremental calculation of mean and variance.
  */
 public class MeanVarianceAccumulator
 {
