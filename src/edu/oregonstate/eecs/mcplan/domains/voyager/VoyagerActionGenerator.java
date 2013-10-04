@@ -14,7 +14,7 @@ import edu.oregonstate.eecs.mcplan.UndoableAction;
  * @author jhostetler
  *
  */
-public class VoyagerActionGenerator implements ActionGenerator<VoyagerState, UndoableAction<VoyagerState>>
+public class VoyagerActionGenerator extends ActionGenerator<VoyagerState, UndoableAction<VoyagerState>>
 {
 	private Player player_ = null;
 	private List<UndoableAction<VoyagerState>> actions_ = new ArrayList<UndoableAction<VoyagerState>>();
@@ -36,12 +36,6 @@ public class VoyagerActionGenerator implements ActionGenerator<VoyagerState, Und
 	public VoyagerActionGenerator create()
 	{
 		return new VoyagerActionGenerator();
-	}
-
-	@Override
-	public void remove()
-	{
-		throw new UnsupportedOperationException();
 	}
 	
 	private void addPlanetActions( final VoyagerState state, final Planet p )

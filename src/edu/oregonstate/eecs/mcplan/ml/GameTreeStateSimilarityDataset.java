@@ -5,6 +5,7 @@ package edu.oregonstate.eecs.mcplan.ml;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
@@ -26,7 +27,8 @@ import edu.oregonstate.eecs.mcplan.util.Tuple.Tuple2;
  * @author jhostetler
  *
  */
-public abstract class GameTreeStateSimilarityDataset<S extends FactoredRepresentation<?, ?>, A extends VirtualConstructor<A>>
+public abstract class GameTreeStateSimilarityDataset<S extends FactoredRepresentation<?>, A extends VirtualConstructor<A>>
+	implements Runnable
 {
 	private class Visitor implements GameTreeVisitor<S, A>
 	{
@@ -63,50 +65,133 @@ public abstract class GameTreeStateSimilarityDataset<S extends FactoredRepresent
 			}
 			
 			for( final StateNode<S, A> s : Fn.in( a.successors() ) ) {
-				values.add( s );
+				if( s.successors().hasNext() ) {
+					// If not leaf node
+					values.add( s );
+				}
+			}
+//			System.out.println( "***** values.size() = " + values.size() );
+			for( final StateNode<S, A> s : Fn.in( a.successors() ) ) {
+				s.accept( this );
 			}
 		}
 	}
 	
 	public final int label_index;
 	
-	private final HashMap<List<ActionNode<S, A>>, Instances> xs_
-		= new HashMap<List<ActionNode<S, A>>, Instances>();
+	private final GameTree<S, A> tree_;
+	private final ArrayList<Attribute> attributes_;
+	private final int player_;
+	private final int min_samples_;
+	private final int max_instances_;
 	private final boolean use_action_context_;
 	
+	private final HashMap<List<ActionNode<S, A>>, Instances> xs_
+		= new HashMap<List<ActionNode<S, A>>, Instances>();
+	
 	public GameTreeStateSimilarityDataset( final GameTree<S, A> tree, final ArrayList<Attribute> attributes,
+										   final int player, final int min_samples, final int max_instances,
 										   final boolean use_action_context )
 	{
+		tree_ = tree;
+		attributes_ = attributes;
+		player_ = player;
+		min_samples_ = min_samples;
+		max_instances_ = max_instances;
+		label_index = attributes.size() - 1;
 		use_action_context_ = use_action_context;
+	}
+	
+	@Override
+	public void run()
+	{
+		System.out.println( "*** Extracting state nodes" );
 		final Visitor visitor = new Visitor();
-		tree.root().accept( visitor );
+		tree_.root().accept( visitor );
 		
-		label_index = attributes.size();
+		// This extracts only the level-1 nodes.
+		// TODO: Do this somewhere better.
+		final HashMap<List<ActionNode<S, A>>, List<StateNode<S, A>>> tx
+			= new HashMap<List<ActionNode<S, A>>, List<StateNode<S, A>>>();
+		final ArrayList<StateNode<S, A>> depth_1 = new ArrayList<StateNode<S, A>>();
 		for( final Map.Entry<List<ActionNode<S, A>>, List<StateNode<S, A>>> e : visitor.xs.entrySet() ) {
+			if( e.getKey() == null || e.getKey().size() != 1 ) {
+				continue;
+			}
+			else {
+				depth_1.addAll( e.getValue() );
+			}
+		}
+		tx.put( null, depth_1 );
+		
+		System.out.println( "*** Building Instances" );
+		for( final Map.Entry<List<ActionNode<S, A>>, List<StateNode<S, A>>> e : tx.entrySet() ) {
+			System.out.println( "***** key = " + e.getKey() + ", value.size() = " + e.getValue().size() );
+			
 			final String name = (e.getKey() != null ? e.getKey().toString() : "null");
-			final Instances x = new Instances( name, attributes, 0 );
+			final Instances x = new Instances( name, attributes_, 0 );
+			x.setClassIndex( label_index );
 			final List<StateNode<S, A>> values = e.getValue();
+			final int[] max_labeled_instances = new int[] { max_instances_ / 2, max_instances_ / 2 };
+			final int[] num_instances = { 0, 0 };
+			final double[] lowest_weight = { Double.MAX_VALUE, Double.MAX_VALUE };
+			final int[] lowest_weight_idx = { -1, -1 };
+			int count = 0;
 			for( int i = 0; i < values.size(); ++i ) {
 				for( int j = i + 1; j < values.size(); ++j ) {
+					if( count++ % 100 == 0 ) {
+						System.out.println( "***** instance " + (count - 1) );
+					}
+					
 					final StateNode<S, A> s_i = values.get( i );
 					final StateNode<S, A> s_j = values.get( j );
+					if( s_i.n() < min_samples_ || s_j.n() < min_samples_ ) {
+						System.out.println( "! skipping under-sampled state pair" );
+						continue;
+					}
 					final double[] phi_i = s_i.token.phi();
 					final double[] phi_j = s_j.token.phi();
-					final double[] phi_diff = Fn.vminus( phi_i, phi_j );
-					final double[] labeled = new double[phi_diff.length + 1];
-					for( int k = 0; k < phi_diff.length; ++k ) {
-						labeled[k] = phi_diff[k];
+					assert( phi_i.length == phi_j.length );
+					// Feature vector is absolute difference of the two state
+					// feature vectors.
+					final double[] phi_labeled = new double[phi_i.length + 1];
+					for( int k = 0; k < phi_i.length; ++k ) {
+						phi_labeled[k] = Math.abs( phi_i[k] - phi_j[k] );
 					}
-					final Tuple2<Integer, Double> label = label( e.getKey(), s_i, s_j );
-					final String label_string = Integer.toString( label._1 );
-					labeled[label_index] = attributes.get( label_index ).indexOfValue( label_string );
-					x.add( new DenseInstance( label._2, labeled ) );
-				}
-			}
+					final Tuple2<Integer, Double> labeled = label( e.getKey(), player_, s_i, s_j );
+					final int label = labeled._1;
+					final double weight = labeled._2;
+					final String label_string = Integer.toString( label );
+					phi_labeled[label_index] = label; //attributes.get( label_index ).indexOfValue( label_string );
+					
+					num_instances[label] += 1;
+					
+					x.add( new DenseInstance( weight, phi_labeled ) );
+					
+//					if( true || num_instances[label] < max_labeled_instances[label] ) {
+//						x.add( new DenseInstance( weight, phi_labeled ) );
+//
+//					}
+//					else {
+//
+//					}
+				} // for j
+			} // for i
+			System.out.println( "num_instances = " + Arrays.toString( num_instances ) );
 			xs_.put( e.getKey(), x );
 		}
 	}
 	
+	public HashMap<List<ActionNode<S, A>>, Instances> getInstances()
+	{
+		return xs_;
+	}
+	
+	public Instances getInstances( final List<ActionNode<S, A>> path )
+	{
+		return xs_.get( path );
+	}
+	
 	public abstract Tuple2<Integer, Double> label(
-		final List<ActionNode<S, A>> path, final StateNode<S, A> s1, final StateNode<S, A> s2 );
+		final List<ActionNode<S, A>> path, final int player, final StateNode<S, A> s1, final StateNode<S, A> s2 );
 }

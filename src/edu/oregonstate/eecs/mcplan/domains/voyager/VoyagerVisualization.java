@@ -21,14 +21,15 @@ import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.policies.BalancedPolicy;
 import edu.oregonstate.eecs.mcplan.search.RolloutPolicy;
-import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveListener;
+import edu.oregonstate.eecs.mcplan.sim.Episode;
+import edu.oregonstate.eecs.mcplan.sim.EpisodeListener;
 import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveRunner;
 
 /**
  * @author jhostetler
  *
  */
-public class VoyagerVisualization extends JFrame
+public class VoyagerVisualization<A> extends JFrame
 {
 	private static class VoyagerCanvas extends Canvas
 	{
@@ -190,7 +191,7 @@ public class VoyagerVisualization extends JFrame
 		}
 	}
 	
-	private static class CanvasUpdater implements SimultaneousMoveListener<VoyagerState, UndoableAction<VoyagerState>>
+	private static class CanvasUpdater<A> implements EpisodeListener<VoyagerState, A>
 	{
 		private final VoyagerCanvas canvas_;
 		private final int sleep_;
@@ -202,18 +203,18 @@ public class VoyagerVisualization extends JFrame
 		}
 		
 		@Override
-		public <P extends Policy<VoyagerState, UndoableAction<VoyagerState>>> void startState(
-				final VoyagerState s, final ArrayList<P> policies )
+		public <P extends Policy<VoyagerState, A>> void startState(
+				final VoyagerState s, final P pi )
 		{
 			canvas_.updateState( s );
 		}
 
 		@Override
-		public void preGetAction( final int player )
+		public void preGetAction()
 		{ }
 
 		@Override
-		public void postGetAction( final int player, final UndoableAction<VoyagerState> action )
+		public void postGetAction( final A action )
 		{ }
 
 		@Override
@@ -259,10 +260,10 @@ public class VoyagerVisualization extends JFrame
 		canvas_.updateState( state );
 	}
 	
-	public <A extends UndoableAction<VoyagerState>>
-	void attach( final SimultaneousMoveRunner<VoyagerState, UndoableAction<VoyagerState>> runner )
+	public
+	void attach( final Episode<VoyagerState, A> episode )
 	{
-		runner.addListener( new CanvasUpdater( canvas_, sleep_ ) );
+		episode.addListener( new CanvasUpdater<A>( canvas_, sleep_ ) );
 	}
 	
 	public static void main( final String[] args )

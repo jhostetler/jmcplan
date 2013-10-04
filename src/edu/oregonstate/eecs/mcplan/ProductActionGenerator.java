@@ -14,6 +14,12 @@ import java.util.List;
 public class ProductActionGenerator<S, A extends VirtualConstructor<A>>
 	extends ActionGenerator<S, JointAction<A>>
 {
+	public static <S, A extends VirtualConstructor<A>>
+	ProductActionGenerator<S, A> create( final List<? extends ActionGenerator<S, ? extends A>> gs )
+	{
+		return new ProductActionGenerator<S, A>( gs );
+	}
+	
 	private final List<? extends ActionGenerator<S, ? extends A>> gs_;
 	
 	private S s_ = null;

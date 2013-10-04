@@ -12,8 +12,8 @@ import java.util.Iterator;
  * 
  * @author jhostetler
  */
-public class ConstantActionGenerator<S, A extends Action<S>>
-	implements ActionGenerator<S, Action<S>>
+public class ConstantActionGenerator<S, A extends VirtualConstructor<A>>
+	extends ActionGenerator<S, A>
 {
 	private final ArrayList<A> actions_;
 	private Iterator<A> itr_;
@@ -31,15 +31,9 @@ public class ConstantActionGenerator<S, A extends Action<S>>
 	}
 
 	@Override
-	public Action<S> next()
+	public A next()
 	{
 		return itr_.next().create();
-	}
-
-	@Override
-	public void remove()
-	{
-		throw new UnsupportedOperationException();
 	}
 
 	@Override

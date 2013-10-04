@@ -7,7 +7,7 @@ package edu.oregonstate.eecs.mcplan;
  * Adapts an AnytimePolicy into a Policy by always calling it with a fixed
  * 'control' value.
  */
-public class FixedEffortPolicy<S, A> implements Policy<S, A>
+public class FixedEffortPolicy<S, A> extends Policy<S, A>
 {
 	private final AnytimePolicy<S, A> anytime_;
 	private final long control_;
@@ -19,6 +19,23 @@ public class FixedEffortPolicy<S, A> implements Policy<S, A>
 		anytime_ = anytime;
 		control_ = control;
 		str_ = "FixedEffortPolicy(" + control_ + ")[" + anytime_.getName() + "]";
+	}
+	
+	@Override
+	public int hashCode()
+	{
+		return 61 * anytime_.hashCode() + new Long(control_).hashCode();
+	}
+	
+	@Override
+	public boolean equals( final Object obj )
+	{
+		if( obj == null || !(obj instanceof FixedEffortPolicy<?, ?>) ) {
+			return false;
+		}
+		@SuppressWarnings( "unchecked" )
+		final FixedEffortPolicy<S, A> that = (FixedEffortPolicy<S, A>) obj;
+		return control_ == that.control_ && anytime_.equals( that.anytime_ );
 	}
 	
 	@Override

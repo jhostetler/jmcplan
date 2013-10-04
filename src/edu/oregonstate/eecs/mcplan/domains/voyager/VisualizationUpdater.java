@@ -6,14 +6,14 @@ package edu.oregonstate.eecs.mcplan.domains.voyager;
 import java.util.ArrayList;
 
 import edu.oregonstate.eecs.mcplan.Policy;
-import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveListener;
+import edu.oregonstate.eecs.mcplan.sim.EpisodeListener;
 
 /**
  * @author jhostetler
  *
  */
 public class VisualizationUpdater implements
-		SimultaneousMoveListener<VoyagerState, VoyagerEvent>
+		EpisodeListener<VoyagerState, VoyagerEvent>
 {
 
 	/* (non-Javadoc)

@@ -833,6 +833,22 @@ public final class Fn
 	 * @param n
 	 * @return
 	 */
+	public static double[] memcpy( final double[] dest, final double[] src, final int n )
+	{
+		assert( dest.length == src.length );
+		for( int i = 0; i < n; ++i ) {
+			dest[i] = src[i];
+		}
+		return dest;
+	}
+	
+	/**
+	 * Copies 'src' element-wise into 'dest' and returns 'dest'.
+	 * @param dest
+	 * @param src
+	 * @param n
+	 * @return
+	 */
 	public static int[] memcpy( final int[] dest, final int[] src, final int n )
 	{
 		assert( dest.length == src.length );
@@ -919,6 +935,14 @@ public final class Fn
 		return result;
 	}
 	
+	public static double[] vabs_inplace( final double[] a )
+	{
+		for( int i = 0; i < a.length; ++i ) {
+			a[i] = Math.abs( a[i] );
+		}
+		return a;
+	}
+	
 	/**
 	 * 'a' is modified in-place by subtracting 'b' element-wise.
 	 * @param a
@@ -939,10 +963,32 @@ public final class Fn
 	 * @param b
 	 * @return
 	 */
+	public static double[] vplus_inplace( final double[] a, final double[] b )
+	{
+		for( int i = 0; i < a.length; ++i ) {
+			a[i] += b[i];
+		}
+		return a;
+	}
+	
+	/**
+	 * 'a' is modified in-place by adding 'b' element-wise.
+	 * @param a
+	 * @param b
+	 * @return
+	 */
 	public static int[] vplus_inplace( final int[] a, final int[] b )
 	{
 		for( int i = 0; i < a.length; ++i ) {
 			a[i] += b[i];
+		}
+		return a;
+	}
+	
+	public static double[] scalar_multiply_inplace( final double[] a, final double x )
+	{
+		for( int i = 0; i < a.length; ++i ) {
+			a[i] *= x;
 		}
 		return a;
 	}

@@ -46,7 +46,54 @@ public class BackupRules
 				max_a = min_a;
 			}
 		}
-		assert( max_a != null );
+		// TODO: Can return null for leaf nodes. Better way to handle them?
+//		assert( max_a != null );
 		return max_a;
+	}
+	
+	public static <S, A extends VirtualConstructor<A>>
+	double[] MeanQ( final StateNode<S, A> sn )
+	{
+		final Generator<ActionNode<S, A>> aitr = sn.successors();
+		final double[] v;
+		int n = 0;
+		if( aitr.hasNext() ) {
+			final ActionNode<S, A> an = aitr.next();
+			final double[] q = an.q();
+			v = Arrays.copyOf( q, q.length );
+			++n;
+		}
+		else {
+			return null;
+		}
+		while( aitr.hasNext() ) {
+			final ActionNode<S, A> an = aitr.next();
+			Fn.vplus_inplace( v, an.q() );
+			++n;
+		}
+		return Fn.scalar_multiply_inplace( v, 1.0 / n );
+	}
+	
+	public static <S, A extends VirtualConstructor<A>>
+	double[] MaxQ( final StateNode<S, A> sn, final int player )
+	{
+		final Generator<ActionNode<S, A>> aitr = sn.successors();
+		final double[] v;
+		if( aitr.hasNext() ) {
+			final ActionNode<S, A> an = aitr.next();
+			final double[] q = an.q();
+			v = Arrays.copyOf( q, q.length );
+		}
+		else {
+			return null;
+		}
+		while( aitr.hasNext() ) {
+			final ActionNode<S, A> an = aitr.next();
+			final double[] q = an.q();
+			if( q[player] > v[player] ) {
+				Fn.memcpy( v, q, q.length );
+			}
+		}
+		return v;
 	}
 }

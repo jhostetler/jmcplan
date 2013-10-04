@@ -108,4 +108,27 @@ public class TimeLimitMctsVisitor<S, A> implements MctsVisitor<S, A>
 	{
 		return inner_.isTerminal( s, turn );
 	}
+
+	@Override
+	public boolean halt()
+	{
+		final boolean inner_result = inner_.halt();
+		if( countdown_.expired() ) {
+//			log.debug( "*** Time limit" );
+			System.out.println( "*** Time limit" );
+			return true;
+		}
+		else {
+			return inner_result;
+		}
+	}
+
+	@Override
+	public void checkpoint()
+	{
+		inner_.checkpoint();
+		final long now = System.currentTimeMillis();
+		countdown_.count( now - start_time_ );
+		start_time_ = now;
+	}
 }

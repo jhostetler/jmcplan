@@ -12,7 +12,7 @@ import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Voyager;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
 
-public class ExpandPolicy implements AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
+public class ExpandPolicy extends AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
 {
 	private final Player self_;
 	
@@ -28,10 +28,12 @@ public class ExpandPolicy implements AnytimePolicy<VoyagerState, UndoableAction<
 	@Override
 	public boolean equals( final Object obj )
 	{
+//		System.out.println( "ExpandPolicy.equals()" );
 		if( obj == null || !(obj instanceof ExpandPolicy) ) {
 			return false;
 		}
 		final ExpandPolicy that = (ExpandPolicy) obj;
+//		System.out.println( "\t" + toString() + ".equals( " + that.toString() + " )" );
 		return self_ == that.self_;
 	}
 	

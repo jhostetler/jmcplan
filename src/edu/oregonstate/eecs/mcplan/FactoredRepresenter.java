@@ -10,11 +10,11 @@ import weka.core.Attribute;
 /**
  * Generates FactoredRepresentations.
  */
-public interface FactoredRepresenter<S, F extends FactoredRepresenter<S, F>>
-	extends Representer<S, F>
+public interface FactoredRepresenter<S, X extends FactoredRepresentation<S>>
+	extends Representer<S, X>
 {
 	@Override
-	public abstract FactoredRepresentation<S, F> encode( final S s );
+	public abstract X encode( final S s );
 	
 	// FIXME: Remove Weka dependency
 	public abstract ArrayList<Attribute> attributes();

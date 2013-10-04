@@ -21,4 +21,7 @@ public interface MctsVisitor<S, A>
 	public abstract void depthLimit( final S s, final int turn );
 	public abstract double[] terminal( final S s, final int turn );
 	public abstract boolean isTerminal( final S s, final int turn );
+	
+	public abstract void checkpoint();
+	public abstract boolean halt();
 }

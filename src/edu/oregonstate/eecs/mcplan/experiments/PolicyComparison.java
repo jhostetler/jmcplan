@@ -14,7 +14,7 @@ import org.apache.commons.math3.random.MersenneTwister;
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
-import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveListener;
+import edu.oregonstate.eecs.mcplan.sim.EpisodeListener;
 import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveRunner;
 
 /**
@@ -35,14 +35,14 @@ public class PolicyComparison<S, A extends UndoableAction<S, A>,
 	
 	private final PolicyFactory<S, A, P, I> pi_factory_;
 	private final PolicyFactory<S, A, P, I> phi_factory_;
-	private final List<SimultaneousMoveListener<S, A>> extra_listeners_;
+	private final List<EpisodeListener<S, A>> extra_listeners_;
 	
 	public EndScoreRecorder<A> end_state = null;
 	public ExecutionTimer<S, A> timer = null;
 	
 	public PolicyComparison( final PolicyFactory<S, A, P, I> pi_factory,
 							 final PolicyFactory<S, A, P, I> phi_factory,
-							 final List<SimultaneousMoveListener<S, A>> extra_listeners )
+							 final List<EpisodeListener<S, A>> extra_listeners )
 	{
 		pi_factory_ = pi_factory;
 		phi_factory_ = phi_factory;
@@ -52,7 +52,7 @@ public class PolicyComparison<S, A extends UndoableAction<S, A>,
 	public PolicyComparison( final PolicyFactory<S, A, P, I> pi_factory,
 							 final PolicyFactory<S, A, P, I> phi_factory )
 	{
-		this( pi_factory, phi_factory, new ArrayList<SimultaneousMoveListener<S, A>>() );
+		this( pi_factory, phi_factory, new ArrayList<EpisodeListener<S, A>>() );
 	}
 	
 	@Override
@@ -123,7 +123,7 @@ public class PolicyComparison<S, A extends UndoableAction<S, A>,
 		final SimultaneousMoveRunner<S,	A> runner = new SimultaneousMoveRunner<S, A>(
 			world_.simulator(), agents, params_.policy_horizon(), params_.max_time() );
 		runner.addListener( timer ); // Add this one first
-		for( final SimultaneousMoveListener<S, A> listener : extra_listeners_ ) {
+		for( final EpisodeListener<S, A> listener : extra_listeners_ ) {
 			runner.addListener( listener );
 		}
 		

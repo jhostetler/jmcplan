@@ -20,7 +20,7 @@ import edu.oregonstate.eecs.mcplan.domains.voyager.Spaceship;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Voyager;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
 
-public class DefensePolicy implements AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
+public class DefensePolicy extends AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
 {
 	private final Player self_;
 	
@@ -36,10 +36,12 @@ public class DefensePolicy implements AnytimePolicy<VoyagerState, UndoableAction
 	@Override
 	public boolean equals( final Object obj )
 	{
+//		System.out.println( "DefensePolicy.equals()" );
 		if( obj == null || !(obj instanceof DefensePolicy) ) {
 			return false;
 		}
 		final DefensePolicy that = (DefensePolicy) obj;
+//		System.out.println( "\t" + toString() + ".equals( " + that.toString() + " )" );
 		return self_ == that.self_;
 	}
 	

@@ -1,0 +1,113 @@
+/**
+ * 
+ */
+package edu.oregonstate.eecs.mcplan.sim;
+
+import java.util.ArrayList;
+
+import edu.oregonstate.eecs.mcplan.Policy;
+
+/**
+ * @author jhostetler
+ *
+ */
+public class Episode<S, A> implements Runnable
+{
+	private final UndoSimulator<S, A> sim_;
+	private final Policy<S, A> pi_;
+	private final int T_;
+	private final ArrayList<EpisodeListener<S, A>> listeners_ = new ArrayList<EpisodeListener<S, A>>();
+	private final boolean use_burnin_ = false; // FIXME: Burn-in is messing up first move; disabling for now
+	
+	public Episode( final UndoSimulator<S, A> sim, final Policy<S, A> pi, final int T )
+	{
+		sim_ = sim;
+		pi_ = pi;
+		T_ = T;
+	}
+	
+	public Episode( final UndoSimulator<S, A> sim, final Policy<S, A> pi )
+	{
+		sim_ = sim;
+		pi_ = pi;
+		T_ = Integer.MAX_VALUE;
+	}
+	
+	@Override
+	public void run()
+	{
+		fireStartState( sim_.state() );
+		
+		if( use_burnin_ ) {
+			// The first player to move always ends up achieving fewer rollouts
+			// on his first turn compared to the second player. I think this
+			// is due to startup costs of the JVM or some kind of
+			// profiling-based optimizations. My solution is to do a "practice"
+			// round for all players before starting the experiment. This
+			// appears to work.
+			// TODO: The visitors passed to policies like UctPolicy will still
+			// be called for the fake searches. What are the consequences?
+			System.out.println( "[Episode] Burn-in" );
+			final int t0 = 0;
+			pi_.setState( sim_.state(), t0 );
+			final A a = pi_.getAction();
+		}
+				
+		for( int t = 0; t < T_; ++t ) {
+			System.out.println( "[Episode] Action selection" );
+			pi_.setState( sim_.state(), t );
+			firePreGetAction();
+			final A a = pi_.getAction();
+			firePostGetAction( a );
+			System.out.println( "!!! [t = " + t + "] a = " + a.toString() );
+			System.out.println( "[Episode] Execution" );
+			sim_.takeAction( a );
+			pi_.actionResult( sim_.state(), sim_.getReward() );
+			fireActionsTaken( sim_.state() );
+			if( sim_.isTerminalState( ) ) {
+				break;
+			}
+		}
+		fireEndState( sim_.state() );
+	}
+	
+	public void addListener( final EpisodeListener<S, A> listener )
+	{
+		listeners_.add( listener );
+	}
+	
+	private void fireStartState( final S s )
+	{
+		for( final EpisodeListener<S, A> listener : listeners_ ) {
+			listener.startState( s, pi_ );
+		}
+	}
+	
+	private void firePreGetAction()
+	{
+		for( final EpisodeListener<S, A> listener : listeners_ ) {
+			listener.preGetAction();
+		}
+	}
+	
+	private void firePostGetAction( final A a )
+	{
+		for( final EpisodeListener<S, A> listener : listeners_ ) {
+			listener.postGetAction( a );
+		}
+	}
+	
+	private void fireActionsTaken( final S sprime )
+	{
+		for( final EpisodeListener<S, A> listener : listeners_ ) {
+			listener.onActionsTaken( sprime );
+		}
+	}
+	
+	private void fireEndState( final S s )
+	{
+		for( final EpisodeListener<S, A> listener : listeners_ ) {
+			listener.endState( s );
+		}
+	}
+}

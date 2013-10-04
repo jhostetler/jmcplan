@@ -7,16 +7,33 @@ package edu.oregonstate.eecs.mcplan;
  * Adapts a policy over options to return options that always terminate
  * after one step.
  */
-public class SingleStepAdapter<S, A> implements Policy<S, Option<S, A>>
+public class SingleStepAdapter<S, A> extends Policy<S, Option<S, A>>
 {
 	private final Policy<S, Option<S, A>> pi_;
 	
 	private final String str_;
 	
-	public SingleStepAdapter( final Policy<S, Option<S, A>> pi )
+	public <P extends Policy<S, Option<S, A>>> SingleStepAdapter( final P pi )
 	{
 		pi_ = pi;
 		str_ = "SingleStepAdapter[" + pi_.getName() + "]";
+	}
+	
+	@Override
+	public int hashCode()
+	{
+		return 53 * pi_.hashCode();
+	}
+	
+	@Override
+	public boolean equals( final Object obj )
+	{
+		if( obj == null || !(obj instanceof SingleStepAdapter<?, ?>) ) {
+			return false;
+		}
+		@SuppressWarnings( "unchecked" )
+		final SingleStepAdapter<S, A> that = (SingleStepAdapter<S, A>) obj;
+		return pi_.equals( that.pi_ );
 	}
 
 	@Override

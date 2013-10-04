@@ -18,7 +18,7 @@ import edu.oregonstate.eecs.mcplan.domains.voyager.Voyager;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
-public class AttackPolicy implements AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
+public class AttackPolicy extends AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
 {
 	private final Player self_;
 	private final Planet target_;
@@ -43,10 +43,12 @@ public class AttackPolicy implements AnytimePolicy<VoyagerState, UndoableAction<
 	@Override
 	public boolean equals( final Object obj )
 	{
+//		System.out.println( "AttackPolicy.equals()" );
 		if( obj == null || !(obj instanceof AttackPolicy) ) {
 			return false;
 		}
 		final AttackPolicy that = (AttackPolicy) obj;
+//		System.out.println( "\t" + toString() + ".equals( " + that.toString() + " )" );
 		return self_ == that.self_
 			   && target_.equals( that.target_ )
 			   && win_margin_ == that.win_margin_

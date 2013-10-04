@@ -7,14 +7,14 @@ import java.util.ArrayList;
 
 import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveListener;
+import edu.oregonstate.eecs.mcplan.sim.EpisodeListener;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 
 /**
  * @author jhostetler
  *
  */
-public class ExecutionTimer<S, A extends UndoableAction<S>> implements SimultaneousMoveListener<S, A>
+public class ExecutionTimer<S, A extends UndoableAction<S>> implements EpisodeListener<S, A>
 {
 	private MeanVarianceAccumulator[] mv_ = null;
 	private MedianAccumulator[] median_ = null;

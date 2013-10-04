@@ -20,12 +20,12 @@ import gnu.trove.list.array.TIntArrayList;
 /**
  * Adapts a simulator of primitive actions to simulate options over those
  * actions.
- * 
+ * <p>
  * The takeAction() function sets the active option for the current player.
  * If all players have active options, it then calls takeAction() on the
  * base simulator using the policies from the active options until one or
  * more options terminate. It then returns.
- * 
+ * <p>
  * The getTurn() function returns the index of the next player in the move
  * ordering who does not have an active option. This is not necessarily the
  * next player to move in the base simulator.
@@ -216,7 +216,8 @@ public class OptionSimulator<S, A> implements UndoSimulator<S, Option<S, A>>
 			base_.untakeLastAction();
 		}
 		turn_ = f.turn;
-		active_.set( turn_, f.option );
+		active_.set( turn_, null );
+		terminated_.set( turn_, f.option );
 	}
 
 	@Override

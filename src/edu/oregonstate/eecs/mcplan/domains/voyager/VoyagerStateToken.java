@@ -7,7 +7,7 @@ import java.util.List;
 import weka.core.Attribute;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 
-public class VoyagerStateToken extends FactoredRepresentation<VoyagerState, IdentityRepresenter>
+public class VoyagerStateToken extends FactoredRepresentation<VoyagerState>
 {
 	private static final DecimalFormat id_format = new DecimalFormat( "00" );
 	private static final DecimalFormat eta_format = new DecimalFormat( "00" );
@@ -97,46 +97,46 @@ public class VoyagerStateToken extends FactoredRepresentation<VoyagerState, Iden
 		return new VoyagerStateToken( this );
 	}
 	
-	private void foo( final VoyagerState s, final VoyagerHash h )
-	{
-		assert( Player.values().length < 10 ); // Assuming 1 digit for player IDs
-		assert( EntityType.values().length < 10 ); // Assuming 1 digit for type IDs
-		long zhash = 0L;
-		final StringBuilder sb = new StringBuilder();
-		for( final Planet p : s.planets ) {
-			zhash ^= h.hashOwner( p, p.owner() );
-			sb.append( p.owner().id );
-			zhash ^= h.hashProduction( p, p.nextProduced() );
-			// nextProduced() will be 'null' if owner == Neutral
-			if( p.owner() == Player.Neutral ) {
-				sb.append( EntityType.values().length );
-			}
-			else {
-				sb.append( p.nextProduced().ordinal() );
-			}
-			for( final EntityType type : EntityType.values() ) {
-				final int type_pop = p.population( type );
-				zhash ^= h.hashPopulation( p, type, type_pop );
-				sb.append( pop_format.format( type_pop ) );
-				final int type_stored = p.storedProduction( type );
-				zhash ^= h.hashStoredProduction( p, type, type_stored );
-				sb.append( pop_format.format( type_stored ) );
-			}
-			sb.append( "|" ); // TODO: debugging
-		}
-		for( final Spaceship ship : s.spaceships ) {
-			sb.append( eta_format.format( ship.arrival_time ) )
-			  .append( id_format.format( ship.src.id ) )
-			  .append( id_format.format( ship.dest.id ) )
-			  .append( ship.owner.id );
-			for( final EntityType type : EntityType.values() ) {
-				zhash ^= h.hashSpaceship( ship.src, ship.dest, ship.arrival_time,
-										  ship.owner, type, ship.population[type.ordinal()] );
-				sb.append( pop_format.format( ship.population[type.ordinal()] ) );
-			}
-			sb.append( "|" ); // TODO: debugging
-		}
-	}
+//	private void foo( final VoyagerState s, final VoyagerHash h )
+//	{
+//		assert( Player.values().length < 10 ); // Assuming 1 digit for player IDs
+//		assert( EntityType.values().length < 10 ); // Assuming 1 digit for type IDs
+//		long zhash = 0L;
+//		final StringBuilder sb = new StringBuilder();
+//		for( final Planet p : s.planets ) {
+//			zhash ^= h.hashOwner( p, p.owner() );
+//			sb.append( p.owner().id );
+//			zhash ^= h.hashProduction( p, p.nextProduced() );
+//			// nextProduced() will be 'null' if owner == Neutral
+//			if( p.owner() == Player.Neutral ) {
+//				sb.append( EntityType.values().length );
+//			}
+//			else {
+//				sb.append( p.nextProduced().ordinal() );
+//			}
+//			for( final EntityType type : EntityType.values() ) {
+//				final int type_pop = p.population( type );
+//				zhash ^= h.hashPopulation( p, type, type_pop );
+//				sb.append( pop_format.format( type_pop ) );
+//				final int type_stored = p.storedProduction( type );
+//				zhash ^= h.hashStoredProduction( p, type, type_stored );
+//				sb.append( pop_format.format( type_stored ) );
+//			}
+//			sb.append( "|" ); // TODO: debugging
+//		}
+//		for( final Spaceship ship : s.spaceships ) {
+//			sb.append( eta_format.format( ship.arrival_time ) )
+//			  .append( id_format.format( ship.src.id ) )
+//			  .append( id_format.format( ship.dest.id ) )
+//			  .append( ship.owner.id );
+//			for( final EntityType type : EntityType.values() ) {
+//				zhash ^= h.hashSpaceship( ship.src, ship.dest, ship.arrival_time,
+//										  ship.owner, type, ship.population[type.ordinal()] );
+//				sb.append( pop_format.format( ship.population[type.ordinal()] ) );
+//			}
+//			sb.append( "|" ); // TODO: debugging
+//		}
+//	}
 	
 	@Override
 	public double[] phi()

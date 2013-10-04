@@ -17,7 +17,7 @@ import edu.oregonstate.eecs.mcplan.util.Tuple.Tuple2;
  *
  */
 public class ActionNode<S, A extends VirtualConstructor<A>>
-	implements GameTreeNode<S, A>
+	extends GameTreeNode<S, A>
 {
 	public final A a;
 	public final int nagents;
@@ -29,7 +29,7 @@ public class ActionNode<S, A extends VirtualConstructor<A>>
 	
 	public ActionNode( final A a, final int nagents )
 	{
-		assert( nagents == 2 ); // TODO:
+		//assert( nagents == 2 ); // TODO:
 		this.a = a;
 		this.nagents = nagents;
 		qv_ = new MeanVarianceAccumulator[nagents];
@@ -45,14 +45,9 @@ public class ActionNode<S, A extends VirtualConstructor<A>>
 		return s_.get( Tuple2.of( token, turn ) );
 	}
 	
-	public StateNode<S, A> stateNode( final S token, final int turn )
+	public void attachSuccessor( final S token, final int turn, final StateNode<S, A> node )
 	{
-		StateNode<S, A> si = getStateNode( token, turn );
-		if( si == null ) {
-			si = new StateNode<S, A>( token, nagents, turn );
-			s_.put( Tuple2.of( token, turn ), si );
-		}
-		return si;
+		s_.put( Tuple2.of( token, turn ), node );
 	}
 	
 	@Override
@@ -116,6 +111,11 @@ public class ActionNode<S, A extends VirtualConstructor<A>>
 		}
 	}
 	
+	// FIXME: In the literature, it's always:
+	// Q(s, a) = R(s, a) + E[V(s')|a]
+	// But currently, q() returns only the E[V(s')|a] part! It should have
+	// r() added to it, and you should come up with different method names
+	// if you want to be able to return the components separately!
 	public double[] q()
 	{
 		final double[] q = new double[qv_.length];

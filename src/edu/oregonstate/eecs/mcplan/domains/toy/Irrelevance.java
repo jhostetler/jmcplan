@@ -9,23 +9,14 @@ import java.util.Deque;
 import java.util.ListIterator;
 
 import org.apache.commons.math3.distribution.UniformIntegerDistribution;
-import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
-import edu.oregonstate.eecs.mcplan.Policy;
-import edu.oregonstate.eecs.mcplan.RandomPolicy;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.search.ActionNode;
 import edu.oregonstate.eecs.mcplan.search.DefaultMctsVisitor;
-import edu.oregonstate.eecs.mcplan.search.StateNode;
-import edu.oregonstate.eecs.mcplan.search.TimeLimitMctsVisitor;
-import edu.oregonstate.eecs.mcplan.search.UctSearch;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
-import edu.oregonstate.eecs.mcplan.util.Countdown;
-import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * This is a very simple "irrelevant state variable" test case. It has horizon
@@ -227,9 +218,9 @@ public class Irrelevance
 		{ return ""; }
 	}
 	
-	public static class IdentityRepresenter implements Representer<State, IdentityRepresenter>
+	public static class IdentityRepresenter implements Representer<State, Representation<State>>
 	{
-		private class R extends Representation<State, IdentityRepresenter>
+		private class R extends Representation<State>
 		{
 			private final String s_;
 			
@@ -240,7 +231,7 @@ public class Irrelevance
 			{ s_ = that.s_; }
 			
 			@Override
-			public Representation<State, IdentityRepresenter> copy()
+			public Representation<State> copy()
 			{ return new R( this ); }
 
 			@Override
@@ -265,7 +256,7 @@ public class Irrelevance
 		}
 
 		@Override
-		public Representation<State, IdentityRepresenter> encode( final State s )
+		public Representation<State> encode( final State s )
 		{
 			return new R( s );
 		}
@@ -327,37 +318,37 @@ public class Irrelevance
 	 */
 	public static void main( final String[] args )
 	{
-		final MersenneTwister rng = new MersenneTwister( 42 );
-		final Simulator sim = new Simulator();
-		final double c = 1.0;
-		final ArrayList<Policy<State, UndoableAction<State>>> rollout_policies
-			= new ArrayList<Policy<State, UndoableAction<State>>>();
-		rollout_policies.add(
-			RandomPolicy.create( 0, rng.nextInt(), new ActionGen( rng ) ) );
-		rollout_policies.add(
-			RandomPolicy.create( 1, rng.nextInt(), new ActionGen( rng ) ) );
-		
-		final UctSearch<State, IdentityRepresenter, UndoableAction<State>> uct
-			= new UctSearch<State, IdentityRepresenter, UndoableAction<State>>(
-				sim, new IdentityRepresenter(), new ActionGen( rng ),
-				c, rng,	rollout_policies,
-				TimeLimitMctsVisitor.create( new Visitor<UndoableAction<State>>(), new Countdown( 1000 ) ) )
-			{
-				@Override
-				public double[] backup( final StateNode<Representation<State, IdentityRepresenter>, UndoableAction<State>> s )
-				{
-					double max_q = -Double.MAX_VALUE;
-					for( final ActionNode<Representation<State, IdentityRepresenter>, UndoableAction<State>> an : Fn.in( s.successors() ) ) {
-						if( an.q( 0 ) > max_q ) {
-							max_q = an.q( 0 );
-						}
-					}
-					return new double[] { max_q };
-				}
-			};
-		uct.run();
-		uct.printTree( System.out );
-		uct.cluster2ndLevel();
+//		final MersenneTwister rng = new MersenneTwister( 42 );
+//		final Simulator sim = new Simulator();
+//		final double c = 1.0;
+//		final ArrayList<Policy<State, UndoableAction<State>>> rollout_policies
+//			= new ArrayList<Policy<State, UndoableAction<State>>>();
+//		rollout_policies.add(
+//			RandomPolicy.create( 0, rng.nextInt(), new ActionGen( rng ) ) );
+//		rollout_policies.add(
+//			RandomPolicy.create( 1, rng.nextInt(), new ActionGen( rng ) ) );
+//
+//		final UctSearch<State, Representation<State>, UndoableAction<State>> uct
+//			= new UctSearch<State, IdentityRepresenter, UndoableAction<State>>(
+//				sim, new IdentityRepresenter(), new ActionGen( rng ),
+//				c, rng,	rollout_policies,
+//				TimeLimitMctsVisitor.create( new Visitor<UndoableAction<State>>(), new Countdown( 1000 ) ) )
+//			{
+//				@Override
+//				public double[] backup( final StateNode<Representation<State, IdentityRepresenter>, UndoableAction<State>> s )
+//				{
+//					double max_q = -Double.MAX_VALUE;
+//					for( final ActionNode<Representation<State, IdentityRepresenter>, UndoableAction<State>> an : Fn.in( s.successors() ) ) {
+//						if( an.q( 0 ) > max_q ) {
+//							max_q = an.q( 0 );
+//						}
+//					}
+//					return new double[] { max_q };
+//				}
+//			};
+//		uct.run();
+//		uct.printTree( System.out );
+//		uct.cluster2ndLevel();
 	}
 
 }

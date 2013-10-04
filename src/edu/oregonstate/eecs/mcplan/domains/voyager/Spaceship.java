@@ -106,19 +106,19 @@ public class Spaceship
 	private long zobrist_hash_ = 0L;
 	private final VoyagerHash hash_;
 	
-	private final char[] repr_ = new char[2 + 2 + 2 + 1 + 1 + (EntityType.values().length * 3)];
 	private static final DecimalFormat planet_format = new DecimalFormat( "00" );
 	private static final DecimalFormat eta_format = new DecimalFormat( "00" );
 	private static final DecimalFormat pop_format = new DecimalFormat( "000" );
 	private static final int radix_10 = 10;
+	private static final int planet_stride = planet_format.getMinimumIntegerDigits();
 	private static final int src_idx = 0;
-	private static final int dest_idx = 2;
-	private static final int planet_stride = 2;
-	private static final int eta_idx = 4;
-	private static final int eta_stride = 2;
-	private static final int owner_idx = 5;
-	private static final int pop_idx = 6;
-	private static final int pop_stride = 3;
+	private static final int dest_idx = src_idx + planet_stride;
+	private static final int eta_idx = dest_idx + planet_stride;
+	private static final int eta_stride = eta_format.getMinimumIntegerDigits();
+	private static final int owner_idx = eta_idx + eta_stride;
+	private static final int pop_stride = pop_format.getMinimumIntegerDigits();
+	private static final int pop_idx = owner_idx + 1;
+	private final char[] repr_ = new char[(2*planet_stride) + eta_stride + 1 + (EntityType.values().length * pop_stride)];
 	
 	private Spaceship( final int id, final VoyagerHash hash, final Player owner, final int[] population,
 					   final Planet src, final Planet dest, final int x, final int y, final double speed )

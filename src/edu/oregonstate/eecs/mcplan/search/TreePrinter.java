@@ -1,6 +1,7 @@
 package edu.oregonstate.eecs.mcplan.search;
 
 import java.io.PrintStream;
+import java.util.Arrays;
 
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Fn;
@@ -8,6 +9,12 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
 public class TreePrinter<S, A extends VirtualConstructor<A>>
 	implements GameTreeVisitor<S, A>
 {
+	public static <S, A extends VirtualConstructor<A>>
+	TreePrinter<S, A> create( final GameTree<S, A> tree )
+	{
+		return new TreePrinter<S, A>();
+	}
+	
 	private final PrintStream out_ = System.out;
 	private int d_ = 0;
 	private int turn_ = 0;
@@ -23,7 +30,10 @@ public class TreePrinter<S, A extends VirtualConstructor<A>>
 		out_.print( ": n = " );
 		out_.print( s.n() );
 		out_.print( ": " );
-		out_.println( s.token );
+		out_.print( s.token );
+		out_.print( ": v = " );
+		out_.print( Arrays.toString( s.v() ) );
+		out_.println();
 		d_ += 1;
 		final int old_turn = turn_;
 		turn_ = s.turn;

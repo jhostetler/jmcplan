@@ -19,7 +19,7 @@ import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
  * Launches attacks at the nearest enemy planet. Intended for use when we
  * have an overwhelming advantage and just want to end the game.
  */
-public class KillPolicy implements AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
+public class KillPolicy extends AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
 {
 	private final Player self_;
 	private final int garrison_;
@@ -36,10 +36,12 @@ public class KillPolicy implements AnytimePolicy<VoyagerState, UndoableAction<Vo
 	@Override
 	public boolean equals( final Object obj )
 	{
+//		System.out.println( "KillPolicy.equals()" );
 		if( obj == null || !(obj instanceof KillPolicy) ) {
 			return false;
 		}
 		final KillPolicy that = (KillPolicy) obj;
+//		System.out.println( "\t" + toString() + ".equals( " + that.toString() + " )" );
 		return self_ == that.self_
 			   && garrison_ == that.garrison_;
 	}

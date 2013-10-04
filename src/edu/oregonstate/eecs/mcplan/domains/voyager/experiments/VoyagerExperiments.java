@@ -9,11 +9,9 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.ListIterator;
 
 import org.apache.commons.math3.random.MersenneTwister;
 
-import weka.core.Attribute;
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
 import edu.oregonstate.eecs.mcplan.DurativeActionGenerator;
@@ -31,36 +29,24 @@ import edu.oregonstate.eecs.mcplan.RandomPolicy;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.SingleStepAdapter;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.domains.voyager.ControlMctsVisitor;
-import edu.oregonstate.eecs.mcplan.domains.voyager.EntityType;
 import edu.oregonstate.eecs.mcplan.domains.voyager.IdentityRepresenter;
 import edu.oregonstate.eecs.mcplan.domains.voyager.NullRepresenter;
-import edu.oregonstate.eecs.mcplan.domains.voyager.Planet;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
-import edu.oregonstate.eecs.mcplan.domains.voyager.Voyager;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerActionGenerator;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerInstance;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerParameters;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerStateToken;
-import edu.oregonstate.eecs.mcplan.domains.voyager.policies.AttackPolicy;
 import edu.oregonstate.eecs.mcplan.domains.voyager.policies.BalancedPolicy;
-import edu.oregonstate.eecs.mcplan.domains.voyager.policies.DefensePolicy;
-import edu.oregonstate.eecs.mcplan.domains.voyager.policies.EmphasizeProductionPolicy;
-import edu.oregonstate.eecs.mcplan.domains.voyager.policies.ExpandPolicy;
-import edu.oregonstate.eecs.mcplan.domains.voyager.policies.KillPolicy;
 import edu.oregonstate.eecs.mcplan.domains.voyager.policies.VoyagerPolicyFactory;
 import edu.oregonstate.eecs.mcplan.experiments.Environment;
 import edu.oregonstate.eecs.mcplan.experiments.Experiment;
 import edu.oregonstate.eecs.mcplan.experiments.ExperimentalSetup;
 import edu.oregonstate.eecs.mcplan.experiments.MultipleInstanceMultipleWorldGenerator;
-import edu.oregonstate.eecs.mcplan.ml.GameTreeStateSimilarityDataset;
-import edu.oregonstate.eecs.mcplan.search.ActionNode;
 import edu.oregonstate.eecs.mcplan.search.BackupRule;
 import edu.oregonstate.eecs.mcplan.search.BackupRules;
 import edu.oregonstate.eecs.mcplan.search.DiscountedRefinementPolicy;
-import edu.oregonstate.eecs.mcplan.search.GameTree;
 import edu.oregonstate.eecs.mcplan.search.GameTreeFactory;
 import edu.oregonstate.eecs.mcplan.search.IterativeDeepeningPolicy;
 import edu.oregonstate.eecs.mcplan.search.IterativeRefinementPolicy;
@@ -75,7 +61,6 @@ import edu.oregonstate.eecs.mcplan.search.UctSearch;
 import edu.oregonstate.eecs.mcplan.sim.OptionSimulator;
 import edu.oregonstate.eecs.mcplan.sim.SequentialJointSimulator;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
-import edu.oregonstate.eecs.mcplan.util.Tuple.Tuple2;
 
 /**
  * @author jhostetler
@@ -88,131 +73,6 @@ public class VoyagerExperiments
 	
 	public static final double win_margin = 0.2;
 	public static final int garrison = 1;
-	
-	public static final class VoyagerPolicyGenerator
-		extends ActionGenerator<VoyagerState, AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>>
-	{
-		private final VoyagerParameters params_;
-		private final VoyagerInstance instance_;
-		private final Player player_;
-		
-		private final List<AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>> actions_
-			= new ArrayList<AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>>();
-		private ListIterator<AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>> itr_ = null;
-		
-		public VoyagerPolicyGenerator( final VoyagerParameters params, final VoyagerInstance instance, final Player player )
-		{
-			params_ = params;
-			instance_ = instance;
-			player_ = player;
-		}
-		
-		@Override
-		public boolean hasNext()
-		{
-			return itr_.hasNext();
-		}
-
-		@Override
-		public AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>> next()
-		{
-			return itr_.next();
-		}
-
-		@Override
-		public ActionGenerator<VoyagerState, AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>> create()
-		{
-			return new VoyagerPolicyGenerator( params_, instance_, player_ );
-		}
-
-		@Override
-		public void setState( final VoyagerState s, final long t, final int turn )
-		{
-			actions_.clear();
-			
-			final List<AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>> policies
-				= new ArrayList<AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>>();
-			policies.add( new DefensePolicy( player_ ) );
-			for( final EntityType type : EntityType.values() ) {
-				policies.add( new EmphasizeProductionPolicy( player_, type ) );
-			}
-			policies.add( new ExpandPolicy( player_ ) );
-			policies.add( new KillPolicy( player_, garrison ) );
-			policies.add( new BalancedPolicy( player_, instance_.nextSeed(), 0.5, 1.0, 0.1 ) );
-			policies.add( new BalancedPolicy( player_, instance_.nextSeed(), 0.75, 1.25, 0.2 ) );
-			policies.add( new BalancedPolicy( player_, instance_.nextSeed(), 1.0, 1.5, 0.2 ) );
-			for( final Planet p : Voyager.playerPlanets( s, player_.enemy() ) ) {
-				policies.add( new AttackPolicy( player_, p, win_margin ) );
-			}
-			
-			actions_.addAll( policies );
-			itr_ = actions_.listIterator();
-		}
-
-		@Override
-		public int size()
-		{
-			return actions_.size();
-		}
-	}
-	
-	public static final class BalancedPolicyGenerator
-		extends ActionGenerator<VoyagerState, AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>>
-	{
-		private final VoyagerParameters params_;
-		private final VoyagerInstance instance_;
-		private final Player player_;
-		
-		private final List<AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>> actions_
-			= new ArrayList<AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>>();
-		private ListIterator<AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>> itr_ = null;
-		
-		public BalancedPolicyGenerator( final VoyagerParameters params, final VoyagerInstance instance, final Player player )
-		{
-			params_ = params;
-			instance_ = instance;
-			player_ = player;
-		}
-		
-		@Override
-		public boolean hasNext()
-		{
-			return itr_.hasNext();
-		}
-
-		@Override
-		public AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>> next()
-		{
-			return itr_.next();
-		}
-
-		@Override
-		public ActionGenerator<VoyagerState, AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>> create()
-		{
-			return new BalancedPolicyGenerator( params_, instance_, player_ );
-		}
-
-		@Override
-		public void setState( final VoyagerState s, final long t, final int turn )
-		{
-			actions_.clear();
-			
-			final List<AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>> policies
-				= new ArrayList<AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>>();
-			policies.add( new BalancedPolicy( player_, instance_.nextSeed(), 0.5, 1.0, 0.1 ) );
-			policies.add( new BalancedPolicy( player_, instance_.nextSeed(), 0.75, 1.25, 0.2 ) );
-			policies.add( new BalancedPolicy( player_, instance_.nextSeed(), 1.0, 1.5, 0.2 ) );
-			
-			actions_.addAll( policies );
-			itr_ = actions_.listIterator();
-		}
-
-		@Override
-		public int size()
-		{
-			return actions_.size();
-		}
-	}
 	
 	// -----------------------------------------------------------------------
 
@@ -600,8 +460,8 @@ public class VoyagerExperiments
 				> factory
 					= new UctSearch.Factory<VoyagerState, IdentityRepresenter,
 											JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>(
-						joint_sim, new IdentityRepresenter(), pgen,
-						c_, new MersenneTwister( instance.nextSeed() ), default_policy, backup );
+						joint_sim, new IdentityRepresenter( params.Nplanets * player.competitors, params.max_eta ),
+						pgen, c_, new MersenneTwister( instance.nextSeed() ), default_policy, backup );
 				policy = new SearchPolicy<VoyagerState, IdentityRepresenter,
 										  JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>(
 					factory, visitor, log_stream )
@@ -647,55 +507,9 @@ public class VoyagerExperiments
 					new MarginalPolicy<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>>(
 						new FixedEffortPolicy<VoyagerState, JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>(
 							policy, params.max_time[player.ordinal()] ),
-						0 ) );
+						player.ordinal() ) );
 			
 			return new OptionPolicy<VoyagerState, UndoableAction<VoyagerState>>( fixed, instance.nextSeed() );
-		}
-	}
-	
-	// -----------------------------------------------------------------------
-	
-	public static abstract class ContextualPiStar<A extends VirtualConstructor<A>>
-		extends GameTreeStateSimilarityDataset<VoyagerStateToken, JointAction<A>>
-	{
-		public final double false_positive_weight;
-		
-		public ContextualPiStar( final GameTree<VoyagerStateToken, JointAction<A>> tree,
-								 final ArrayList<Attribute> attributes,
-								 final double false_positive_weight )
-		{
-			super( tree, attributes, true );
-			this.false_positive_weight = false_positive_weight;
-		}
-		
-		private ActionNode<VoyagerStateToken, JointAction<A>> getAction( final StateNode<VoyagerStateToken, JointAction<A>> s )
-		{
-			return BackupRules.MaxMinAction( s );
-		}
-
-		@Override
-		public Tuple2<Integer, Double> label( final List<ActionNode<VoyagerStateToken, JointAction<A>>> path,
-											  final StateNode<VoyagerStateToken, JointAction<A>> s1,
-											  final StateNode<VoyagerStateToken, JointAction<A>> s2 )
-		{
-			final ActionNode<VoyagerStateToken, JointAction<A>> a1 = getAction( s1 );
-			final ActionNode<VoyagerStateToken, JointAction<A>> a2 = getAction( s2 );
-			final int label;
-			if( a1.a.equals( a2.a ) ) {
-				label = 1;
-			}
-			else {
-				label = 0;
-			}
-			final double weight;
-			if( label == 1 ) {
-				weight = 1.0;
-			}
-			else {
-				// TODO: Assumes zero-sum game.
-				weight = false_positive_weight * Math.abs( a1.q( 0 ) - a2.q( 0 ) );
-			}
-			return Tuple2.of( label, weight );
 		}
 	}
 	

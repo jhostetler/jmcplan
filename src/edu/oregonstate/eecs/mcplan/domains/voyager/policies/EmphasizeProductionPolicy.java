@@ -20,7 +20,7 @@ import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
  * Switches planets' production to the specified type, in order of how much
  * time they've invested on their current project.
  */
-public class EmphasizeProductionPolicy implements AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
+public class EmphasizeProductionPolicy extends AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
 {
 	private final Player self_;
 	private final EntityType type_;
@@ -37,10 +37,12 @@ public class EmphasizeProductionPolicy implements AnytimePolicy<VoyagerState, Un
 	@Override
 	public boolean equals( final Object obj )
 	{
+//		System.out.println( "EmphasizeProductionPolicy.equals()" );
 		if( obj == null || !(obj instanceof EmphasizeProductionPolicy) ) {
 			return false;
 		}
 		final EmphasizeProductionPolicy that = (EmphasizeProductionPolicy) obj;
+//		System.out.println( "\t" + toString() + ".equals( " + that.toString() + " )" );
 		return self_ == that.self_
 			   && type_ == that.type_;
 	}

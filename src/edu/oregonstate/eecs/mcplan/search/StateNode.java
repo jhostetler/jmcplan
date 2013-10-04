@@ -16,8 +16,8 @@ import edu.oregonstate.eecs.mcplan.util.Generator;
  * @author jhostetler
  *
  */
-public class StateNode<S, A extends VirtualConstructor<A>>
-	implements GameTreeNode<S, A>
+public abstract class StateNode<S, A extends VirtualConstructor<A>>
+	extends GameTreeNode<S, A>
 {
 	private final Map<A, ActionNode<S, A>> a_ = new HashMap<A, ActionNode<S, A>>();
 	
@@ -28,7 +28,7 @@ public class StateNode<S, A extends VirtualConstructor<A>>
 	
 	public StateNode( final S token, final int nagents, final int turn )
 	{
-		assert( nagents == 2 ); // TODO:
+		//assert( nagents == 2 ); // TODO:
 		this.token = token;
 		this.nagents = nagents;
 		this.turn = turn;
@@ -39,6 +39,8 @@ public class StateNode<S, A extends VirtualConstructor<A>>
 	
 	public void visit()
 	{ n_ += 1; }
+	
+	public abstract double[] v();
 	
 	@Override
 	public Generator<ActionNode<S, A>> successors()
@@ -52,14 +54,9 @@ public class StateNode<S, A extends VirtualConstructor<A>>
 		return an;
 	}
 	
-	public ActionNode<S, A> action( final A a )
+	public void attachSuccessor( final A a, final ActionNode<S, A> node )
 	{
-		ActionNode<S, A> sa = getActionNode( a );
-		if( sa == null ) {
-			sa = new ActionNode<S, A>( a, nagents );
-			a_.put( a, sa );
-		}
-		return sa;
+		a_.put( a, node );
 	}
 	
 	public ActionNode<S, A> bestAction( final RandomGenerator rng )

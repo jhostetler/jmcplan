@@ -16,7 +16,7 @@ import edu.oregonstate.eecs.mcplan.experiments.ExperimentalSetup;
 import edu.oregonstate.eecs.mcplan.experiments.MultipleInstanceMultipleWorldGenerator;
 import edu.oregonstate.eecs.mcplan.experiments.PolicyComparison;
 import edu.oregonstate.eecs.mcplan.experiments.PolicyFactory;
-import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveListener;
+import edu.oregonstate.eecs.mcplan.sim.EpisodeListener;
 
 /**
  * @author jhostetler
@@ -100,8 +100,8 @@ public class Main
 			experimental_setups = new MultipleInstanceMultipleWorldGenerator<VoyagerParameters, VoyagerInstance>(
 				default_environment, ps, ws );
 		
-		final ArrayList<SimultaneousMoveListener<VoyagerState, VoyagerEvent>> extra_listeners
-			= new ArrayList<SimultaneousMoveListener<VoyagerState, VoyagerEvent>>();
+		final ArrayList<EpisodeListener<VoyagerState, VoyagerEvent>> extra_listeners
+			= new ArrayList<EpisodeListener<VoyagerState, VoyagerEvent>>();
 		
 		if( default_params.use_monitor ) {
 			// TODO: Actually create the viewport!

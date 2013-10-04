@@ -4,6 +4,7 @@
 package edu.oregonstate.eecs.mcplan;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -131,10 +132,11 @@ public final class JointAction<A extends VirtualConstructor<A>>
 		final HashMap<A, List<ActionNode<S, JointAction<A>>>> parts
 			= new HashMap<A, List<ActionNode<S, JointAction<A>>>>();
 		for( final ActionNode<S, JointAction<A>> j : Fn.in( as ) ) {
-			List<ActionNode<S, JointAction<A>>> p = parts.get( j.a.get( i ) );
+			final A a = j.a.get( i );
+			List<ActionNode<S, JointAction<A>>> p = parts.get( a );
 			if( p == null ) {
 				p = new ArrayList<ActionNode<S, JointAction<A>>>();
-				parts.put( j.a.get( i ), p );
+				parts.put( a, p );
 			}
 			p.add( j );
 		}
@@ -154,6 +156,11 @@ public final class JointAction<A extends VirtualConstructor<A>>
 	
 	private final List<A> actions_;
 	private final String repr_;
+	
+	public JointAction( final A... actions )
+	{
+		this( Arrays.asList( actions ) );
+	}
 	
 	private JointAction( final List<A> actions )
 	{
@@ -219,9 +226,11 @@ public final class JointAction<A extends VirtualConstructor<A>>
 	@Override
 	public boolean equals( final Object obj )
 	{
-		if( obj == null || !(obj instanceof JointAction<?>) ) {
+//		System.out.println( "JointAction.equals()" );
+		if( obj == null ) { // || !(obj instanceof JointAction<?>) ) {
 			return false;
 		}
+		@SuppressWarnings( "unchecked" )
 		final JointAction<A> that = (JointAction<A>) obj;
 		if( size() != that.size() ) {
 			return false;

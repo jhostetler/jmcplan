@@ -3,7 +3,7 @@ package edu.oregonstate.eecs.mcplan;
 import org.apache.commons.math3.random.MersenneTwister;
 
 
-public class RandomPolicy<S, A> implements AnytimePolicy<S, A>
+public class RandomPolicy<S, A> extends AnytimePolicy<S, A>
 {
 	public static <S, A>
 	RandomPolicy<S, A> create( final int turn, final long seed, final ActionGenerator<S, A> action_gen )
@@ -22,6 +22,22 @@ public class RandomPolicy<S, A> implements AnytimePolicy<S, A>
 		rng_ = new MersenneTwister( seed );
 	}
 	
+	@Override
+	public int hashCode()
+	{
+		return 71 * action_gen_.hashCode();
+	}
+	
+	@Override
+	public boolean equals( final Object obj )
+	{
+		if( obj == null || !(obj instanceof RandomPolicy<?, ?>) ) {
+			return false;
+		}
+		@SuppressWarnings( "unchecked" )
+		final RandomPolicy<S, A> that = (RandomPolicy<S, A>) obj;
+		return action_gen_.equals( that.action_gen_ );
+	}
 	
 	@Override
 	public void setState( final S s, final long t )

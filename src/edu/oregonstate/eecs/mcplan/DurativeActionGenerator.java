@@ -11,6 +11,12 @@ package edu.oregonstate.eecs.mcplan;
 public class DurativeActionGenerator<S, A>
 	extends ActionGenerator<S, DurativeAction<S, A>>
 {
+	public static <S, A> DurativeActionGenerator<S, A> create(
+		final ActionGenerator<S, ? extends Policy<S, A>> base, final int epoch )
+	{
+		return new DurativeActionGenerator<S, A>( base, epoch );
+	}
+	
 	private final ActionGenerator<S, ? extends Policy<S, A>> base_;
 	private final int epoch_;
 	

@@ -7,7 +7,7 @@ package edu.oregonstate.eecs.mcplan;
  * @author jhostetler
  *
  */
-public interface Policy<S, A>
+public abstract class Policy<S, A>
 {
 	public abstract void setState( final S s, final long t );
 	

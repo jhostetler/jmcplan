@@ -11,7 +11,7 @@ package edu.oregonstate.eecs.mcplan;
 public class DurativeAction<S, A> extends Option<S, A>
 {
 	public final int T;
-	private long t = 0;
+	private long start_time_ = 0;
 	
 	private final String str_;
 	
@@ -26,7 +26,7 @@ public class DurativeAction<S, A> extends Option<S, A>
 	@Override
 	public void start( final S s, final long t )
 	{
-		this.t = t;
+		this.start_time_ = t;
 //		System.out.println( "Option " + pi.getName() + " started" );
 	}
 
@@ -34,7 +34,7 @@ public class DurativeAction<S, A> extends Option<S, A>
 	public double terminate( final S s, final long t )
 	{
 //		System.out.println( "Terminate check " + (t - this.t) );
-		return ((t - this.t) >= T ? 1.0 : 0.0);
+		return ((t - this.start_time_) >= T ? 1.0 : 0.0);
 	}
 
 	@Override
@@ -52,7 +52,6 @@ public class DurativeAction<S, A> extends Option<S, A>
 	@Override
 	public A getAction()
 	{
-//		t += 1;
 		return pi.getAction();
 	}
 
@@ -81,19 +80,18 @@ public class DurativeAction<S, A> extends Option<S, A>
 		final int k = 109;
 		int h = 101;
 		h = h*k + pi.hashCode();
-//		h = h*k + T;
+		h = h*k + T;
 		return h;
 	}
 	
 	@Override
 	public boolean equals( final Object obj )
 	{
-		if( obj == null || !(obj instanceof DurativeAction<?, ?>) ) {
+		if( obj == null ) { // || !(obj instanceof DurativeAction<?, ?>) ) {
 			return false;
 		}
 		@SuppressWarnings( "unchecked" )
 		final DurativeAction<S, A> that = (DurativeAction<S, A>) obj;
-//		return T == that.t && pi.equals( that.pi );
-		return pi.equals( that.pi );
+		return T == that.T && pi.equals( that.pi );
 	}
 }

@@ -13,11 +13,11 @@ import edu.oregonstate.eecs.mcplan.domains.voyager.Planet;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Spaceship;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
-import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveListener;
+import edu.oregonstate.eecs.mcplan.sim.EpisodeListener;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 import edu.oregonstate.eecs.mcplan.util.ListUtil;
 
-public class VoyagerGameLogger implements SimultaneousMoveListener<VoyagerState, UndoableAction<VoyagerState>>
+public class VoyagerGameLogger implements EpisodeListener<VoyagerState, UndoableAction<VoyagerState>>
 {
 	public final int Nplayers = 2;
 	public final int Nplanets;

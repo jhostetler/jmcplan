@@ -3,14 +3,13 @@
  */
 package edu.oregonstate.eecs.mcplan;
 
-import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
 /**
  * Adapts a Policy over Options into a Policy over primitive actions, by
  * forwarding calls to Option.pi.
  */
-public class OptionPolicy<S, A> implements Policy<S, A>
+public class OptionPolicy<S, A> extends Policy<S, A>
 {
 	public final Policy<S, Option<S, A>> mu;
 	public Option<S, A> o = null;
@@ -19,10 +18,40 @@ public class OptionPolicy<S, A> implements Policy<S, A>
 	private S s_ = null;
 	private long t_ = 0L;
 	
-	public OptionPolicy( final Policy<S, Option<S, A>> mu, final long seed )
+	/**
+	 * Create an OptionPolicy without an RNG. If you use this constructor,
+	 * all Options returned by 'mu' *must* have deterministic 'terminate()'
+	 * functions (ie. they return 0.0 or 1.0 always). Otherwise, OptionPolicy
+	 * will try to generate a random number, resulting in a NullPointException.
+	 * @param mu
+	 */
+	public OptionPolicy( final Policy<S, Option<S, A>> mu )
 	{
 		this.mu = mu;
-		rng_ = new MersenneTwister( seed );
+		rng_ = null;
+	}
+	
+	public OptionPolicy( final Policy<S, Option<S, A>> mu, final RandomGenerator rng )
+	{
+		this.mu = mu;
+		rng_ = rng;
+	}
+	
+	@Override
+	public int hashCode()
+	{
+		return 67 * mu.hashCode();
+	}
+	
+	@Override
+	public boolean equals( final Object obj )
+	{
+		if( obj == null || !(obj instanceof OptionPolicy<?, ?>) ) {
+			return false;
+		}
+		@SuppressWarnings( "unchecked" )
+		final OptionPolicy<S, A> that = (OptionPolicy<S, A>) obj;
+		return mu.equals( that.mu );
 	}
 	
 	private boolean terminate( final S s, final long t, final Option<S, A> o )

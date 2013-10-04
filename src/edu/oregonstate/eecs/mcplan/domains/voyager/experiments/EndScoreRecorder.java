@@ -9,10 +9,10 @@ import edu.oregonstate.eecs.mcplan.domains.voyager.Planet;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Voyager;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
-import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveListener;
+import edu.oregonstate.eecs.mcplan.sim.EpisodeListener;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
-public class EndScoreRecorder implements SimultaneousMoveListener<VoyagerState, UndoableAction<VoyagerState>>
+public class EndScoreRecorder implements EpisodeListener<VoyagerState, UndoableAction<VoyagerState>>
 {
 	public Player winner = null;
 	public int[] population_difference = new int[EntityType.values().length];

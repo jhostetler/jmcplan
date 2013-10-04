@@ -34,7 +34,7 @@ import edu.oregonstate.eecs.mcplan.util.GibbsDistribution;
  * 
  * @author jhostetler
  */
-public class BalancedPolicy implements AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
+public class BalancedPolicy extends AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
 {
 	// TODO: Seeding
 	private static final MersenneTwister rng = new MersenneTwister( 42 );
@@ -63,10 +63,12 @@ public class BalancedPolicy implements AnytimePolicy<VoyagerState, UndoableActio
 	@Override
 	public boolean equals( final Object obj )
 	{
+//		System.out.println( "BalancedPolicy.equals()" );
 		if( obj == null || !(obj instanceof BalancedPolicy) ) {
 			return false;
 		}
 		final BalancedPolicy that = (BalancedPolicy) obj;
+//		System.out.println( "\t" + toString() + ".equals( " + that.toString() + " )" );
 		return player_ == that.player_
 			   && min_strength_ratio_ == that.min_strength_ratio_
 			   && max_strength_ratio_ == that.max_strength_ratio_

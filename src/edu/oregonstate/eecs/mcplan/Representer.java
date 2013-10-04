@@ -7,7 +7,7 @@ package edu.oregonstate.eecs.mcplan;
  * A function that represents the set S with the set X. The 'Self' type
  * parameter must be the type implementing Representer.
  */
-public interface Representer<S, F extends Representer<S, F>>
+public interface Representer<S, X extends Representation<S>>
 {
-	public abstract Representation<S, F> encode( final S s );
+	public abstract X encode( final S s );
 }

@@ -4,29 +4,12 @@
 package edu.oregonstate.eecs.mcplan;
 
 import java.util.ArrayList;
-import java.util.List;
-
-import org.apache.commons.math3.random.MersenneTwister;
-
-import edu.oregonstate.eecs.mcplan.domains.toy.Irrelevance.ActionGen;
-import edu.oregonstate.eecs.mcplan.domains.toy.Irrelevance.IdentityRepresenter;
-import edu.oregonstate.eecs.mcplan.domains.toy.Irrelevance.Simulator;
-import edu.oregonstate.eecs.mcplan.domains.toy.Irrelevance.State;
-import edu.oregonstate.eecs.mcplan.domains.toy.Irrelevance.Visitor;
-import edu.oregonstate.eecs.mcplan.search.ActionNode;
-import edu.oregonstate.eecs.mcplan.search.SparseSampleTree;
-import edu.oregonstate.eecs.mcplan.search.StateNode;
-import edu.oregonstate.eecs.mcplan.search.TimeLimitMctsVisitor;
-import edu.oregonstate.eecs.mcplan.search.TreePrinter;
-import edu.oregonstate.eecs.mcplan.sim.SequentialJointSimulator;
-import edu.oregonstate.eecs.mcplan.util.Countdown;
-import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * @author jhostetler
  *
  */
-public class JointPolicy<S, A extends VirtualConstructor<A>> implements Policy<S, JointAction<A>>
+public class JointPolicy<S, A extends VirtualConstructor<A>> extends Policy<S, JointAction<A>>
 {
 	public static final class Builder<S, A extends VirtualConstructor<A>>
 	{
@@ -44,11 +27,36 @@ public class JointPolicy<S, A extends VirtualConstructor<A>> implements Policy<S
 		}
 	}
 	
-	private final List<Policy<S, A>> Pi_;
+	private final ArrayList<Policy<S, A>> Pi_;
 	
-	private JointPolicy( final List<Policy<S, A>> Pi )
+	public JointPolicy( final Policy<S, A>... Pi )
+	{
+		Pi_ = new ArrayList<Policy<S, A>>( Pi.length );
+		for( final Policy<S, A> pi : Pi ) {
+			Pi_.add( pi );
+		}
+	}
+	
+	public JointPolicy( final ArrayList<Policy<S, A>> Pi )
 	{
 		Pi_ = Pi;
+	}
+	
+	@Override
+	public int hashCode()
+	{
+		return Pi_.hashCode();
+	}
+	
+	@Override
+	public boolean equals( final Object obj )
+	{
+		if( obj == null || !(obj instanceof JointPolicy<?, ?>) ) {
+			return false;
+		}
+		@SuppressWarnings( "unchecked" )
+		final JointPolicy<S, A> that = (JointPolicy<S, A>) obj;
+		return Pi_.equals( that.Pi_ );
 	}
 	
 	@Override
@@ -85,6 +93,7 @@ public class JointPolicy<S, A extends VirtualConstructor<A>> implements Policy<S
 		return "JointPolicy";
 	}
 	
+	/*
 	public static void main( final String[] args )
 	{
 		final MersenneTwister rng = new MersenneTwister( 42 );
@@ -121,5 +130,6 @@ public class JointPolicy<S, A extends VirtualConstructor<A>> implements Policy<S
 		tree.run();
 		tree.root().accept( new TreePrinter<Representation<State, IdentityRepresenter>, JointAction<UndoableAction<State>>>() );
 	}
+	*/
 
 }

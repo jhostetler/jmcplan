@@ -10,8 +10,8 @@ public class SimultaneousMoveRunner<S, A extends UndoableAction<S>> implements R
 	private final SimultaneousMoveSimulator<S, A> sim_;
 	private final ArrayList<? extends Policy<S, A>> agents_;
 	private final int T_;
-	private final ArrayList<SimultaneousMoveListener<S, A>> listeners_
-		= new ArrayList<SimultaneousMoveListener<S, A>>();
+	private final ArrayList<EpisodeListener<S, A>> listeners_
+		= new ArrayList<EpisodeListener<S, A>>();
 	private final boolean use_burnin_ = false; // FIXME: Burn-in is messing up first move; disabling for now
 	
 	public SimultaneousMoveRunner( final SimultaneousMoveSimulator<S, A> sim,
@@ -73,42 +73,42 @@ public class SimultaneousMoveRunner<S, A extends UndoableAction<S>> implements R
 		fireEndState( sim_.state() );
 	}
 	
-	public void addListener( final SimultaneousMoveListener<S, A> listener )
+	public void addListener( final EpisodeListener<S, A> listener )
 	{
 		listeners_.add( listener );
 	}
 	
 	private void fireStartState( final S s )
 	{
-		for( final SimultaneousMoveListener<S, A> listener : listeners_ ) {
+		for( final EpisodeListener<S, A> listener : listeners_ ) {
 			listener.startState( s, agents_ );
 		}
 	}
 	
 	private void firePreGetAction( final int i )
 	{
-		for( final SimultaneousMoveListener<S, A> listener : listeners_ ) {
+		for( final EpisodeListener<S, A> listener : listeners_ ) {
 			listener.preGetAction( i );
 		}
 	}
 	
 	private void firePostGetAction( final int i, final UndoableAction<S> a )
 	{
-		for( final SimultaneousMoveListener<S, A> listener : listeners_ ) {
+		for( final EpisodeListener<S, A> listener : listeners_ ) {
 			listener.postGetAction( i, a );
 		}
 	}
 	
 	private void fireActionsTaken( final S sprime )
 	{
-		for( final SimultaneousMoveListener<S, A> listener : listeners_ ) {
+		for( final EpisodeListener<S, A> listener : listeners_ ) {
 			listener.onActionsTaken( sprime );
 		}
 	}
 	
 	private void fireEndState( final S s )
 	{
-		for( final SimultaneousMoveListener<S, A> listener : listeners_ ) {
+		for( final EpisodeListener<S, A> listener : listeners_ ) {
 			listener.endState( s );
 		}
 	}

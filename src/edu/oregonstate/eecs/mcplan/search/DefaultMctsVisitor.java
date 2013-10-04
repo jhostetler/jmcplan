@@ -63,4 +63,13 @@ public class DefaultMctsVisitor<S, A> implements MctsVisitor<S, A>
 	public boolean isTerminal( final S s, final int turn )
 	{ return false; }
 
+	@Override
+	public void checkpoint()
+	{ }
+
+	@Override
+	public boolean halt()
+	{
+		return false;
+	}
 }

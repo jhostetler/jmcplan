@@ -25,4 +25,6 @@ public abstract class ActionGenerator<S, A> extends Generator<A>
 	public abstract void setState( final S s, final long t, final int turn );
 	
 	public abstract int size();
+	
+	// FIXME: Should require hashCode() / equals()
 }
