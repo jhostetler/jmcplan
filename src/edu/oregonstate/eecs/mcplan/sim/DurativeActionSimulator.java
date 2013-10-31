@@ -23,9 +23,9 @@ public class DurativeActionSimulator<S, A extends UndoableAction<S>>
 	
 	public DurativeActionSimulator( final SimultaneousMoveSimulator<S, A> base_sim )
 	{
-		super( base_sim.getNumAgents() );
+		super( base_sim.nagents() );
 		base_sim_ = base_sim;
-		setTurn( base_sim_.getTurn() );
+		setTurn( base_sim_.turn() );
 	}
 	
 	@Override
@@ -35,15 +35,15 @@ public class DurativeActionSimulator<S, A extends UndoableAction<S>>
 	}
 	
 	@Override
-	public int getNumAgents()
+	public int nagents()
 	{
-		return base_sim_.getNumAgents();
+		return base_sim_.nagents();
 	}
 
 	@Override
-	public double[] getReward()
+	public double[] reward()
 	{
-		return base_sim_.getReward();
+		return base_sim_.reward();
 	}
 
 	@Override
@@ -87,7 +87,7 @@ public class DurativeActionSimulator<S, A extends UndoableAction<S>>
 				final A policy_action = cp.policy_.getAction();
 //					System.out.println( policy_action );
 				base_sim_.takeAction( policy_action );
-				final double r = base_sim_.getReward();
+				final double r = base_sim_.reward();
 				cp.policy_.actionResult( state(), r );
 			}
 		}
@@ -110,7 +110,7 @@ public class DurativeActionSimulator<S, A extends UndoableAction<S>>
 	{
 		// XXX: Other code depends on the format of toString().
 		// Don't change for now!
-		return "[d: " + base_sim_.depth() + ", p: " + getTurn() + "]";
+		return "[d: " + base_sim_.depth() + ", p: " + turn() + "]";
 	}
 
 	@Override

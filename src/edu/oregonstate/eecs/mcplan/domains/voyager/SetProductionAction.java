@@ -7,26 +7,24 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.oregonstate.eecs.mcplan.UndoableAction;
-
 /**
  * @author jhostetler
  *
  */
-public class SetProductionAction implements UndoableAction<VoyagerState>
+public class SetProductionAction extends VoyagerAction
 {
 	private static final Logger log = LoggerFactory.getLogger( SetProductionAction.class );
 	
 	private final Planet p_;
-	private EntityType old_production_ = null;
-	private final EntityType new_production_;
+	private Unit old_production_ = null;
+	private final Unit new_production_;
 	private boolean done_ = false;
 	private final String repr_;
 	
 	/**
 	 * 
 	 */
-	public SetProductionAction( final Planet p, final EntityType production )
+	public SetProductionAction( final Planet p, final Unit production )
 	{
 		p_ = p;
 		new_production_ = production;

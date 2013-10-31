@@ -3,17 +3,19 @@
  */
 package edu.oregonstate.eecs.mcplan.search;
 
+import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
 /**
  * @author jhostetler
  *
  */
-public class DelegateStateNode<S, A extends VirtualConstructor<A>> extends StateNode<S, A>
+public class DelegateStateNode<S, X extends Representation<S>, A extends VirtualConstructor<A>>
+	extends MutableStateNode<S, X, A>
 {
-	private final BackupRule<S, A> backup_;
+	private final BackupRule<X, A> backup_;
 	
-	public DelegateStateNode( final BackupRule<S, A> backup, final S token, final int nagents, final int turn )
+	public DelegateStateNode( final BackupRule<X, A> backup, final X token, final int nagents, final int[] turn )
 	{
 		super( token, nagents, turn );
 		backup_ = backup;

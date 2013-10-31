@@ -81,27 +81,27 @@ public class GameTreeSimulator<S, F extends Representer<S, F>, A extends Virtual
 	public long t()
 	{
 		// FIXME: This assumes that every agent moves at every time step.
-		return depth() / getNumAgents();
+		return depth() / nagents();
 	}
 
 	@Override
-	public int getNumAgents()
+	public int nagents()
 	{
 		return nagents_;
 	}
 
 	@Override
-	public int getTurn()
+	public int turn()
 	{
-		return (int) depth() % getNumAgents();
+		return (int) depth() % nagents();
 	}
 
 	@Override
-	public double[] getReward()
+	public double[] reward()
 	{
 		// TODO: How to implement this? Seems to require true joint actions,
 		// since component actions have no reward associated.
-		return new double[getNumAgents()];
+		return new double[nagents()];
 	}
 
 	@Override

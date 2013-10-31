@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.voyager;
 
+import edu.oregonstate.eecs.mcplan.Representation;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.search.DefaultMctsVisitor;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
@@ -10,10 +12,11 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  * @author jhostetler
  *
  */
-public class ControlMctsVisitor<A> extends DefaultMctsVisitor<VoyagerState, A>
+public class ControlMctsVisitor<X extends Representation<VoyagerState>, A extends VirtualConstructor<A>>
+	extends DefaultMctsVisitor<VoyagerState, X, A>
 {
 	@Override
-	public double[] terminal( final VoyagerState s, final int turn )
+	public double[] terminal( final VoyagerState s, final int turn[] )
 	{
 		final double[] result = new double[nagents()];
 		final Player winner = Voyager.winner( s );
@@ -31,7 +34,7 @@ public class ControlMctsVisitor<A> extends DefaultMctsVisitor<VoyagerState, A>
 	}
 
 	@Override
-	public boolean isTerminal( final VoyagerState s, final int turn )
+	public boolean isTerminal( final VoyagerState s, final int turn[] )
 	{
 		final int[] total_pops = Voyager.playerTotalPops( s );
 		return Fn.any( Fn.Pred.Eq( 0 ), total_pops );

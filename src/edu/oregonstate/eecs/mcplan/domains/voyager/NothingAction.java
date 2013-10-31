@@ -3,13 +3,12 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.voyager;
 
-import edu.oregonstate.eecs.mcplan.UndoableAction;
 
 /**
  * @author jhostetler
  *
  */
-public class NothingAction implements UndoableAction<VoyagerState>
+public class NothingAction extends VoyagerAction
 {
 	private boolean done_ = false;
 	

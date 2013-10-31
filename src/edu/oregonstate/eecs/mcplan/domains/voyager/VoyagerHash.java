@@ -41,12 +41,13 @@ public class VoyagerHash
 	{
 		final MersenneTwister rng = new MersenneTwister( params.master_seed );
 		
-		Nplanets = params.Nplanets * Player.competitors;
+		// FIXME: Hardcoded some values to test "designed instance"
+		Nplanets = 9; // FIXME: params.Nplanets * Player.competitors;
 		final int Nplayers = Player.values().length;
-		final int Nunit_types = EntityType.values().length;
+		final int Nunit_types = Unit.values().length;
 		final int population = Nunit_types * params.max_population;
 		int type_costs = 0;
-		for( final EntityType type : EntityType.values() ) {
+		for( final Unit type : Unit.values() ) {
 			type_costs += type.cost();
 		}
 		
@@ -57,10 +58,10 @@ public class VoyagerHash
 		planet_production = new long[Nplanets][Nunit_types + 1]; // Need one for 'null'
 		planet_stored_production = new long[Nplanets][Nunit_types][];
 		for( int p = 0; p < Nplanets; ++p ) {
-			for( int t = 0; t < EntityType.values().length; ++t ) {
+			for( int t = 0; t < Unit.values().length; ++t ) {
 				// FIXME: Didn't expect to need '+1' here; why doesn't
 				// production happen immediately?
-				planet_stored_production[p][t] = new long[EntityType.values()[t].cost() + 1];
+				planet_stored_production[p][t] = new long[Unit.values()[t].cost() + 1];
 			}
 		}
 		
@@ -85,7 +86,7 @@ public class VoyagerHash
 				total += 1;
 			}
 			
-			for( int t = 0; t < EntityType.values().length; ++t ) {
+			for( int t = 0; t < Unit.values().length; ++t ) {
 				planet_production[p][t] = rng.nextLong();
 				total += 1;
 				
@@ -94,14 +95,14 @@ public class VoyagerHash
 					total += 1;
 				}
 				
-				for( int prod = 0; prod < EntityType.values()[t].cost(); ++prod ) {
+				for( int prod = 0; prod < Unit.values()[t].cost(); ++prod ) {
 					planet_stored_production[p][t][prod] = rng.nextLong();
 					total += 1;
 				}
 			}
 			
 			// Need one extra for 'null'
-			planet_production[p][EntityType.values().length] = rng.nextLong();
+			planet_production[p][Unit.values().length] = rng.nextLong();
 		}
 		assert( total == planet_numbers );
 		
@@ -111,7 +112,7 @@ public class VoyagerHash
 			for( int p2 = 0; p2 < Nplanets; ++p2 ) {
 				for( int eta = 0; eta < max_eta; ++eta ) {
 					for( int player = 0; player < Player.competitors; ++player ) {
-						for( int t = 0; t < EntityType.values().length; ++t ) {
+						for( int t = 0; t < Unit.values().length; ++t ) {
 							for( int pop = 0; pop < params.max_population; ++pop ) {
 								ships[p1][p2][eta][player][t][pop] = rng.nextLong();
 								total += 1;
@@ -136,16 +137,16 @@ public class VoyagerHash
 		return planet_owner[p.id][owner.id];
 	}
 	
-	public long hashPopulation( final Planet p, final EntityType type, final int population )
+	public long hashPopulation( final Planet p, final Unit type, final int population )
 	{
 		return planet_population[p.id][type.ordinal()][population];
 	}
 	
-	public long hashProduction( final Planet p, final EntityType type )
+	public long hashProduction( final Planet p, final Unit type )
 	{
 		final int idx;
 		if( type == null ) {
-			idx = EntityType.values().length;
+			idx = Unit.values().length;
 		}
 		else {
 			idx = type.ordinal();
@@ -153,14 +154,16 @@ public class VoyagerHash
 		return planet_production[p.id][idx];
 	}
 	
-	public long hashStoredProduction( final Planet p, final EntityType type, final int stored )
+	public long hashStoredProduction( final Planet p, final Unit type, final int stored )
 	{
 		return planet_stored_production[p.id][type.ordinal()][stored];
 	}
 	
 	public long hashSpaceship( final Planet src, final Planet dest, final int eta,
-							   final Player owner, final EntityType type, final int population )
+							   final Player owner, final Unit type, final int population )
 	{
+//		System.out.println( src.id );
+//		System.out.println( dest.id );
 		return ships[src.id][dest.id][eta][owner.id][type.ordinal()][population];
 	}
 }

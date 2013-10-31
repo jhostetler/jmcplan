@@ -174,7 +174,7 @@ public class DiscountedRefinementSearch<S, A extends VirtualConstructor<A>> impl
 				= new VariableDurationActionGenerator<S, A>( action_gen_, idx, durative_visitor );
 			final NegamaxSearch<S, Option<S, A>> search
 				= new NegamaxSearch<S, Option<S, A>>(
-					durative_sim, depth * sim_.getNumAgents(), durative_gen, durative_visitor );
+					durative_sim, depth * sim_.nagents(), durative_gen, durative_visitor );
 			final long start = System.currentTimeMillis();
 			search.run();
 			final long stop = System.currentTimeMillis();

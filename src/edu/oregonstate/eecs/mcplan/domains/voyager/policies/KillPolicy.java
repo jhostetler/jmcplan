@@ -6,20 +6,20 @@ import java.util.List;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
-import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.domains.voyager.EntityType;
 import edu.oregonstate.eecs.mcplan.domains.voyager.LaunchAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.NothingAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Planet;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
+import edu.oregonstate.eecs.mcplan.domains.voyager.Unit;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Voyager;
+import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
 
 /**
  * Launches attacks at the nearest enemy planet. Intended for use when we
  * have an overwhelming advantage and just want to end the game.
  */
-public class KillPolicy extends AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
+public class KillPolicy extends AnytimePolicy<VoyagerState, VoyagerAction>
 {
 	private final Player self_;
 	private final int garrison_;
@@ -63,13 +63,13 @@ public class KillPolicy extends AnytimePolicy<VoyagerState, UndoableAction<Voyag
 	{
 		double w = 0.0;
 		for( final Planet f : friendly_planets ) {
-			w += Voyager.distance( f, t ) * Math.max( 0, f.population( EntityType.Soldier ) - garrison_ );
+			w += Voyager.distance( f, t ) * Math.max( 0, f.population( Unit.Soldier ) - garrison_ );
 		}
 		return 1.0 / w;
 	}
 
 	@Override
-	public UndoableAction<VoyagerState> getAction()
+	public VoyagerAction getAction()
 	{
 		final ArrayList<Planet> friendly = Voyager.playerPlanets( s_, self_ );
 		final ArrayList<Planet> enemy = Voyager.playerPlanets( s_, self_.enemy() );
@@ -99,10 +99,10 @@ public class KillPolicy extends AnytimePolicy<VoyagerState, UndoableAction<Voyag
 				}
 			}
 			if( src != null ) {
-				final int spare_soldiers = src.population( EntityType.Soldier ) - garrison_;
+				final int spare_soldiers = src.population( Unit.Soldier ) - garrison_;
 				if( spare_soldiers > 0 ) {
-					final int[] pop = new int[EntityType.values().length];
-					pop[EntityType.Soldier.ordinal()] = spare_soldiers;
+					final int[] pop = new int[Unit.values().length];
+					pop[Unit.Soldier.ordinal()] = spare_soldiers;
 					return new LaunchAction( src, target, pop );
 				}
 				else {
@@ -148,7 +148,7 @@ public class KillPolicy extends AnytimePolicy<VoyagerState, UndoableAction<Voyag
 	}
 
 	@Override
-	public UndoableAction<VoyagerState> getAction( final long control )
+	public VoyagerAction getAction( final long control )
 	{
 		return getAction();
 	}

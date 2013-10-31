@@ -161,9 +161,9 @@ public class UctNegamaxSearch<S, F extends Representer<S, F>, A extends VirtualC
 	{
 		final S s0 = sim_.state();
 		final Representation<S, F> x0 = repr_.encode( s0 );
-		root_ = new StateNode( x0, sim_.getTurn() );
+		root_ = new StateNode( x0, sim_.turn() );
 		// NOTE: Making an assumption about the indices of players here.
-		final int turn = sim_.getTurn();
+		final int turn = sim_.turn();
 		System.out.println( "[Uct: starting on Turn " + turn + "]" );
 		visitor_.startEpisode( s0 );
 		int rollout_count = 0;
@@ -257,7 +257,7 @@ public class UctNegamaxSearch<S, F extends Representer<S, F>, A extends VirtualC
 			r = color * visitor.terminal( s );
 		}
 		else {
-			final Policy<S, A> pi = rollout_policies_.get( sim_.getTurn() );
+			final Policy<S, A> pi = rollout_policies_.get( sim_.turn() );
 			pi.setState( sim_.state(), sim_.t() );
 			final A a = pi.getAction();
 			sim_.takeAction( a );
@@ -279,9 +279,9 @@ public class UctNegamaxSearch<S, F extends Representer<S, F>, A extends VirtualC
 			r = color * visitor.terminal( s );
 		}
 		else {
-			assert( sn.turn == sim_.getTurn() );
+			assert( sn.turn == sim_.turn() );
 			final ActionGenerator<S, ? extends A> action_gen = actions_.create();
-			action_gen.setState( s, sim_.t(), sim_.getTurn() );
+			action_gen.setState( s, sim_.t(), sim_.turn() );
 			final ActionNode sa = selectAction( sn, action_gen );
 			sa.n += 1;
 			sim_.takeAction( sa.a );
@@ -293,7 +293,7 @@ public class UctNegamaxSearch<S, F extends Representer<S, F>, A extends VirtualC
 			}
 			else {
 				final Representation<S, F> x = repr_.encode( sprime );
-				final StateNode snprime = sa.stateNode( x, sim_.getTurn() );
+				final StateNode snprime = sa.stateNode( x, sim_.turn() );
 				r = -visit( snprime, depth - 1, -color, visitor );
 			}
 			sa.updateQ( r );

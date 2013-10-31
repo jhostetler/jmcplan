@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import edu.oregonstate.eecs.mcplan.Pair;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * @author jhostetler
@@ -16,10 +17,10 @@ public final class Voyager
 {
 	public static int production( final Planet p )
 	{
-		return Math.min( p.capacity, p.population( EntityType.Worker ) );
+		return Math.min( p.capacity, p.population( Unit.Worker ) );
 	}
 	
-	public static double investment( final Planet p, final EntityType type )
+	public static double investment( final Planet p, final Unit type )
 	{
 		return p.storedProduction( type ) / (double) production( p );
 	}
@@ -127,7 +128,7 @@ public final class Voyager
 		final int[] result = new int[Player.competitors];
 		for( final Planet p : s.planets ) {
 			if( p.owner() != Player.Neutral ) {
-				for( final EntityType type : EntityType.values() ) {
+				for( final Unit type : Unit.values() ) {
 					result[p.owner().ordinal()] += p.population( type );
 				}
 			}
@@ -140,9 +141,9 @@ public final class Voyager
 	
 	public static int attack_strength( final int[] force )
 	{
-		assert( force.length == EntityType.values().length );
+		assert( force.length == Unit.values().length );
 		int s = 0;
-		for( final EntityType type : EntityType.values() ) {
+		for( final Unit type : Unit.values() ) {
 			s += type.attack() * force[type.ordinal()];
 		}
 		return s;
@@ -150,9 +151,9 @@ public final class Voyager
 	
 	public static int defense_strength( final int[] force )
 	{
-		assert( force.length == EntityType.values().length );
+		assert( force.length == Unit.values().length );
 		int s = 0;
-		for( final EntityType type : EntityType.values() ) {
+		for( final Unit type : Unit.values() ) {
 			s += type.defense() * force[type.ordinal()];
 		}
 		return s;
@@ -172,18 +173,80 @@ public final class Voyager
 		}
 	}
 	
-	public static int enroute( final VoyagerState s, final Planet dest, final Player player, final EntityType type )
+	public static int enroute( final VoyagerState s, final Planet dest, final Player player, final Unit type )
 	{
 		int total = 0;
 		for( final Spaceship ship : s.spaceships ) {
-			if( ship.owner == player && ship.dest == dest ) {
+			if( ship.owner == player && ship.dest.equals( dest ) ) {
 				total += ship.population[type.ordinal()];
 			}
 		}
 		return total;
 	}
 	
-	public static Pair<EntityType, EntityType> minimaxMatchup( final int[] a, final int[] d )
+	/**
+	 * Calculates the effective population of a Planet for its owner, counting
+	 * any inbound Spaceships. Units not belonging to 'p.owner() are not
+	 * counted.
+	 * @param s
+	 * @param p
+	 * @return
+	 */
+	public static int[] effectiveFriendlyPopulation( final VoyagerState s, final Planet p )
+	{
+		final int[] pop = new int[Unit.values().length];
+		Fn.memcpy( pop, p.population(), Unit.values().length );
+		final Player player = p.owner();
+		for( final Spaceship ship : s.spaceships ) {
+			if( ship.owner == player && ship.dest.equals( p ) ) {
+				Fn.vplus_inplace( pop, ship.population );
+			}
+		}
+		return pop;
+	}
+	
+	/**
+	 * Calculates the effective population of a Planet for 'player', counting
+	 * any inbound Spaceships. Units not belonging to 'player' are not counted.
+	 * @param s
+	 * @param p
+	 * @param player
+	 * @return
+	 */
+	public static int[] effectivePopulation( final VoyagerState s, final Planet p, final Player player )
+	{
+		final int[] pop = new int[Unit.values().length];
+		if( p.owner() == player ) {
+			Fn.memcpy( pop, p.population(), Unit.values().length );
+		}
+		for( final Spaceship ship : s.spaceships ) {
+			if( ship.owner == player && ship.dest.equals( p ) ) {
+				Fn.vplus_inplace( pop, ship.population );
+			}
+		}
+		return pop;
+	}
+	
+	/**
+	 * Calculates the effective population of a Planet, counting any inbound
+	 * Spaceships. Could be negative if enemy ships are inbound.
+	 * @param s
+	 * @param p
+	 * @return
+	 */
+	public static int[] effectivePopulation( final VoyagerState s, final Planet p )
+	{
+		final int[] pop = new int[Unit.values().length];
+		Fn.memcpy( pop, p.population(), Unit.values().length );
+		for( final Spaceship ship : s.spaceships ) {
+			if( ship.dest.equals( p ) ) {
+				Fn.vplus_inplace( pop, ship.population );
+			}
+		}
+		return pop;
+	}
+	
+	public static Pair<Unit, Unit> minimaxMatchup( final int[] a, final int[] d )
 	{
 		double max_p = -Double.MAX_VALUE;
 		int max_i = -1;
@@ -197,8 +260,8 @@ public final class Voyager
 				if( d[j] == 0 ) {
 					continue;
 				}
-				if( min_p > EntityType.attack_matchups[i][j] ) {
-					min_p = EntityType.attack_matchups[i][j];
+				if( min_p > Unit.attack_matchups[i][j] ) {
+					min_p = Unit.attack_matchups[i][j];
 					min_j = j;
 				}
 			}
@@ -209,6 +272,6 @@ public final class Voyager
 		}
 		assert( max_i >= 0 );
 		assert( min_j >= 0 );
-		return Pair.makePair( EntityType.values()[max_i], EntityType.values()[min_j] );
+		return Pair.makePair( Unit.values()[max_i], Unit.values()[min_j] );
 	}
 }

@@ -17,23 +17,23 @@ import edu.oregonstate.eecs.mcplan.util.Generator;
 public class BackupRules
 {
 	public static <S, A extends VirtualConstructor<A>>
-	double[] MaxMinQ( final StateNode<S, JointAction<A>> sn )
+	double[] MaxMinQ( final StateNode<S, A> sn )
 	{
 		return MaxMinAction( sn ).q();
 	}
 	
 	public static <S, A extends VirtualConstructor<A>>
-	ActionNode<S, JointAction<A>> MaxMinAction( final StateNode<S, JointAction<A>> sn )
+	ActionNode<S, A> MaxMinAction( final StateNode<S, A> sn )
 	{
 		double[] max_q = new double[] { -Double.MAX_VALUE, -Double.MAX_VALUE };
-		ActionNode<S, JointAction<A>> max_a = null;
-		final Generator<Generator<ActionNode<S, JointAction<A>>>> parts
+		ActionNode<S, A> max_a = null;
+		final Generator<Generator<ActionNode<S, A>>> parts
 			= JointAction.partition( 0, sn.successors() );
-		for( final Generator<ActionNode<S, JointAction<A>>> max : Fn.in( parts ) ) {
+		for( final Generator<ActionNode<S, A>> max : Fn.in( parts ) ) {
 //			System.out.println( "Outer loop" );
 			double[] min_q = new double[] { Double.MAX_VALUE, Double.MAX_VALUE };
-			ActionNode<S, JointAction<A>> min_a = null;
-			for( final ActionNode<S, JointAction<A>> min : Fn.in( max ) ) {
+			ActionNode<S, A> min_a = null;
+			for( final ActionNode<S, A> min : Fn.in( max ) ) {
 //				System.out.println( "Action " + min.a + ": " + Arrays.toString( min.q() ) );
 				assert( min.nagents == 2 );
 				if( min.q( 1 ) < min_q[1] ) {
@@ -54,7 +54,7 @@ public class BackupRules
 	public static <S, A extends VirtualConstructor<A>>
 	double[] MeanQ( final StateNode<S, A> sn )
 	{
-		final Generator<ActionNode<S, A>> aitr = sn.successors();
+		final Generator<? extends ActionNode<S, A>> aitr = sn.successors();
 		final double[] v;
 		int n = 0;
 		if( aitr.hasNext() ) {
@@ -68,16 +68,44 @@ public class BackupRules
 		}
 		while( aitr.hasNext() ) {
 			final ActionNode<S, A> an = aitr.next();
-			Fn.vplus_inplace( v, an.q() );
-			++n;
+			final double[] q = an.q();
+			final int ni = an.n();
+			for( int i = 0; i < v.length; ++i ) {
+				v[i] += ni * q[i];
+			}
+			n += ni;
 		}
 		return Fn.scalar_multiply_inplace( v, 1.0 / n );
 	}
 	
 	public static <S, A extends VirtualConstructor<A>>
-	double[] MaxQ( final StateNode<S, A> sn, final int player )
+	double[] MaxQ( final StateNode<S, A> sn )
 	{
-		final Generator<ActionNode<S, A>> aitr = sn.successors();
+		return MaxAction( sn ).q();
+	}
+	
+	public static <S, A extends VirtualConstructor<A>>
+	ActionNode<S, A> MaxAction( final StateNode<S, A> sn )
+	{
+		assert( sn.nagents == 1 );
+		final Generator<? extends ActionNode<S, A>> aitr = sn.successors();
+		ActionNode<S, A> max_a = null;
+		double max_q = -Double.MAX_VALUE;
+		while( aitr.hasNext() ) {
+			final ActionNode<S, A> an = aitr.next();
+			final double[] q = an.q();
+			if( q[0] > max_q ) {
+				max_q = q[0];
+				max_a = an;
+			}
+		}
+		return max_a;
+	}
+	
+	public static <S, A extends VirtualConstructor<A>>
+	double[] MarginalMaxQ( final StateNode<S, A> sn, final int player )
+	{
+		final Generator<? extends ActionNode<S, A>> aitr = sn.successors();
 		final double[] v;
 		if( aitr.hasNext() ) {
 			final ActionNode<S, A> an = aitr.next();

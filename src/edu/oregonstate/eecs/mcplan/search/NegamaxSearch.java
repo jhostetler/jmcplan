@@ -93,7 +93,7 @@ public class NegamaxSearch<S, A extends VirtualConstructor<A>> implements GameTr
 	{
 		visitor_.startVertex( sim_.state() );
 		// NOTE: Making an assumption about the indices of players here.
-		final int turn = sim_.getTurn();
+		final int turn = sim_.turn();
 		System.out.println( "[Negamax: starting on Turn " + turn + "]" );
 		complete_ = true;
 		score_ = visit( max_depth_, alpha_, beta_, 1,
@@ -153,11 +153,11 @@ public class NegamaxSearch<S, A extends VirtualConstructor<A>> implements GameTr
 		else {
 			// Must make a copy to preserve state
 			final ActionGenerator<S, A> local_action_gen = action_gen_.create();
-			local_action_gen.setState( s, sim_.depth(), sim_.getTurn() );
+			local_action_gen.setState( s, sim_.depth(), sim_.turn() );
 			final Iterator<A> actions = visitor.orderActions( s, local_action_gen );
 			while( actions.hasNext() ) {
 				final A a = actions.next();
-				log.info( "Turn {}: Considering {}", sim_.getTurn(), a.toString() );
+				log.info( "Turn {}: Considering {}", sim_.turn(), a.toString() );
 				sim_.takeAction( a );
 				final S sprime = sim_.state();
 				visitor.examineEdge( a, sprime );
@@ -235,7 +235,7 @@ public class NegamaxSearch<S, A extends VirtualConstructor<A>> implements GameTr
 			@Override
 			public double heuristic( final FastGalconState s )
 			{
-				final int player = s.getTurn();
+				final int player = s.turn();
 				final int lookahead = 40;
 				final FastGalconEvent nothing = new FastGalconNothingAction();
 				// Run simulator forward

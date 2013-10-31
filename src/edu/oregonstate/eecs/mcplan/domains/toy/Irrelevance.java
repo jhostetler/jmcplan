@@ -11,10 +11,14 @@ import java.util.ListIterator;
 import org.apache.commons.math3.distribution.UniformIntegerDistribution;
 import org.apache.commons.math3.random.RandomGenerator;
 
+import weka.core.Attribute;
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
+import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
+import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.search.DefaultMctsVisitor;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 
@@ -41,7 +45,13 @@ public class Irrelevance
 		}
 	}
 	
-	public static class LeftAction implements UndoableAction<State>
+	public static abstract class Action implements UndoableAction<State>, VirtualConstructor<Action>
+	{
+		@Override
+		public abstract Action create();
+	}
+	
+	public static class LeftAction extends Action
 	{
 		private final RandomGenerator rng_;
 		private boolean done_ = false;
@@ -80,7 +90,7 @@ public class Irrelevance
 		}
 
 		@Override
-		public UndoableAction<State> create()
+		public LeftAction create()
 		{ return new LeftAction( rng_ ); }
 		
 		@Override
@@ -98,7 +108,7 @@ public class Irrelevance
 		{ return "L"; }
 	}
 	
-	public static class RightAction implements UndoableAction<State>
+	public static class RightAction extends Action
 	{
 		private final RandomGenerator rng_;
 		private boolean done_ = false;
@@ -137,7 +147,7 @@ public class Irrelevance
 		}
 
 		@Override
-		public UndoableAction<State> create()
+		public RightAction create()
 		{ return new RightAction( rng_ ); }
 		
 		@Override
@@ -155,18 +165,19 @@ public class Irrelevance
 		{ return "R"; }
 	}
 	
-	public static class Simulator implements UndoSimulator<State, UndoableAction<State>>
+	public static class Simulator implements UndoSimulator<State, Action>
 	{
 		private final State s_ = new State();
-		private final Deque<UndoableAction<State>> h_ = new ArrayDeque<UndoableAction<State>>();
+		private final Deque<Action> h_ = new ArrayDeque<Action>();
 		
 		@Override
 		public State state()
 		{ return s_; }
 
 		@Override
-		public void takeAction( final UndoableAction<State> a )
+		public void takeAction( final JointAction<Action> j )
 		{
+			final Action a = j.get( 0 );
 			a.doAction( s_ );
 			h_.push( a );
 		}
@@ -174,7 +185,7 @@ public class Irrelevance
 		@Override
 		public void untakeLastAction()
 		{
-			final UndoableAction<State> a = h_.pop();
+			final Action a = h_.pop();
 			a.undoAction( s_ );
 		}
 
@@ -187,15 +198,15 @@ public class Irrelevance
 		{ return depth(); }
 
 		@Override
-		public int getNumAgents()
+		public int nagents()
 		{ return 1; }
 
 		@Override
-		public int getTurn()
-		{ return 0; }
+		public int[] turn()
+		{ return new int[] { 0 }; }
 
 		@Override
-		public double[] getReward()
+		public double[] reward()
 		{
 			if( "LL".equals( s_.s ) || "RL".equals( s_.s ) ) {
 				return new double[] { 1.0 };
@@ -218,55 +229,113 @@ public class Irrelevance
 		{ return ""; }
 	}
 	
-	public static class IdentityRepresenter implements Representer<State, Representation<State>>
+	public static class IdentityRepresentation extends FactoredRepresentation<State>
 	{
-		private class R extends Representation<State>
+		private final String s_;
+		private final double[] phi_;
+		
+		public IdentityRepresentation( final State s )
 		{
-			private final String s_;
+			s_ = s.toString();
 			
-			public R( final State s )
-			{ s_ = s.toString(); }
-			
-			private R( final R that )
-			{ s_ = that.s_; }
-			
-			@Override
-			public Representation<State> copy()
-			{ return new R( this ); }
-
-			@Override
-			public boolean equals( final Object obj )
-			{
-				if( obj == null || !(obj instanceof R) ) {
-					return false;
-				}
-				final R that = (R) obj;
-				return s_.equals( that.s_ );
+			final String ss = s.s;
+			phi_ = new double[8];
+			if( "".equals( ss ) ) {
+				phi_[0] = 1.0;
 			}
-
-			@Override
-			public int hashCode()
-			{ return s_.hashCode(); }
-			
-			@Override
-			public String toString()
-			{
-				return s_;
+			else if( "L".equals( ss ) ) {
+				phi_[1] = 1.0;
 			}
+			else if( "R".equals( ss ) ) {
+				phi_[2] = 1.0;
+			}
+			else if( "LL".equals( ss ) ) {
+				phi_[3] = 1.0;
+			}
+			else if( "LR".equals( ss ) ) {
+				phi_[4] = 1.0;
+			}
+			else if( "RL".equals( ss ) ) {
+				phi_[5] = 1.0;
+			}
+			else if( "RR".equals( ss ) ) {
+				phi_[6] = 1.0;
+			}
+			phi_[7] = s.i;
+		}
+		
+		public static ArrayList<Attribute> attributes()
+		{
+			final ArrayList<Attribute> attr = new ArrayList<Attribute>();
+			attr.add( new Attribute( "--" ) );
+			attr.add( new Attribute( "L-" ) );
+			attr.add( new Attribute( "R-" ) );
+			attr.add( new Attribute( "LL" ) );
+			attr.add( new Attribute( "LR" ) );
+			attr.add( new Attribute( "RL" ) );
+			attr.add( new Attribute( "RR" ) );
+			attr.add( new Attribute( "i" ) );
+			attr.add( new Attribute( "label" ) );
+			return attr;
+		}
+		
+		private IdentityRepresentation( final IdentityRepresentation that )
+		{
+			s_ = that.s_;
+			phi_ = that.phi_;
+		}
+		
+		@Override
+		public FactoredRepresentation<State> copy()
+		{ return new IdentityRepresentation( this ); }
+
+		@Override
+		public boolean equals( final Object obj )
+		{
+			if( obj == null || !(obj instanceof IdentityRepresentation) ) {
+				return false;
+			}
+			final IdentityRepresentation that = (IdentityRepresentation) obj;
+			return s_.equals( that.s_ );
 		}
 
 		@Override
-		public Representation<State> encode( final State s )
+		public int hashCode()
+		{ return s_.hashCode(); }
+		
+		@Override
+		public String toString()
 		{
-			return new R( s );
+			return s_;
+		}
+
+		@Override
+		public double[] phi()
+		{
+			return phi_;
 		}
 	}
 	
-	public static class ActionGen extends ActionGenerator<State, UndoableAction<State>>
+	public static class IdentityRepresenter implements Representer<State, IdentityRepresentation>
+	{
+		@Override
+		public IdentityRepresentation encode( final State s )
+		{
+			return new IdentityRepresentation( s );
+		}
+
+		@Override
+		public IdentityRepresenter create()
+		{
+			return new IdentityRepresenter();
+		}
+	}
+	
+	public static class ActionGen extends ActionGenerator<State, JointAction<Action>>
 	{
 		private final RandomGenerator rng_;
-		private final ArrayList<UndoableAction<State>> as_ = new ArrayList<UndoableAction<State>>();
-		private ListIterator<UndoableAction<State>> itr_ = null;
+		private final ArrayList<Action> as_ = new ArrayList<Action>();
+		private ListIterator<Action> itr_ = null;
 		
 		public ActionGen( final RandomGenerator rng )
 		{
@@ -278,15 +347,15 @@ public class Irrelevance
 		{ return itr_.hasNext(); }
 
 		@Override
-		public UndoableAction<State> next()
-		{ return itr_.next(); }
+		public JointAction<Action> next()
+		{ return new JointAction<Action>( itr_.next() ); }
 
 		@Override
-		public ActionGenerator<State, UndoableAction<State>> create()
+		public ActionGen create()
 		{ return new ActionGen( rng_ ); }
 
 		@Override
-		public void setState( final State s, final long t, final int turn )
+		public void setState( final State s, final long t, final int[] turn )
 		{
 			as_.clear();
 			as_.add( new LeftAction( rng_ ) );
@@ -299,10 +368,11 @@ public class Irrelevance
 		{ return as_.size(); }
 	}
 	
-	public static class Visitor<A> extends DefaultMctsVisitor<State, A>
+	public static class Visitor<X extends Representation<State>, A extends VirtualConstructor<A>>
+		extends DefaultMctsVisitor<State, X, A>
 	{
 		@Override
-		public double[] terminal( final State s, final int turn )
+		public double[] terminal( final State s, final int[] turn )
 		{
 			if( "LL".equals( s.s ) || "RR".equals( s.s ) ) {
 				return new double[] { 1.0 };

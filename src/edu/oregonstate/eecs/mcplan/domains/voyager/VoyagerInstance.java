@@ -11,7 +11,6 @@ import org.apache.commons.math3.distribution.GammaDistribution;
 import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
-import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.experiments.Instance;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 import edu.oregonstate.eecs.mcplan.util.ListUtil;
@@ -20,13 +19,20 @@ import edu.oregonstate.eecs.mcplan.util.ListUtil;
  * @author jhostetler
  *
  */
-public class VoyagerInstance extends Instance<VoyagerInstance, VoyagerState, UndoableAction<VoyagerState>>
+public class VoyagerInstance extends Instance<VoyagerInstance, VoyagerState, VoyagerAction>
 {
+	public static VoyagerInstance createDesignedInstance( final VoyagerParameters params, final long seed )
+	{
+		final VoyagerHash hash = new VoyagerHash( params );
+		return new VoyagerInstance( params, seed, hash,
+									createDesignedProblem( params, new int[] { 1, 0 }, Unit.Worker, hash ) );
+	}
+	
 	public final VoyagerParameters params;
 	public final long seed;
 	public final VoyagerHash hash;
 	private final VoyagerState state_;
-	private final VoyagerSimulator<UndoableAction<VoyagerState>> simulator_;
+	private final VoyagerSimulator<VoyagerAction> simulator_;
 	private final MersenneTwister rng_;
 	
 	public VoyagerInstance( final VoyagerParameters params, final long seed )
@@ -35,8 +41,19 @@ public class VoyagerInstance extends Instance<VoyagerInstance, VoyagerState, Und
 		this.seed = seed;
 		rng_ = new MersenneTwister( seed );
 		hash = new VoyagerHash( params );
-		state_ = createDefaultProblem( params, new int[] { 1, 0 }, EntityType.Worker, seed, hash );
-		simulator_ = new VoyagerSimulator<UndoableAction<VoyagerState>>(
+		state_ = createRandomProblem( params, new int[] { 1, 0 }, Unit.Worker, seed, hash );
+		simulator_ = new VoyagerSimulator<VoyagerAction>(
+			state_, seed, params.max_population, params.horizon, params.primitive_epoch );
+	}
+	
+	private VoyagerInstance( final VoyagerParameters params, final long seed, final VoyagerHash hash, final VoyagerState s0 )
+	{
+		this.params = params;
+		this.seed = seed;
+		rng_ = new MersenneTwister( seed );
+		this.hash = hash;
+		state_ = s0;
+		simulator_ = new VoyagerSimulator<VoyagerAction>(
 			state_, seed, params.max_population, params.horizon, params.primitive_epoch );
 	}
 	
@@ -51,9 +68,42 @@ public class VoyagerInstance extends Instance<VoyagerInstance, VoyagerState, Und
 		return Fn.normalize_inplace( result );
 	}
 	
-	private static VoyagerState createDefaultProblem(
+	private static VoyagerState createDesignedProblem(
+		final VoyagerParameters params, final int[] initial_population,
+		final Unit initial_production, final VoyagerHash hash )
+	{
+		final ArrayList<Planet> planets = new ArrayList<Planet>();
+		final int capacity = 6;
+		
+		planets.add( new Planet.Builder().id( PlanetId.Main_Min ).hash( hash ).capacity( capacity )
+										 .x( -7 ).y( -8 ).owner( Player.Min ).finish() );
+		planets.get( PlanetId.Main_Min ).setPopulation( initial_population ).setProduction( initial_production );
+		planets.add( new Planet.Builder().id( PlanetId.Main_Max ).hash( hash ).capacity( capacity )
+										 .x( 7 ).y( 8 ).owner( Player.Max ).finish() );
+		planets.get( PlanetId.Main_Max ).setPopulation( initial_population ).setProduction( initial_production );
+		planets.add( new Planet.Builder().id( PlanetId.Natural_2nd_Min ).hash( hash ).capacity( capacity )
+										 .x( -4 ).y( -5 ).owner( Player.Neutral ).finish() );
+		planets.add( new Planet.Builder().id( PlanetId.Natural_2nd_Max ).hash( hash ).capacity( capacity )
+										 .x( 4 ).y( 5 ).owner( Player.Neutral ).finish() );
+		planets.add( new Planet.Builder().id( PlanetId.Natural_3rd_Min ).hash( hash ).capacity( capacity )
+										 .x( -9 ).y( -2 ).owner( Player.Neutral ).finish() );
+		planets.add( new Planet.Builder().id( PlanetId.Natural_3rd_Max ).hash( hash ).capacity( capacity )
+										 .x( 9 ).y( 2 ).owner( Player.Neutral ).finish() );
+		planets.add( new Planet.Builder().id( PlanetId.Wing_Min ).hash( hash ).capacity( capacity )
+										 .x( -6 ).y( 4 ).owner( Player.Neutral ).finish() );
+		planets.add( new Planet.Builder().id( PlanetId.Wing_Max ).hash( hash ).capacity( capacity )
+										 .x( 6 ).y( -4 ).owner( Player.Neutral ).finish() );
+		planets.add( new Planet.Builder().id( PlanetId.Center ).hash( hash ).capacity( capacity )
+										 .x( 0 ).y( 0 ).owner( Player.Neutral ).finish() );
+		
+		final VoyagerState initState = new VoyagerState(
+			planets.toArray( new Planet[] { } ), Player.values(), 10, 10, hash );
+		return initState;
+	}
+	
+	private static VoyagerState createRandomProblem(
 		final VoyagerParameters params, final int[] initalPopulation,
-		final EntityType initial_production, final long seed, final VoyagerHash hash )
+		final Unit initial_production, final long seed, final VoyagerHash hash )
 	{
 		assert( params.Nsites*params.Nsites >= 2 * params.Nplanets );
 		
@@ -130,7 +180,7 @@ public class VoyagerInstance extends Instance<VoyagerInstance, VoyagerState, Und
 	}
 
 	@Override
-	public VoyagerSimulator<UndoableAction<VoyagerState>> simulator()
+	public VoyagerSimulator<VoyagerAction> simulator()
 	{
 		return simulator_;
 	}

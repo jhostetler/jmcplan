@@ -1,33 +1,32 @@
 package edu.oregonstate.eecs.mcplan.domains.voyager.experiments;
 
-import java.util.ArrayList;
-
+import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.Policy;
-import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.domains.voyager.EntityType;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Planet;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
+import edu.oregonstate.eecs.mcplan.domains.voyager.Unit;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Voyager;
+import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
 import edu.oregonstate.eecs.mcplan.sim.EpisodeListener;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
-public class EndScoreRecorder implements EpisodeListener<VoyagerState, UndoableAction<VoyagerState>>
+public class EndScoreRecorder implements EpisodeListener<VoyagerState, VoyagerAction>
 {
 	public Player winner = null;
-	public int[] population_difference = new int[EntityType.values().length];
+	public int[] population_difference = new int[Unit.values().length];
 	
 	@Override
-	public <P extends Policy<VoyagerState, UndoableAction<VoyagerState>>> void
-	startState( final VoyagerState s, final ArrayList<P> policies )
+	public <P extends Policy<VoyagerState, JointAction<VoyagerAction>>> void
+	startState( final VoyagerState s, final P policies )
 	{ }
 	
 	@Override
-	public void preGetAction( final int player )
+	public void preGetAction()
 	{ }
 
 	@Override
-	public void postGetAction( final int player, final UndoableAction<VoyagerState> action )
+	public void postGetAction( final JointAction<VoyagerAction> action )
 	{ }
 
 	@Override

@@ -8,17 +8,17 @@ import java.util.Comparator;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
-import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.domains.voyager.EntityType;
 import edu.oregonstate.eecs.mcplan.domains.voyager.LaunchAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.NothingAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Planet;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
+import edu.oregonstate.eecs.mcplan.domains.voyager.Unit;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Voyager;
+import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
-public class AttackPolicy extends AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
+public class AttackPolicy extends AnytimePolicy<VoyagerState, VoyagerAction>
 {
 	private final Player self_;
 	private final Planet target_;
@@ -72,7 +72,7 @@ public class AttackPolicy extends AnytimePolicy<VoyagerState, UndoableAction<Voy
 	}
 
 	@Override
-	public UndoableAction<VoyagerState> getAction()
+	public VoyagerAction getAction()
 	{
 		final ArrayList<Planet> friendly_planets = Voyager.playerPlanets( s_, self_ );
 		final ArrayList<Planet> enemy_planets = Voyager.playerPlanets( s_, self_.enemy() );
@@ -93,21 +93,21 @@ public class AttackPolicy extends AnytimePolicy<VoyagerState, UndoableAction<Voy
 		nn_strength += win_margin_ * enemy_strength;
 		final int points_needed = Math.max( (int) Math.ceil( nn_strength ), 1 );
 		final Planet near_friendly = Voyager.nearest( target_, friendly_planets );
-		final int[] nf_pop = Arrays.copyOf( near_friendly.population(), EntityType.values().length );
-		nf_pop[EntityType.Worker.ordinal()]
-			= (int) Math.floor( combat_worker_ratio_ * nf_pop[EntityType.Worker.ordinal()] );
+		final int[] nf_pop = Arrays.copyOf( near_friendly.population(), Unit.values().length );
+		nf_pop[Unit.Worker.ordinal()]
+			= (int) Math.floor( combat_worker_ratio_ * nf_pop[Unit.Worker.ordinal()] );
 		final int nf_strength = Voyager.defense_strength( nf_pop );
-		final int spare_workers = Math.max( 0, nf_pop[EntityType.Worker.ordinal()] - 1 );
-		final int spare_soldiers = Math.max( 0, nf_pop[EntityType.Soldier.ordinal()] - 1 );
+		final int spare_workers = Math.max( 0, nf_pop[Unit.Worker.ordinal()] - 1 );
+		final int spare_soldiers = Math.max( 0, nf_pop[Unit.Soldier.ordinal()] - 1 );
 		// FIXME: Sending workers is pointless since they now have 0 strength.
 		// Fix it better!
 		final int usable_workers = 0; //Math.min( target_.capacity, spare_workers );
 		final int soldiers_needed = Math.max( 0, (int) Math.ceil(
-			points_needed / (double) EntityType.Soldier.attack() ) );
+			points_needed / (double) Unit.Soldier.attack() ) );
 		if( spare_soldiers >= soldiers_needed ) {
-			final int[] launch_pop = new int[EntityType.values().length];
-			launch_pop[EntityType.Soldier.ordinal()] = soldiers_needed;
-			launch_pop[EntityType.Worker.ordinal()] = usable_workers;
+			final int[] launch_pop = new int[Unit.values().length];
+			launch_pop[Unit.Soldier.ordinal()] = soldiers_needed;
+			launch_pop[Unit.Worker.ordinal()] = usable_workers;
 			return new LaunchAction( near_friendly, target_, launch_pop );
 		}
 		
@@ -120,10 +120,10 @@ public class AttackPolicy extends AnytimePolicy<VoyagerState, UndoableAction<Voy
 			} );
 			for( final Planet p : friendly_planets ) {
 				// TODO: Magic number 2
-				if( p.id != near_friendly.id && p.population( EntityType.Soldier ) > 2 ) {
-					final int[] launch_pop = new int[EntityType.values().length];
-					launch_pop[EntityType.Soldier.ordinal()]
-						= (int) Math.floor( reinforce_soldier_ratio_ * p.population( EntityType.Soldier ) );
+				if( p.id != near_friendly.id && p.population( Unit.Soldier ) > 2 ) {
+					final int[] launch_pop = new int[Unit.values().length];
+					launch_pop[Unit.Soldier.ordinal()]
+						= (int) Math.floor( reinforce_soldier_ratio_ * p.population( Unit.Soldier ) );
 					return new LaunchAction( p, near_friendly, launch_pop );
 				}
 			}
@@ -166,7 +166,7 @@ public class AttackPolicy extends AnytimePolicy<VoyagerState, UndoableAction<Voy
 	}
 
 	@Override
-	public UndoableAction<VoyagerState> getAction( final long control )
+	public VoyagerAction getAction( final long control )
 	{
 		return getAction();
 	}

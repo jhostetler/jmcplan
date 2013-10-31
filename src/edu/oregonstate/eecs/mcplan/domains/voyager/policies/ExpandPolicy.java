@@ -3,16 +3,16 @@ package edu.oregonstate.eecs.mcplan.domains.voyager.policies;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
-import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.domains.voyager.EntityType;
 import edu.oregonstate.eecs.mcplan.domains.voyager.LaunchAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.NothingAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Planet;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
+import edu.oregonstate.eecs.mcplan.domains.voyager.Unit;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Voyager;
+import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
 
-public class ExpandPolicy extends AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
+public class ExpandPolicy extends AnytimePolicy<VoyagerState, VoyagerAction>
 {
 	private final Player self_;
 	
@@ -50,14 +50,14 @@ public class ExpandPolicy extends AnytimePolicy<VoyagerState, UndoableAction<Voy
 	}
 
 	@Override
-	public UndoableAction<VoyagerState> getAction()
+	public VoyagerAction getAction()
 	{
 		Planet src = null;
 		int workers = 1; // Only consider planets with >1 worker
 		for( final Planet p : s_.planets ) {
-			if( p.owner() == self_ && p.population( EntityType.Worker ) > workers ) {
+			if( p.owner() == self_ && p.population( Unit.Worker ) > workers ) {
 				src = p;
-				workers = p.population( EntityType.Worker );
+				workers = p.population( Unit.Worker );
 			}
 		}
 		if( src != null ) {
@@ -70,9 +70,9 @@ public class ExpandPolicy extends AnytimePolicy<VoyagerState, UndoableAction<Voy
 				}
 			}
 			if( dest != null ) {
-				final int[] pop = new int[EntityType.values().length];
+				final int[] pop = new int[Unit.values().length];
 				// Guaranteed to be at least 1
-				pop[EntityType.Worker.ordinal()] = src.population( EntityType.Worker ) / 2;
+				pop[Unit.Worker.ordinal()] = src.population( Unit.Worker ) / 2;
 				return new LaunchAction( src, dest, pop );
 			}
 		}
@@ -113,7 +113,7 @@ public class ExpandPolicy extends AnytimePolicy<VoyagerState, UndoableAction<Voy
 	}
 
 	@Override
-	public UndoableAction<VoyagerState> getAction( final long control )
+	public VoyagerAction getAction( final long control )
 	{
 		return getAction();
 	}

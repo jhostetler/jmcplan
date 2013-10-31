@@ -12,5 +12,5 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  */
 public interface GameTreeFactory<S, X extends Representation<S>, A extends VirtualConstructor<A>>
 {
-	public abstract GameTree<X, A> create( final MctsVisitor<S, A> visitor );
+	public abstract GameTree<X, A> create( final MctsVisitor<S, X, A> visitor );
 }

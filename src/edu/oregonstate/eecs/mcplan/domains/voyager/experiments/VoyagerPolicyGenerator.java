@@ -7,9 +7,9 @@ import java.util.ListIterator;
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.domains.voyager.EntityType;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Planet;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
+import edu.oregonstate.eecs.mcplan.domains.voyager.Unit;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Voyager;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerInstance;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerParameters;
@@ -65,7 +65,7 @@ public final class VoyagerPolicyGenerator
 		final List<AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>> policies
 			= new ArrayList<AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>>();
 		policies.add( new DefensePolicy( player_ ) );
-		for( final EntityType type : EntityType.values() ) {
+		for( final Unit type : Unit.values() ) {
 			policies.add( new EmphasizeProductionPolicy( player_, type ) );
 		}
 		policies.add( new ExpandPolicy( player_ ) );

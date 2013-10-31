@@ -30,7 +30,7 @@ public class Spaceship
 	{
 		private VoyagerHash hash_ = null;
 		private Player owner_ = Player.Neutral;
-		private final int[] population_ = new int[EntityType.values().length];
+		private final int[] population_ = new int[Unit.values().length];
 		private Planet src_ = null;
 		private Planet dest_ = null;
 		private int x_ = 0;
@@ -46,7 +46,7 @@ public class Spaceship
 			}
 			return this;
 		}
-		public Builder population( final EntityType type, final int p ) { population_[type.ordinal()] = p; return this; }
+		public Builder population( final Unit type, final int p ) { population_[type.ordinal()] = p; return this; }
 		public Builder src( final Planet p ) { src_ = p; return this; }
 		public Builder dest( final Planet p ) { dest_ = p; return this; }
 		public Builder x( final int x ) { x_ = x; return this; }
@@ -118,7 +118,7 @@ public class Spaceship
 	private static final int owner_idx = eta_idx + eta_stride;
 	private static final int pop_stride = pop_format.getMinimumIntegerDigits();
 	private static final int pop_idx = owner_idx + 1;
-	private final char[] repr_ = new char[(2*planet_stride) + eta_stride + 1 + (EntityType.values().length * pop_stride)];
+	private final char[] repr_ = new char[(2*planet_stride) + eta_stride + 1 + (Unit.values().length * pop_stride)];
 	
 	private Spaceship( final int id, final VoyagerHash hash, final Player owner, final int[] population,
 					   final Planet src, final Planet dest, final int x, final int y, final double speed )
@@ -146,7 +146,7 @@ public class Spaceship
 		setChars( repr_, planet_format.format( dest.id ), dest_idx );
 		setChars( repr_, eta_format.format( arrival_time ), eta_idx );
 		repr_[owner_idx] = Character.forDigit( owner.id, radix_10 );
-		for( final EntityType type : EntityType.values() ) {
+		for( final Unit type : Unit.values() ) {
 			final int pop = population[type.ordinal()];
 			zobrist_hash_ ^= hash_.hashSpaceship( src, dest, arrival_time, owner, type, pop );
 			setChars( repr_, pop_format.format( pop ), pop_idx + (type.ordinal() * pop_stride) );
@@ -169,11 +169,11 @@ public class Spaceship
 	{
 		x += velocity_x;
 		y += velocity_y;
-		for( final EntityType type : EntityType.values() ) {
+		for( final Unit type : Unit.values() ) {
 			zobrist_hash_ ^= hash_.hashSpaceship( src, dest, arrival_time, owner, type, population[type.ordinal()] );
 		}
 		arrival_time -= 1;
-		for( final EntityType type : EntityType.values() ) {
+		for( final Unit type : Unit.values() ) {
 			zobrist_hash_ ^= hash_.hashSpaceship( src, dest, arrival_time, owner, type, population[type.ordinal()] );
 		}
 		setChars( repr_, eta_format.format( arrival_time ), eta_idx );
@@ -183,11 +183,11 @@ public class Spaceship
 	{
 		x -= velocity_x;
 		y -= velocity_y;
-		for( final EntityType type : EntityType.values() ) {
+		for( final Unit type : Unit.values() ) {
 			zobrist_hash_ ^= hash_.hashSpaceship( src, dest, arrival_time, owner, type, population[type.ordinal()] );
 		}
 		arrival_time += 1;
-		for( final EntityType type : EntityType.values() ) {
+		for( final Unit type : Unit.values() ) {
 			zobrist_hash_ ^= hash_.hashSpaceship( src, dest, arrival_time, owner, type, population[type.ordinal()] );
 		}
 		setChars( repr_, eta_format.format( arrival_time ), eta_idx );

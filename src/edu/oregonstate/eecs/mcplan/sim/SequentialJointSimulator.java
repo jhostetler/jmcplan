@@ -48,7 +48,7 @@ public class SequentialJointSimulator<S, A extends VirtualConstructor<A>>
 		final double[] r = new double[nagents_];
 		for( final A ai : a ) {
 			base_.takeAction( ai );
-			foldReward( r, base_.getReward() );
+			foldReward( r, base_.reward() );
 		}
 		rhist_.push( r );
 	}
@@ -77,7 +77,7 @@ public class SequentialJointSimulator<S, A extends VirtualConstructor<A>>
 	}
 
 	@Override
-	public int getNumAgents()
+	public int nagents()
 	{
 		// TODO: The original sense of 'nagents' was "how many different
 		// agents are making moves (ie. "what is the range of 'getTurn()'?").
@@ -87,14 +87,14 @@ public class SequentialJointSimulator<S, A extends VirtualConstructor<A>>
 	}
 
 	@Override
-	public int getTurn()
+	public int turn()
 	{
 		// TODO: See 'getNumAgents()'
 		return 0;
 	}
 
 	@Override
-	public double[] getReward()
+	public double[] reward()
 	{
 		return rhist_.peek();
 	}

@@ -38,7 +38,7 @@ public class CoarseSimulation<S, A extends UndoableAction<S, A>>
 	
 	public CoarseSimulation( final SimultaneousMoveSimulator<S, A> base_sim, final int epoch )
 	{
-		super( base_sim.getNumAgents() );
+		super( base_sim.nagents() );
 		base_sim_ = base_sim;
 		epoch_ = epoch;
 	}
@@ -50,15 +50,15 @@ public class CoarseSimulation<S, A extends UndoableAction<S, A>>
 	}
 	
 	@Override
-	public int getNumAgents()
+	public int nagents()
 	{
-		return base_sim_.getNumAgents();
+		return base_sim_.nagents();
 	}
 
 	@Override
-	public double[] getReward()
+	public double[] reward()
 	{
-		return base_sim_.getReward();
+		return base_sim_.reward();
 	}
 
 	@Override
@@ -96,7 +96,7 @@ public class CoarseSimulation<S, A extends UndoableAction<S, A>>
 				final A policy_action = cp.policy_.getAction();
 //					System.out.println( policy_action );
 				base_sim_.takeAction( policy_action );
-				final double r = base_sim_.getReward();
+				final double r = base_sim_.reward();
 				cp.policy_.actionResult( state(), r );
 			}
 		}
@@ -117,7 +117,7 @@ public class CoarseSimulation<S, A extends UndoableAction<S, A>>
 	{
 		// XXX: Other code depends on the format of toString().
 		// Don't change for now!
-		return "[d: " + base_sim_.depth() + ", p: " + getTurn() + "]";
+		return "[d: " + base_sim_.depth() + ", p: " + turn() + "]";
 	}
 
 	@Override

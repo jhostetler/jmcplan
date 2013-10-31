@@ -5,28 +5,30 @@ package edu.oregonstate.eecs.mcplan.sim;
 
 import java.util.ArrayList;
 
+import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.Policy;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
 /**
  * @author jhostetler
  *
  */
-public class Episode<S, A> implements Runnable
+public class Episode<S, A extends VirtualConstructor<A>> implements Runnable
 {
 	private final UndoSimulator<S, A> sim_;
-	private final Policy<S, A> pi_;
+	private final Policy<S, JointAction<A>> pi_;
 	private final int T_;
 	private final ArrayList<EpisodeListener<S, A>> listeners_ = new ArrayList<EpisodeListener<S, A>>();
 	private final boolean use_burnin_ = false; // FIXME: Burn-in is messing up first move; disabling for now
 	
-	public Episode( final UndoSimulator<S, A> sim, final Policy<S, A> pi, final int T )
+	public Episode( final UndoSimulator<S, A> sim, final Policy<S, JointAction<A>> pi, final int T )
 	{
 		sim_ = sim;
 		pi_ = pi;
 		T_ = T;
 	}
 	
-	public Episode( final UndoSimulator<S, A> sim, final Policy<S, A> pi )
+	public Episode( final UndoSimulator<S, A> sim, final Policy<S, JointAction<A>> pi )
 	{
 		sim_ = sim;
 		pi_ = pi;
@@ -50,19 +52,19 @@ public class Episode<S, A> implements Runnable
 			System.out.println( "[Episode] Burn-in" );
 			final int t0 = 0;
 			pi_.setState( sim_.state(), t0 );
-			final A a = pi_.getAction();
+			final JointAction<A> a = pi_.getAction();
 		}
 				
 		for( int t = 0; t < T_; ++t ) {
 			System.out.println( "[Episode] Action selection" );
 			pi_.setState( sim_.state(), t );
 			firePreGetAction();
-			final A a = pi_.getAction();
+			final JointAction<A> a = pi_.getAction();
 			firePostGetAction( a );
 			System.out.println( "!!! [t = " + t + "] a = " + a.toString() );
 			System.out.println( "[Episode] Execution" );
 			sim_.takeAction( a );
-			pi_.actionResult( sim_.state(), sim_.getReward() );
+			pi_.actionResult( sim_.state(), sim_.reward() );
 			fireActionsTaken( sim_.state() );
 			if( sim_.isTerminalState( ) ) {
 				break;
@@ -90,7 +92,7 @@ public class Episode<S, A> implements Runnable
 		}
 	}
 	
-	private void firePostGetAction( final A a )
+	private void firePostGetAction( final JointAction<A> a )
 	{
 		for( final EpisodeListener<S, A> listener : listeners_ ) {
 			listener.postGetAction( a );

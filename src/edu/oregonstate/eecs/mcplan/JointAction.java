@@ -9,10 +9,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+
 import edu.oregonstate.eecs.mcplan.search.ActionNode;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 import edu.oregonstate.eecs.mcplan.util.Generator;
-import edu.oregonstate.eecs.mcplan.util.PrimeGenerator;
 
 /**
  * @author jhostetler
@@ -125,29 +126,31 @@ public final class JointAction<A extends VirtualConstructor<A>>
 //		};
 //	}
 	
+	// TODO: If we're not going to use the JointAction class, this probably
+	// belongs somewhere else?
 	public static final <S, A extends VirtualConstructor<A>>
-	Generator<Generator<ActionNode<S, JointAction<A>>>> partition(
-		final int i, final Generator<ActionNode<S, JointAction<A>>> as )
+	Generator<Generator<ActionNode<S, A>>> partition(
+		final int i, final Generator<? extends ActionNode<S, A>> as )
 	{
-		final HashMap<A, List<ActionNode<S, JointAction<A>>>> parts
-			= new HashMap<A, List<ActionNode<S, JointAction<A>>>>();
-		for( final ActionNode<S, JointAction<A>> j : Fn.in( as ) ) {
-			final A a = j.a.get( i );
-			List<ActionNode<S, JointAction<A>>> p = parts.get( a );
+		final HashMap<A, List<ActionNode<S, A>>> parts
+			= new HashMap<A, List<ActionNode<S, A>>>();
+		for( final ActionNode<S, A> j : Fn.in( as ) ) {
+			final A a = j.a( i );
+			List<ActionNode<S, A>> p = parts.get( a );
 			if( p == null ) {
-				p = new ArrayList<ActionNode<S, JointAction<A>>>();
+				p = new ArrayList<ActionNode<S, A>>();
 				parts.put( a, p );
 			}
 			p.add( j );
 		}
-		final Iterator<List<ActionNode<S, JointAction<A>>>> pitr = parts.values().iterator();
-		return new Generator<Generator<ActionNode<S, JointAction<A>>>>() {
+		final Iterator<List<ActionNode<S, A>>> pitr = parts.values().iterator();
+		return new Generator<Generator<ActionNode<S, A>>>() {
 			@Override
 			public boolean hasNext()
 			{ return pitr.hasNext(); }
 
 			@Override
-			public Generator<ActionNode<S, JointAction<A>>> next()
+			public Generator<ActionNode<S, A>> next()
 			{ return Generator.fromIterator( pitr.next().iterator() ); }
 		};
 	}
@@ -246,12 +249,11 @@ public final class JointAction<A extends VirtualConstructor<A>>
 	@Override
 	public int hashCode()
 	{
-		final PrimeGenerator gen = new PrimeGenerator( 50 );
-		int h = gen.next();
+		final HashCodeBuilder hb = new HashCodeBuilder( 1103, 1109 );
 		for( final A a : this ) {
-			h = h * gen.next() + a.hashCode();
+			hb.append( a );
 		}
-		return h;
+		return hb.toHashCode();
 	}
 	
 	@Override

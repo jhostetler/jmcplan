@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import edu.oregonstate.eecs.mcplan.Pair;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveSimulator;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
@@ -22,7 +23,7 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  * @author jhostetler
  *
  */
-public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
+public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & VirtualConstructor<A>>
 	extends SimultaneousMoveSimulator<VoyagerState, A>
 {
 	public static final Logger log = LoggerFactory.getLogger( VoyagerSimulator.class );
@@ -32,15 +33,15 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 	 * Planet. This event never creates a new unit, even if there are enough
 	 * production points to pay for the unit.
 	 */
-	private static class PartialProductionEvent implements UndoableAction<VoyagerState>
+	private static class PartialProductionEvent extends VoyagerAction
 	{
 		private final Planet planet_;
-		private final EntityType type_;
+		private final Unit type_;
 		private final int production_;
 		private boolean done_ = false;
 		private final String repr_;
 		
-		public PartialProductionEvent( final Planet planet, final EntityType type, final int production )
+		public PartialProductionEvent( final Planet planet, final Unit type, final int production )
 		{
 			planet_ = planet;
 			type_ = type;
@@ -83,14 +84,14 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 	 * Creates a new unit on a particular Planet. Does not affect stored
 	 * production points.
 	 */
-	private static class EntityCreateEvent implements UndoableAction<VoyagerState>
+	private static class EntityCreateEvent extends VoyagerAction
 	{
 		public final Planet planet_;
-		public final EntityType type_;
+		public final Unit type_;
 		private boolean done_ = false;
 		private final String repr_;
 		
-		public EntityCreateEvent( final Planet planet, final EntityType type )
+		public EntityCreateEvent( final Planet planet, final Unit type )
 		{
 			planet_ = planet;
 			type_ = type;
@@ -133,7 +134,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 	/**
 	 * Moves a Spaceship forward one time step.
 	 */
-	private static class SpaceshipForwardEvent implements UndoableAction<VoyagerState>
+	private static class SpaceshipForwardEvent extends VoyagerAction
 	{
 		public final Spaceship spaceship_;
 		private boolean done_ = false;
@@ -181,7 +182,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 	 * 'doAction()' method doesn't actually do anything. However, you must
 	 * still use SpaceshipArrivalEvents to get appropriate 'undo' behavior.
 	 */
-	private static class SpaceshipArrivalEvent implements UndoableAction<VoyagerState>
+	private static class SpaceshipArrivalEvent extends VoyagerAction
 	{
 		public final Spaceship spaceship_;
 		
@@ -228,7 +229,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 	 * Represents the arrival of forces to a Planet owned by the owner of the
 	 * arriving forces.
 	 */
-	private static class ReinforceEvent implements UndoableAction<VoyagerState>
+	private static class ReinforceEvent extends VoyagerAction
 	{
 		public final Planet planet;
 		public final int[] population_change;
@@ -248,8 +249,8 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 		{
 //			log.debug( "undo {}", toString() );
 			assert( done_ );
-			for( int i = 0; i < EntityType.values().length; ++i ) {
-				planet.decrementPopulation( EntityType.values()[i], population_change[i] );
+			for( int i = 0; i < Unit.values().length; ++i ) {
+				planet.decrementPopulation( Unit.values()[i], population_change[i] );
 			}
 			done_ = false;
 		}
@@ -259,8 +260,8 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 		{
 //			log.debug( "do {}", toString() );
 			assert( !done_ );
-			for( int i = 0; i < EntityType.values().length; ++i ) {
-				planet.incrementPopulation( EntityType.values()[i], population_change[i] );
+			for( int i = 0; i < Unit.values().length; ++i ) {
+				planet.incrementPopulation( Unit.values()[i], population_change[i] );
 			}
 			done_ = true;
 		}
@@ -282,7 +283,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 	 * Represents the arrival of forces to a Planet owned by an enemy of the
 	 * owner of the forces.
 	 */
-	private static class BattleEvent implements UndoableAction<VoyagerState>
+	private static class BattleEvent extends VoyagerAction
 	{
 		public final Planet planet;
 		public final Player attacker;
@@ -294,7 +295,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 		private boolean done_ = false;
 		private Player old_owner_ = null;
 		private int[] old_pop_ = null;
-		private EntityType old_production_ = null;
+		private Unit old_production_ = null;
 		private int[] old_stored_ = null;
 		
 		public BattleEvent( final Planet planet, final Player attacker,
@@ -336,7 +337,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 			final int defense_strength = Voyager.defense_strength( planet.population() );
 			int total = total_change;
 			while( total > 0 && planet.totalPopulation() > 0 ) {
-				final Pair<EntityType, EntityType> matchup
+				final Pair<Unit, Unit> matchup
 					= Voyager.minimaxMatchup( attack_force, planet.population() );
 				final double sample = rng_.nextDouble();
 				final double p = Voyager.winProbability( attack_strength, defense_strength );
@@ -356,18 +357,18 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 				// Attacker won
 				planet.setOwner( attacker );
 				planet.setPopulation( attack_force );
-				planet.setStoredProduction( Fn.repeat( 0, EntityType.values().length ) );
+				planet.setStoredProduction( Fn.repeat( 0, Unit.values().length ) );
 				// TODO: We're setting production to Worker by default. We
 				// need to set it to *something*, but how do we give the
 				// agent a choice?
-				planet.setProduction( EntityType.defaultProduction() );
+				planet.setProduction( Unit.defaultProduction() );
 			}
 			else if( planet.totalPopulation() == 0 ) {
 				// A draw
 				planet.setOwner( Player.Neutral );
-				planet.setPopulation( new int[EntityType.values().length] );
-				planet.setStoredProduction( Fn.repeat( 0, EntityType.values().length ) );
-				planet.setProduction( EntityType.defaultProduction() );
+				planet.setPopulation( new int[Unit.values().length] );
+				planet.setStoredProduction( Fn.repeat( 0, Unit.values().length ) );
+				planet.setProduction( Unit.defaultProduction() );
 			}
 			
 			assert( planet.totalPopulation() >= 0 );
@@ -392,7 +393,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 	 * Neutral Planet. There is no defender advantage in this situation,
 	 * hence "jump ball".
 	 */
-	private static class JumpBallEvent implements UndoableAction<VoyagerState>
+	private static class JumpBallEvent extends VoyagerAction
 	{
 		public final Planet planet;
 		final int[][] jump;
@@ -419,9 +420,9 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 //			log.debug( "undo {}", toString() );
 			assert( done_ );
 			planet.setOwner( Player.Neutral );
-			planet.setPopulation( Fn.repeat( 0, EntityType.values().length ) );
-			planet.setProduction( EntityType.defaultProduction() );
-			planet.setStoredProduction( Fn.repeat( 0, EntityType.values().length ) );
+			planet.setPopulation( Fn.repeat( 0, Unit.values().length ) );
+			planet.setProduction( Unit.defaultProduction() );
+			planet.setStoredProduction( Fn.repeat( 0, Unit.values().length ) );
 			done_ = false;
 		}
 
@@ -436,7 +437,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 			final int[][] jump_cp = new int[Player.competitors][];
 			for( int i = 0; i < Player.competitors; ++i ) {
 				totals[i] = Fn.sum( jump[i] );
-				jump_cp[i] = Arrays.copyOf( jump[i], EntityType.values().length );
+				jump_cp[i] = Arrays.copyOf( jump[i], Unit.values().length );
 			}
 			
 			final int min_strength = Voyager.attack_strength( jump_cp[Player.Min.ordinal()] );
@@ -445,7 +446,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 			log.debug( "a = {}, d = {}, p = {}", min_strength, max_strength, p );
 			
 			while( totals[Player.Min.ordinal()] > 0 && totals[Player.Max.ordinal()] > 0 ) {
-				final Pair<EntityType, EntityType> matchup
+				final Pair<Unit, Unit> matchup
 					= Voyager.minimaxMatchup( jump_cp[Player.Min.ordinal()], jump_cp[Player.Max.ordinal()] );
 				final double sample = rng_.nextDouble();
 				if( sample < p ) {
@@ -463,7 +464,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 					planet.setOwner( Player.values()[i] );
 					planet.setPopulation( jump_cp[i] );
 					assert( Fn.sum( planet.storedProduction() ) == 0 );
-					assert( planet.nextProduced() == EntityType.defaultProduction() );
+					assert( planet.nextProduced() == Unit.defaultProduction() );
 					break;
 				}
 			}
@@ -491,7 +492,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 	 * reseeding the RNG is a costly operation, so this event is mostly
 	 * useful for debugging.
 	 */
-	private static class ReseedEvent implements UndoableAction<VoyagerState>
+	private static class ReseedEvent extends VoyagerAction
 	{
 		private final VoyagerSimulator sim_;
 		private final long prev_seed_;
@@ -570,7 +571,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 	}
 
 	@Override
-	public int getNumAgents()
+	public int nagents()
 	{
 		// TODO: generalize
 		return 2;
@@ -597,9 +598,9 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 	
 	private void applyProduction( final Planet p )
 	{
-		int production = Math.min( p.population( EntityType.Worker ), p.capacity );
+		int production = Math.min( p.population( Unit.Worker ), p.capacity );
 		while( production > 0 ) {
-			final EntityType next = p.nextProduced();
+			final Unit next = p.nextProduced();
 			final int rem = next.cost() - p.storedProduction()[next.ordinal()];
 			final int delta = Math.min( rem, production );
 			production -= delta;
@@ -658,7 +659,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 				if( ship.dest.owner() == ship.owner ) {
 					int[] current = reinforcements.get( ship.dest );
 					if( current == null ) {
-						current = new int[EntityType.values().length];
+						current = new int[Unit.values().length];
 						reinforcements.put( ship.dest, current );
 					}
 					for( int i = 0; i < current.length; ++i ) {
@@ -674,7 +675,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 					int[] player_jump = jump[ship.owner.ordinal()];
 					if( player_jump == null ) {
 						for( int i = 0; i < Player.competitors; ++i ) {
-							jump[i] = new int[EntityType.values().length];
+							jump[i] = new int[Unit.values().length];
 						}
 						player_jump = jump[ship.owner.ordinal()];
 					}
@@ -683,7 +684,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 				else {
 					int[] current = attackers.get( arrival.spaceship_.owner ).get( arrival.spaceship_.dest );
 					if( current == null ) {
-						current = new int[EntityType.values().length];
+						current = new int[Unit.values().length];
 						attackers.get( arrival.spaceship_.owner ).put( arrival.spaceship_.dest, current );
 					}
 					for( int i = 0; i < current.length; ++i ) {
@@ -716,10 +717,10 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState>>
 	}
 
 	@Override
-	public double[] getReward()
+	public double[] reward()
 	{
 		// TODO Auto-generated method stub
-		return new double[getNumAgents()];
+		return new double[nagents()];
 	}
 
 	@Override

@@ -6,41 +6,43 @@ package edu.oregonstate.eecs.mcplan.search;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.oregonstate.eecs.mcplan.JointAction;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Countdown;
 
 /**
  * @author jhostetler
  *
  */
-public class TimeLimitMctsVisitor<S, A> implements MctsVisitor<S, A>
+public class TimeLimitMctsVisitor<S, X, A extends VirtualConstructor<A>> implements MctsVisitor<S, X, A>
 {
-	public static <S, A>
-	TimeLimitMctsVisitor<S, A> create( final MctsVisitor<S, A> inner, final Countdown countdown )
+	public static <S, X, A extends VirtualConstructor<A>>
+	TimeLimitMctsVisitor<S, X, A> create( final MctsVisitor<S, X, A> inner, final Countdown countdown )
 	{
-		return new TimeLimitMctsVisitor<S, A>( inner, countdown );
+		return new TimeLimitMctsVisitor<S, X, A>( inner, countdown );
 	}
 	
 	private static final Logger log = LoggerFactory.getLogger( TimeLimitMctsVisitor.class );
 	
-	private final MctsVisitor<S, A> inner_;
+	private final MctsVisitor<S, X, A> inner_;
 	private final Countdown countdown_;
 	private long start_time_ = 0L;
 	
-	public TimeLimitMctsVisitor( final MctsVisitor<S, A> inner, final Countdown countdown )
+	public TimeLimitMctsVisitor( final MctsVisitor<S, X, A> inner, final Countdown countdown )
 	{
 		inner_ = inner;
 		countdown_ = countdown;
 	}
 	
 	@Override
-	public void startEpisode( final S s, final int nagents, final int turn )
+	public void startEpisode( final S s, final int nagents, final int[] turn )
 	{
 		inner_.startEpisode( s, nagents, turn );
 		start_time_ = System.currentTimeMillis();
 	}
 
 	@Override
-	public boolean startRollout( final S s, final int turn )
+	public boolean startRollout( final S s, final int[] turn )
 	{
 		final boolean inner_result = inner_.startRollout( s, turn );
 		final long now = System.currentTimeMillis();
@@ -56,55 +58,55 @@ public class TimeLimitMctsVisitor<S, A> implements MctsVisitor<S, A>
 	}
 
 	@Override
-	public void startTree( final S s, final int turn )
+	public void startTree( final S s, final int[] turn )
 	{
 		inner_.startTree( s, turn );
 	}
 
 	@Override
-	public void treeAction( final A a, final S sprime, final int next_turn )
+	public void treeAction( final JointAction<A> a, final S sprime, final int[] next_turn )
 	{
 		inner_.treeAction( a, sprime, next_turn );
 	}
 
 	@Override
-	public void treeDepthLimit( final S s, final int turn )
+	public void treeDepthLimit( final S s, final int[] turn )
 	{
 		inner_.treeDepthLimit( s, turn );
 	}
 
 	@Override
-	public void startDefault( final S s, final int turn )
+	public void startDefault( final S s, final int[] turn )
 	{
 		inner_.startDefault( s, turn );
 	}
 
 	@Override
-	public void defaultAction( final A a, final S sprime, final int next_turn )
+	public void defaultAction( final JointAction<A> a, final S sprime, final int[] next_turn )
 	{
 		inner_.defaultAction( a, sprime, next_turn );
 	}
 
 	@Override
-	public void defaultDepthLimit( final S s, final int turn )
+	public void defaultDepthLimit( final S s, final int[] turn )
 	{
 		inner_.defaultDepthLimit( s, turn );
 	}
 
 	@Override
-	public void depthLimit( final S s, final int turn )
+	public void depthLimit( final S s, final int[] turn )
 	{
 		inner_.depthLimit( s, turn );
 	}
 
 	@Override
-	public double[] terminal( final S s, final int turn )
+	public double[] terminal( final S s, final int[] turn )
 	{
 		return inner_.terminal( s, turn );
 	}
 
 	@Override
-	public boolean isTerminal( final S s, final int turn )
+	public boolean isTerminal( final S s, final int[] turn )
 	{
 		return inner_.isTerminal( s, turn );
 	}

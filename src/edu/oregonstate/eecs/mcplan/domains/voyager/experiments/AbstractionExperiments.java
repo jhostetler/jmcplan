@@ -1,25 +1,26 @@
 package edu.oregonstate.eecs.mcplan.domains.voyager.experiments;
 
 import java.awt.Dimension;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 
 import org.apache.commons.math3.random.MersenneTwister;
 
 import weka.classifiers.Classifier;
-import weka.classifiers.trees.J48;
+import weka.classifiers.functions.Logistic;
 import weka.core.Attribute;
-import weka.core.DenseInstance;
-import weka.core.Instance;
 import weka.core.Instances;
+import weka.core.converters.ArffSaver;
+import weka.core.converters.Saver;
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
-import edu.oregonstate.eecs.mcplan.AnytimePolicy;
 import edu.oregonstate.eecs.mcplan.DurativeActionGenerator;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.FixedEffortPolicy;
@@ -31,14 +32,20 @@ import edu.oregonstate.eecs.mcplan.OptionPolicy;
 import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.ProductActionGenerator;
 import edu.oregonstate.eecs.mcplan.RandomPolicy;
-import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.SingleStepAdapter;
-import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
+import edu.oregonstate.eecs.mcplan.abstraction.AbstractionBuilder;
+import edu.oregonstate.eecs.mcplan.abstraction.AggregateState;
+import edu.oregonstate.eecs.mcplan.abstraction.Aggregator;
+import edu.oregonstate.eecs.mcplan.abstraction.WekaUtil;
+import edu.oregonstate.eecs.mcplan.domains.toy.Irrelevance;
+import edu.oregonstate.eecs.mcplan.domains.toy.Irrelevance.Action;
+import edu.oregonstate.eecs.mcplan.domains.toy.Irrelevance.IdentityRepresentation;
 import edu.oregonstate.eecs.mcplan.domains.voyager.ControlMctsVisitor;
 import edu.oregonstate.eecs.mcplan.domains.voyager.IdentityRepresenter;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
+import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerInstance;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerParameters;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
@@ -57,172 +64,17 @@ import edu.oregonstate.eecs.mcplan.search.BackupRule;
 import edu.oregonstate.eecs.mcplan.search.BackupRules;
 import edu.oregonstate.eecs.mcplan.search.GameTree;
 import edu.oregonstate.eecs.mcplan.search.GameTreeFactory;
-import edu.oregonstate.eecs.mcplan.search.MaxMinStateNode;
 import edu.oregonstate.eecs.mcplan.search.MctsVisitor;
 import edu.oregonstate.eecs.mcplan.search.SearchPolicy;
 import edu.oregonstate.eecs.mcplan.search.SparseSampleTree;
 import edu.oregonstate.eecs.mcplan.search.StateNode;
 import edu.oregonstate.eecs.mcplan.sim.Episode;
 import edu.oregonstate.eecs.mcplan.sim.OptionSimulator;
-import edu.oregonstate.eecs.mcplan.sim.SequentialJointSimulator;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
-import edu.oregonstate.eecs.mcplan.util.Fn;
 import edu.oregonstate.eecs.mcplan.util.Tuple.Tuple2;
 
 public class AbstractionExperiments
 {
-	/*
-	private static class UctJointOptionPolicyFactory implements VoyagerPolicyFactory
-	{
-		private final double c_;
-		private final int act_epoch_;
-		private final int lookahead_epoch_;
-		private final String rollout_options_;
-		private final boolean contingent_;
-		
-		public UctJointOptionPolicyFactory( final String[] args )
-		{
-			c_ = Double.parseDouble( args[0] );
-			act_epoch_ = Integer.parseInt( args[1] );
-			lookahead_epoch_ = Integer.parseInt( args[2] );
-			if( args.length > 3 ) {
-				rollout_options_ = args[3];
-			}
-			else {
-				rollout_options_ = "all";
-			}
-			if( args.length > 4 ) {
-				// 'nc' for non-contingent
-				contingent_ = !"nc".equals( args[4] );
-			}
-			else {
-				contingent_ = true;
-			}
-		}
-		
-		@Override
-		public Policy<VoyagerState, UndoableAction<VoyagerState>> create(
-			final Environment env, final VoyagerParameters params, final VoyagerInstance instance, final Player player )
-		{
-			final JointPolicy.Builder<
-				VoyagerState,
-				Option<VoyagerState, UndoableAction<VoyagerState>>
-			> default_policy_builder
-				= new JointPolicy.Builder<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>>();
-			final ActionGenerator<VoyagerState, ? extends Policy<VoyagerState, UndoableAction<VoyagerState>>> rollout_gen_min;
-			final ActionGenerator<VoyagerState, ? extends Policy<VoyagerState, UndoableAction<VoyagerState>>> rollout_gen_max;
-			if( "Balanced".equals( rollout_options_ ) ) {
-				rollout_gen_min = new BalancedPolicyGenerator( params, instance, Player.Min );
-				rollout_gen_max = new BalancedPolicyGenerator( params, instance, Player.Max );
-			}
-			else {
-				rollout_gen_min = new VoyagerPolicyGenerator( params, instance, Player.Min );
-				rollout_gen_max = new VoyagerPolicyGenerator( params, instance, Player.Max );
-			}
-			// TODO: Not sure how ordering is going to work here.
-			default_policy_builder.pi( new RandomPolicy<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>>(
-				Player.Min.id, instance.nextSeed(),
-				new DurativeActionGenerator<VoyagerState, UndoableAction<VoyagerState>>(
-					rollout_gen_min, lookahead_epoch_ ) ) );
-			default_policy_builder.pi( new RandomPolicy<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>>(
-				Player.Max.id, instance.nextSeed(),
-				new DurativeActionGenerator<VoyagerState, UndoableAction<VoyagerState>>(
-					rollout_gen_max, lookahead_epoch_ ) ) );
-			final JointPolicy<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>> default_policy
-				= default_policy_builder.finish();
-			
-			final MctsVisitor<VoyagerState, JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>> visitor
-				= new ControlMctsVisitor<JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>();
-			
-			final OptionSimulator<VoyagerState, UndoableAction<VoyagerState>> opt_sim
-				= new OptionSimulator<VoyagerState, UndoableAction<VoyagerState>>(
-					instance.simulator(), instance.nextSeed(), player.id );
-			
-			final UndoSimulator<VoyagerState, JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>> joint_sim
-				= new SequentialJointSimulator<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>>( 2, opt_sim );
-			
-			final PrintStream log_stream;
-			try {
-				log_stream = new PrintStream( new File( env.root_directory, "tree.log" ) );
-			}
-			catch( final FileNotFoundException ex ) {
-				throw new RuntimeException( ex );
-			}
-			final ArrayList<ActionGenerator<VoyagerState, ? extends Option<VoyagerState, UndoableAction<VoyagerState>>>> gen_list
-				= new ArrayList<ActionGenerator<VoyagerState, ? extends Option<VoyagerState, UndoableAction<VoyagerState>>>>();
-			gen_list.add( new DurativeActionGenerator<VoyagerState, UndoableAction<VoyagerState>>(
-				new VoyagerPolicyGenerator( params, instance, Player.Min ), act_epoch_ ) );
-			gen_list.add( new DurativeActionGenerator<VoyagerState, UndoableAction<VoyagerState>>(
-				new VoyagerPolicyGenerator( params, instance, Player.Max ), act_epoch_ ) );
-			final ProductActionGenerator<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>> pgen
-				= new ProductActionGenerator<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>>( gen_list );
-			
-			final AnytimePolicy<VoyagerState, JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>> policy;
-			if( contingent_ ) {
-				final BackupRule<Representation<VoyagerState, IdentityRepresenter>,
-							 	 JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>> backup
-					= BackupRule.<Representation<VoyagerState, IdentityRepresenter>,
-								  Option<VoyagerState, UndoableAction<VoyagerState>>>MaxMinQ();
-				final GameTreeFactory<
-					VoyagerState, IdentityRepresenter,
-					JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>
-				> factory
-					= new UctSearch.Factory<VoyagerState, IdentityRepresenter,
-											JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>(
-						joint_sim, new IdentityRepresenter( params.Nplanets * player.competitors, params.max_eta ),
-						pgen, c_, new MersenneTwister( instance.nextSeed() ), default_policy, backup );
-				policy = new SearchPolicy<VoyagerState, IdentityRepresenter,
-										  JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>(
-					factory, visitor, log_stream )
-					{
-						@Override
-						protected JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>> selectAction(
-							final StateNode<Representation<VoyagerState, IdentityRepresenter>,
-											JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>> root )
-						{
-							return BackupRules.MaxMinAction( root ).a;
-						}
-					};
-			}
-			else {
-				final BackupRule<Representation<VoyagerState, NullRepresenter>,
-							 	 JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>> backup
-					= BackupRule.<Representation<VoyagerState, NullRepresenter>,
-								  Option<VoyagerState, UndoableAction<VoyagerState>>>MaxMinQ();
-				final GameTreeFactory<
-					VoyagerState, NullRepresenter,
-					JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>
-				> factory
-					= new UctSearch.Factory<VoyagerState, NullRepresenter,
-											JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>(
-						joint_sim, new NullRepresenter(), pgen,
-						c_, new MersenneTwister( instance.nextSeed() ), default_policy,	backup );
-				policy = new SearchPolicy<VoyagerState, NullRepresenter,
-										  JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>(
-					factory, visitor, log_stream )
-					{
-						@Override
-						protected JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>> selectAction(
-							final StateNode<Representation<VoyagerState, NullRepresenter>,
-											JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>> root )
-						{
-							return BackupRules.MaxMinAction( root ).a;
-						}
-					};
-			}
-			
-			final Policy<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>> fixed
-				= new SingleStepAdapter<VoyagerState, UndoableAction<VoyagerState>>(
-					new MarginalPolicy<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>>(
-						new FixedEffortPolicy<VoyagerState, JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>(
-							policy, params.max_time[player.ordinal()] ),
-						0 ) );
-			
-			return new OptionPolicy<VoyagerState, UndoableAction<VoyagerState>>( fixed, instance.nextSeed() );
-		}
-	}
-	*/
-	
 	// -----------------------------------------------------------------------
 	
 	public static class ContextualPiStar<A extends VirtualConstructor<A>>
@@ -234,9 +86,9 @@ public class AbstractionExperiments
 								 final ArrayList<Attribute> attributes,
 								 final int player, final double false_positive_weight )
 		{
+			// TODO: It appears that context = true is the same as context = false ???
 			super( tree, attributes, player, 1 /* min_samples to consider a state node */,
-				   262144 /*512^2 instances*/, true /* Use context */ );
-			System.out.println( "false_positive_weight = " + false_positive_weight );
+				   4 /* max instances of each class */, true /* Use context */ );
 			this.false_positive_weight = false_positive_weight;
 		}
 		
@@ -254,297 +106,68 @@ public class AbstractionExperiments
 			final ActionNode<VoyagerStateToken, JointAction<A>> a1 = getAction( s1 );
 			final ActionNode<VoyagerStateToken, JointAction<A>> a2 = getAction( s2 );
 			final int label;
-			if( a1 != null && a2 != null && a1.a.get( player ).equals( a2.a.get( player ) ) ) {
+			if( a1 != null && a2 != null && a1.a( player ).equals( a2.a( player ) ) ) {
 				label = 1;
 			}
 			else {
 				label = 0;
 			}
-			final double weight;
-			if( label == 1 ) {
-				weight = 1.0;
-			}
-			else {
-				// TODO: Assumes zero-sum game.
-				final double qdiff;
-				if( a1 == null || a2 == null ) {
-					qdiff = 2; // TODO: This is actually 2 * Vmax
-				}
-				else {
-					// Cost of false positive is the largest difference in
-					// Q-value from doing the wrong action in s1 or s2.
-					final ActionNode<VoyagerStateToken, JointAction<A>> a1_prime = s1.getActionNode( a2.a );
-					final ActionNode<VoyagerStateToken, JointAction<A>> a2_prime = s2.getActionNode( a1.a );
-					if( a1_prime == null && a2_prime == null ) {
-						System.out.println( "! a1_prime and a2_prime both null" );
-					}
-					final double d1 = (a1_prime == null ? 0 : Math.abs( a1_prime.q( 0 ) - a1.q( 0 ) ));
-					final double d2 = (a2_prime == null ? 0 : Math.abs( a2_prime.q( 0 ) - a2.q( 0 ) ));
-					// TODO: 1.0 is to prevent 0 weights; should be parameter?
-					qdiff = Math.max( d1, d2 ) + 1.0;
-				}
-				System.out.println( "qdiff = " + qdiff );
-				weight = false_positive_weight * qdiff;
-				System.out.println( "0 weight = " + weight );
-			}
+			final double weight = computeInstanceWeight( s1, a1, s2, a2, label, false_positive_weight );
 			return Tuple2.of( label, weight );
 		}
 	}
 	
-	// -----------------------------------------------------------------------
-	
-	/**
-	 * An AggregateState consists of a set of primitive states. It has
-	 * *reference semantics*, which is different from typical usage for
-	 * Representation types. We can get away with this because AggregateState
-	 * instances are only created by the Aggregator class.
-	 */
-	public static class AggregateState extends Representation<VoyagerState> implements Iterable<Representation<VoyagerState>>
+	static <X extends FactoredRepresentation<?>, A extends VirtualConstructor<A>>
+	double computeInstanceWeight(
+		final StateNode<X, A> s1,
+		final ActionNode<X, A> a1,
+		final StateNode<X, A> s2,
+		final ActionNode<X, A> a2,
+		final int label, final double fp_weight )
 	{
-		private final ArrayList<Representation<VoyagerState>> xs_
-			= new ArrayList<Representation<VoyagerState>>();
-		
-//		private final HashCodeBuilder hash_builder_ = new HashCodeBuilder( 139, 149 );
-		
-		public void add( final Representation<VoyagerState> x )
-		{
-			xs_.add( x );
-//			hash_builder_.append( x );
+		if( label == 1 ) {
+			return 1.0;
 		}
-		
-		@Override
-		public Representation<VoyagerState> copy()
-		{
-//			System.out.println( "AggregateState.copy()" );
-			final AggregateState cp = new AggregateState();
-			for( final Representation<VoyagerState> x : xs_ ) {
-				cp.add( x );
+		else {
+			// TODO: Assumes zero-sum game.
+			final double qdiff;
+			if( a1 == null || a2 == null ) {
+				qdiff = 2; // TODO: This is actually 2 * Vmax
 			}
-			return cp;
-		}
-
-		@Override
-		public boolean equals( final Object obj )
-		{
-//			if( obj == null || !(obj instanceof AggregateState) ) {
-//				return false;
-//			}
-//			final AggregateState that = (AggregateState) obj;
-//			if( xs_.size() != that.xs_.size() ) {
-//				return false;
-//			}
-//			for( int i = 0; i < xs_.size(); ++i ) {
-//				if( !xs_.get( i ).equals( that.xs_.get( i ) ) ) {
-//					return false;
-//				}
-//			}
-//			return true;
-			return this == obj;
-		}
-
-		@Override
-		public int hashCode()
-		{
-//			return hash_builder_.toHashCode();
-			return System.identityHashCode( this );
-		}
-
-		@Override
-		public Iterator<Representation<VoyagerState>> iterator()
-		{
-			return xs_.iterator();
-		}
-	}
-	
-	// -----------------------------------------------------------------------
-	
-	public static final class Aggregator<X extends FactoredRepresentation<VoyagerState>>
-		implements Representer<VoyagerState, AggregateState>
-	{
-		private final Representer<VoyagerState, X> repr_;
-		private final Classifier classifier_;
-		
-		private final ArrayList<AggregateState> clusters_ = new ArrayList<AggregateState>();
-		private final ArrayList<X> exemplars_ = new ArrayList<X>();
-		
-		private final HashMap<X, AggregateState> cluster_map_ = new HashMap<X, AggregateState>();
-		
-		// Need an Instances object to add Instance objects to before
-		// classification.
-		private final Instances dataset_;
-		
-		public Aggregator( final Representer<VoyagerState, X> repr,
-						   final ArrayList<Attribute> attributes,
-						   final Classifier classifier )
-		{
-			repr_ = repr;
-			classifier_ = classifier;
-			dataset_ = new Instances( "runtime", attributes, 0 );
-		}
-		
-		public AggregateState clusterState( final X x )
-		{
-			try {
-				// TODO: How to do this step is a big design decision. We might
-				// eventually like something formally justified, e.g. the
-				// "Chinese restaurant process" approach.
-				for( int i = 0; i < clusters_.size(); ++i ) {
-					final X ex = exemplars_.get( i );
-					final Instance instance = features( x, ex );
-					dataset_.add( instance );
-					final double label = classifier_.classifyInstance( instance );
-					dataset_.remove( 0 );
-					// TODO: Is there a more generic way to find the right label?
-					if( 1.0 == label ) {
-						final AggregateState c = clusters_.get( i );
-						c.add( x );
-						// TODO: Adjust exemplar element?
-						return c;
-					}
+			else {
+				// Cost of false positive is the largest difference in
+				// Q-value from doing the wrong action in s1 or s2.
+				final ActionNode<X, A> a1_prime = s1.getActionNode( a2.a() );
+				final ActionNode<X, A> a2_prime = s2.getActionNode( a1.a() );
+				if( a1_prime == null && a2_prime == null ) {
+					System.out.println( "! a1_prime and a2_prime both null" );
 				}
-				final AggregateState c = new AggregateState();
-				c.add( x );
-				clusters_.add( c );
-				exemplars_.add( x );
-				return c;
+				final double d1 = (a1_prime == null ? 0 : Math.abs( a1_prime.q( 0 ) - a1.q( 0 ) ));
+				final double d2 = (a2_prime == null ? 0 : Math.abs( a2_prime.q( 0 ) - a2.q( 0 ) ));
+				// TODO: 1.0 is to prevent 0 weights; should be parameter?
+				qdiff = Math.max( d1, d2 ) + 1.0;
 			}
-			catch( final Exception ex ) {
-				throw new RuntimeException( ex );
-			}
+			return fp_weight * qdiff;
 		}
-		
-		private Instance features( final X xi, final X xj )
-		{
-			final double[] phi_i = xi.phi();
-			final double[] phi_j = xj.phi();
-			assert( phi_i.length == phi_j.length );
-			// Feature vector is absolute difference of the two state
-			// feature vectors.
-			final double[] phi = new double[phi_i.length];
-			for( int k = 0; k < phi.length; ++k ) {
-				phi[k] = Math.abs( phi_i[k] - phi_j[k] );
-			}
-			return new DenseInstance( 1.0, phi );
-		}
-		
-		@Override
-		public AggregateState encode( final VoyagerState s )
-		{
-			final X x = repr_.encode( s );
-			AggregateState c = cluster_map_.get( x );
-			if( c == null ) {
-				c = clusterState( x );
-				cluster_map_.put( x, c );
-			}
-			return c;
-		}
-	}
-	
-	public static final class VoyagerAggregateSparseSampleTree<
-			X extends FactoredRepresentation<VoyagerState>, A extends VirtualConstructor<A>>
-		extends SparseSampleTree<VoyagerState, AggregateState, JointAction<A>>
-	{
-		private final Aggregator<X> aggregator_;
-		
-		public VoyagerAggregateSparseSampleTree(
-						  final UndoSimulator<VoyagerState, JointAction<A>> sim,
-						  final Aggregator<X> repr,
-						  final ActionGenerator<VoyagerState, ? extends JointAction<A>> actions,
-						  final int width, final int depth,
-						  final Policy<VoyagerState, JointAction<A>> rollout_policy,
-						  final int rollout_width, final int rollout_depth,
-						  final MctsVisitor<VoyagerState, JointAction<A>> visitor )
-		{
-			super( sim, repr, actions, width, depth, rollout_policy, rollout_width, rollout_depth, visitor );
-			aggregator_ = repr;
-		}
-		
-		@Override
-		protected StateNode<AggregateState, JointAction<A>> createStateNode(
-			final ActionNode<AggregateState, JointAction<A>> an, final AggregateState x,
-			final int nagents, final int turn )
-		{
-			return new MaxMinStateNode<AggregateState, A>( x, nagents, turn );
-		}
-		
-		@Override
-		protected StateNode<AggregateState, JointAction<A>> fetchStateNode(
-			final ActionNode<AggregateState, JointAction<A>> an, final AggregateState x,
-			final int nagents, final int turn )
-		{
-			for( final StateNode<AggregateState, JointAction<A>> agg : Fn.in( an.successors() ) ) {
-				if( agg.token.equals( x ) ) {
-					return agg;
-				}
-			}
-			return null;
-		}
-	}
-	
-	public static class AbstractionBuilder<A extends VirtualConstructor<A>>
-		extends SearchPolicy<VoyagerState, VoyagerStateToken, JointAction<A>>
-	{
-		private final ArrayList<Attribute> attributes_;
-		private final int player_;
-		private final int min_samples_;
-		private final int max_instances_;
-		private final double false_positive_weight_;
-		private final boolean use_action_context_;
-		
-		public AbstractionBuilder(
-				final GameTreeFactory<VoyagerState, VoyagerStateToken, JointAction<A>> factory,
-				final MctsVisitor<VoyagerState, JointAction<A>> visitor,
-				final ArrayList<Attribute> attributes,
-			    final int player, final int min_samples, final int max_instances,
-			    final double false_positive_weight, final boolean use_action_context,
-				final PrintStream log_stream )
-		{
-			super( factory, visitor, log_stream );
-			attributes_ = attributes;
-			player_ = player;
-			min_samples_ = min_samples;
-			max_instances_ = max_instances;
-			false_positive_weight_ = false_positive_weight;
-			use_action_context_ = use_action_context;
-		}
-
-		@Override
-		protected JointAction<A> selectAction( final GameTree<VoyagerStateToken, JointAction<A>> tree )
-		{
-			// TODO: Building the dataset adds significant computation to
-			// getAction(), although the 'control' value still applies only
-			// to time spent constructing the tree.
-			final GameTreeStateSimilarityDataset<VoyagerStateToken, JointAction<A>> dataset
-				= new ContextualPiStar<A>( tree, attributes_, player_, false_positive_weight_ );
-			dataset.run();
-			// TODO: It should be possible to get the backup rule from StateNode
-			return BackupRules.MaxMinAction( tree.root() ).a;
-		}
-
-		@Override
-		public int hashCode()
-		{
-			return System.identityHashCode( this );
-		}
-
-		@Override
-		public boolean equals( final Object that )
-		{
-			return this == that;
-		}
-		
 	}
 	
 	// -----------------------------------------------------------------------
 	
-	public static Policy<VoyagerState, UndoableAction<VoyagerState>>
+	public static Policy<VoyagerState, VoyagerAction>
 	createFixedPolicy( final VoyagerInstance instance, final Player player )
 	{
 		return new BalancedPolicy( player, instance.nextSeed(), 0.75, 1.25, 0.2 );
+//		final ArrayList<Policy<VoyagerState, VoyagerAction>> Pi
+//			= new ArrayList<Policy<VoyagerState, VoyagerAction>>();
+//		Pi.add( new ExpansionPolicy( player,
+//			new int[] { PlanetId.Natural_2nd( player ), PlanetId.Natural_3rd( player ) }, 2 ) );
+//		Pi.add( new FortifyPolicy( player, new int[] { PlanetId.Center }, 2, 2 ) );
+//		Pi.add( new AggressivePolicy( player, 2 ) );
+//		return PhasedPolicy.create( Pi, new int[] { 0, 80, 140 } );
 	}
 	
 	public static class FixedVoyagerPolicyGenerator
-		extends ActionGenerator<VoyagerState, Policy<VoyagerState, UndoableAction<VoyagerState>>>
+		extends ActionGenerator<VoyagerState, Policy<VoyagerState, VoyagerAction>>
 	{
 		private final VoyagerInstance instance_;
 		private final Player player_;
@@ -557,13 +180,13 @@ public class AbstractionExperiments
 		}
 		
 		@Override
-		public ActionGenerator<VoyagerState, Policy<VoyagerState, UndoableAction<VoyagerState>>> create()
+		public ActionGenerator<VoyagerState, Policy<VoyagerState, VoyagerAction>> create()
 		{
 			return new FixedVoyagerPolicyGenerator( instance_, player_ );
 		}
 
 		@Override
-		public void setState( final VoyagerState s, final long t, final int turn )
+		public void setState( final VoyagerState s, final long t, final int[] turn )
 		{ done_ = false; }
 
 		@Override
@@ -575,7 +198,7 @@ public class AbstractionExperiments
 		{ return !done_; }
 
 		@Override
-		public Policy<VoyagerState, UndoableAction<VoyagerState>> next()
+		public Policy<VoyagerState, VoyagerAction> next()
 		{
 			if( !done_ ) {
 				done_ = true;
@@ -601,7 +224,8 @@ public class AbstractionExperiments
 		
 		public VoyagerInstance nextWorld()
 		{
-			return new VoyagerInstance( params_, seed_ );
+//			return new VoyagerInstance( params_, seed_ );
+			return VoyagerInstance.createDesignedInstance( params_, seed_ );
 		}
 		
 		@Override
@@ -627,9 +251,10 @@ public class AbstractionExperiments
 		private final int act_epoch_;
 		private final int lookahead_epoch_;
 		private final double false_positive_weight_;
+		private final double q_tolerance_;
 		
 		public EndScoreRecorder end_state = null;
-		public ExecutionTimer<VoyagerState, UndoableAction<VoyagerState>> timer = null;
+		public ExecutionTimer<VoyagerState, VoyagerAction> timer = null;
 		
 		private final VoyagerVisualization vis_ = null;
 		
@@ -646,6 +271,7 @@ public class AbstractionExperiments
 			act_epoch_ = Integer.parseInt( args[4] );
 			lookahead_epoch_ = Integer.parseInt( args[5] );
 			false_positive_weight_ = Double.parseDouble( args[6] );
+			q_tolerance_ = Double.parseDouble( args[7] );
 		}
 		
 		@Override
@@ -662,7 +288,7 @@ public class AbstractionExperiments
 			world_ = world;
 			
 			end_state = new EndScoreRecorder();
-			timer = new ExecutionTimer<VoyagerState, UndoableAction<VoyagerState>>( params_.Nplayers );
+			timer = new ExecutionTimer<VoyagerState, VoyagerAction>( params_.Nplayers );
 			
 			try {
 				final PrintStream pout = new PrintStream( new File( env.root_directory, "parameters.csv" ) );
@@ -680,193 +306,542 @@ public class AbstractionExperiments
 		
 		@Override
 		public void finish()
-		{
-			
-		}
+		{ }
 	
 		@Override
 		public void run()
 		{
-			final VoyagerInstance game = world_.nextWorld();
+			final VoyagerVisualization<VoyagerAction> vis;
+			if( true || params_.use_monitor ) {
+				final int wait = 0;
+				vis = new VoyagerVisualization<VoyagerAction>(
+					params_, new Dimension( 720, 720 ), wait );
+			}
+			else {
+				vis = null;
+			}
 			
-			final int ntrajectories = 1; // TODO: Make this a parameter
-			
+			final int offline = 0;
+			final int online = 1;
+			final int variant = online;
+			final int ntrajectories = 50; // TODO: Make this a parameter
 			for( int i = 0; i < ntrajectories; ++i ) {
 				System.out.println( "[Trajectory " + i + "]" );
 				
+				final VoyagerInstance game = world_.nextWorld();
+				// TODO: Where should these quantities come from?
+				final int Nplanets = game.state().planets.length;
+				final int max_eta = params_.max_eta;
+				final IdentityRepresenter base_repr = new IdentityRepresenter( Nplanets, max_eta );
+				final ArrayList<Attribute> attributes = VoyagerStateToken.attributes( Nplanets, max_eta );
+				
 				// Set up sparse sample tree
 				//
-				final MctsVisitor<VoyagerState, JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>> visitor
-					= new ControlMctsVisitor<JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>();
+				final UndoSimulator<VoyagerState, VoyagerAction> primitive_sim = game.simulator();
 				
-				final UndoSimulator<VoyagerState, UndoableAction<VoyagerState>> primitive_sim = game.simulator();
-				final UndoSimulator<VoyagerState, JointAction<UndoableAction<VoyagerState>>> joint_primitive_sim
-					= new SequentialJointSimulator<VoyagerState, UndoableAction<VoyagerState>>( 2, primitive_sim );
+				final OptionSimulator<VoyagerState, VoyagerAction> opt_sim
+					= new OptionSimulator<VoyagerState, VoyagerAction>(
+						primitive_sim, game.nextSeed() );
 				
-				final OptionSimulator<VoyagerState, UndoableAction<VoyagerState>> opt_sim
-					= new OptionSimulator<VoyagerState, UndoableAction<VoyagerState>>(
-						primitive_sim, game.nextSeed(), player_ );
-				final UndoSimulator<VoyagerState, JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>> joint_opt_sim
-					= new SequentialJointSimulator<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>>( 2, opt_sim );
-				
-				final PrintStream log_stream;
-				try {
-					log_stream = new PrintStream( new File( env_.root_directory, "tree.log" ) );
-				}
-				catch( final FileNotFoundException ex ) {
-					throw new RuntimeException( ex );
-				}
-				final ArrayList<ActionGenerator<VoyagerState, ? extends Option<VoyagerState, UndoableAction<VoyagerState>>>> gen_list
-					= new ArrayList<ActionGenerator<VoyagerState, ? extends Option<VoyagerState, UndoableAction<VoyagerState>>>>();
-		//			gen_list.add( new DurativeActionGenerator<VoyagerState, UndoableAction<VoyagerState>>(
+				final ArrayList<ActionGenerator<VoyagerState, ? extends Option<VoyagerState, VoyagerAction>>> gen_list
+					= new ArrayList<ActionGenerator<VoyagerState, ? extends Option<VoyagerState, VoyagerAction>>>();
+		//			gen_list.add( new DurativeActionGenerator<VoyagerState, VoyagerAction>(
 		//				new VoyagerPolicyGenerator( params_, world_, Player.Min ), act_epoch_ ) );
-		//			gen_list.add( new DurativeActionGenerator<VoyagerState, UndoableAction<VoyagerState>>(
+		//			gen_list.add( new DurativeActionGenerator<VoyagerState, VoyagerAction>(
 		//				new VoyagerPolicyGenerator( params_, world_, Player.Max ), act_epoch_ ) );
-				gen_list.add( new DurativeActionGenerator<VoyagerState, UndoableAction<VoyagerState>>(
-					new BalancedPolicyGenerator( params_, game, Player.Min ), act_epoch_ ) );
-		//			gen_list.add( new DurativeActionGenerator<VoyagerState, UndoableAction<VoyagerState>>(
+				gen_list.add( new DurativeActionGenerator<VoyagerState, VoyagerAction>(
+					new SpecialistPolicyGenerator( game, Player.Min ), act_epoch_ ) );
+//					new BalancedPolicyGenerator( params_, game, Player.Min ), act_epoch_ ) );
+		//			gen_list.add( new DurativeActionGenerator<VoyagerState, VoyagerAction>(
 		//				new BalancedPolicyGenerator( params_, world_, Player.Max ), act_epoch_ ) );
-				gen_list.add( new DurativeActionGenerator<VoyagerState, UndoableAction<VoyagerState>>(
+				gen_list.add( new DurativeActionGenerator<VoyagerState, VoyagerAction>(
 					new FixedVoyagerPolicyGenerator( game, Player.Max ), act_epoch_ ) );
-				final ProductActionGenerator<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>> pgen
-					= new ProductActionGenerator<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>>( gen_list );
+				final ProductActionGenerator<VoyagerState, Option<VoyagerState, VoyagerAction>> pgen
+					= new ProductActionGenerator<VoyagerState, Option<VoyagerState, VoyagerAction>>( gen_list );
 				
-		//			final Policy<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>> pi_rand
-		//				= new
-		//			final ArrayList<ActionGenerator<VoyagerState, ? extends Option<VoyagerState, UndoableAction<VoyagerState>>>> rand_gen_list
-		//				= new ArrayList<ActionGenerator<VoyagerState, ? extends Option<VoyagerState, UndoableAction<VoyagerState>>>>();
-		//			rand_gen_list.add( DurativeActionGenerator.create(
-		//						new ConstantActionGenerator<VoyagerState,
-		//							? extends VirtualConstructor<Policy<VoyagerState, UndoableAction<VoyagerState>>>>(
-		//							Arrays.asList( a ) ),
-		//						act_epoch_ ) );
-		//			final ActionGenerator<VoyagerState, JointAction<? extends Option<VoyagerState, UndoableAction<VoyagerState>>>> random_gen
-		//				= ProductActionGenerator.create( Arrays.asList(
-		//						new ActionGenerator<VoyagerState, ? extends Option<VoyagerState, UndoableAction<VoyagerState>>>[] {
-		//					DurativeActionGenerator.create(
-		//						new ConstantActionGenerator<VoyagerState, Policy<VoyagerState, UndoableAction<VoyagerState>>>(
-		//							Arrays.asList( a ) ),
-		//						act_epoch_ ),
-		//					DurativeActionGenerator.create(
-		//						new ConstantActionGenerator<VoyagerState, Policy<VoyagerState, UndoableAction<VoyagerState>>>(
-		//							Arrays.asList( a ) ),
-		//						act_epoch_ ) } ) );
+				final ArrayList<Policy<VoyagerState, VoyagerAction>> policies
+					= new ArrayList<Policy<VoyagerState, VoyagerAction>>();
+				if( variant == offline ) {
+					final Representer<VoyagerState, VoyagerStateToken> repr = base_repr;
+					final MctsVisitor<VoyagerState, VoyagerStateToken, Option<VoyagerState, VoyagerAction>> visitor
+						= new ControlMctsVisitor<VoyagerStateToken, Option<VoyagerState, VoyagerAction>>();
+					final Policy<VoyagerState, JointAction<Option<VoyagerState, VoyagerAction>>>
+						rollout_policy = new RandomPolicy<VoyagerState, JointAction<Option<VoyagerState, VoyagerAction>>>(
+							0 /*Player*/, game.nextSeed(), pgen.create() );
 				
-				final int Nplanets = params_.Nplanets * Player.competitors;
-				final int max_eta = params_.max_eta;
-				final ArrayList<Attribute> attributes = VoyagerStateToken.attributes( Nplanets, max_eta );
-				final IdentityRepresenter repr = new IdentityRepresenter( Nplanets, max_eta );
-				
-//				final Classifier state_classifier = new Classifier() {
-//					@Override
-//					public void buildClassifier( final Instances data ) throws Exception
-//					{ }
-//
-//					@Override
-//					public double classifyInstance( final Instance instance )
-//							throws Exception
-//					{ return 1.0; }
-//
-//					@Override
-//					public double[] distributionForInstance( final Instance instance )
-//							throws Exception
-//					{ throw new Exception(); }
-//
-//					@Override
-//					public Capabilities getCapabilities()
-//					{ return null; }
-//				};
-//				final Aggregator<VoyagerStateToken> aggregator
-//					= new Aggregator<VoyagerStateToken>( repr, attributes, state_classifier );
-				final Policy<VoyagerState, JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>
-					rollout_policy = new RandomPolicy<VoyagerState, JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>(
-						0 /*Player*/, game.nextSeed(), pgen.create() );
-				
-				final BackupRule<VoyagerStateToken,
-							 	 JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>> backup
-					= BackupRule.<VoyagerStateToken,
-								  Option<VoyagerState, UndoableAction<VoyagerState>>>MaxMinQ();
-				final GameTreeFactory<
-					VoyagerState, VoyagerStateToken,
-					JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>
-				> factory
-					= new SparseSampleTree.Factory<VoyagerState, VoyagerStateToken,
-												   JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>(
-						joint_opt_sim, repr, pgen, width_, depth_,
-						rollout_policy, rollout_width_, rollout_depth_, backup );
-				final int min_samples = 1;
-				final int max_instances = 256;
-				final AnytimePolicy<VoyagerState, JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>
-					abstraction_builder	= new AbstractionBuilder<Option<VoyagerState, UndoableAction<VoyagerState>>>(
-						factory, visitor, attributes, Player.Min.ordinal(),
-						min_samples, max_instances, false_positive_weight_, false, System.out );
-				final Policy<VoyagerState, UndoableAction<VoyagerState>> abstraction_executor
-					= new OptionPolicy<VoyagerState, UndoableAction<VoyagerState>>(
-						new SingleStepAdapter<VoyagerState, UndoableAction<VoyagerState>>(
-							new MarginalPolicy<VoyagerState, Option<VoyagerState, UndoableAction<VoyagerState>>>(
-								new FixedEffortPolicy<VoyagerState, JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>(
-									abstraction_builder, params_.max_time[player_] ),
-								0 ) ) );
-				final ArrayList<Policy<VoyagerState, UndoableAction<VoyagerState>>> policies
-					= new ArrayList<Policy<VoyagerState, UndoableAction<VoyagerState>>>();
-				policies.add( abstraction_executor );
-				policies.add( createFixedPolicy( game, Player.Max ) );
-				final JointPolicy<VoyagerState, UndoableAction<VoyagerState>> joint_policy
-					= new JointPolicy<VoyagerState, UndoableAction<VoyagerState>>( policies );
-				
-				final Episode<VoyagerState, JointAction<UndoableAction<VoyagerState>>> episode
-					= new Episode<VoyagerState, JointAction<UndoableAction<VoyagerState>>>(
-						joint_primitive_sim, joint_policy );
-				if( true || params_.use_monitor ) {
-					final int wait = 0;
-					final VoyagerVisualization<JointAction<UndoableAction<VoyagerState>>>
-						vis = new VoyagerVisualization<JointAction<UndoableAction<VoyagerState>>>(
-							params_, new Dimension( 720, 720 ), wait );
-					vis.attach( episode );
+					final String name = "t" + i;
+					final Instances dataset = WekaUtil.createEmptyInstances( name, attributes );
+					final File dataset_file = new File( env_.root_directory, name + ".arff" );
+					final Saver saver = new ArffSaver();
+					try {
+						saver.setFile( dataset_file );
+					}
+					catch( final IOException ex ) {
+						throw new RuntimeException( ex );
+					}
+					
+					final PrintStream log_stream;
+					try {
+						log_stream = new PrintStream( new BufferedOutputStream( new FileOutputStream(
+							new File( env_.root_directory, "tree" + i + ".log" ) ) ) );
+					}
+					catch( final FileNotFoundException ex ) {
+						throw new RuntimeException( ex );
+					}
+					
+					final BackupRule<VoyagerStateToken,
+								 	 Option<VoyagerState, VoyagerAction>> backup
+						= BackupRule.<VoyagerStateToken,
+									  Option<VoyagerState, VoyagerAction>>MaxMinQ();
+					final GameTreeFactory<
+						VoyagerState, VoyagerStateToken,
+						Option<VoyagerState, VoyagerAction>
+					> factory
+						= new SparseSampleTree.Factory<VoyagerState, VoyagerStateToken,
+													   Option<VoyagerState, VoyagerAction>>(
+							opt_sim, repr, pgen, width_, depth_,
+							rollout_policy, rollout_width_, rollout_depth_, backup );
+					final int min_samples = 1;
+					final int max_instances = 256;
+					final AbstractionBuilder<VoyagerState, VoyagerStateToken,
+											 Option<VoyagerState, VoyagerAction>>
+						abstraction_builder	= new AbstractionBuilder<VoyagerState, VoyagerStateToken,
+																	 Option<VoyagerState, VoyagerAction>>(
+							factory, visitor, attributes, Player.Min.ordinal(),
+							min_samples, max_instances, false_positive_weight_, q_tolerance_, false, log_stream ) {
+								@Override
+								public double computeInstanceWeight(
+										final StateNode<VoyagerStateToken, Option<VoyagerState, VoyagerAction>> s1,
+										final ActionNode<VoyagerStateToken, Option<VoyagerState, VoyagerAction>> a1,
+										final StateNode<VoyagerStateToken, Option<VoyagerState, VoyagerAction>> s2,
+										final ActionNode<VoyagerStateToken, Option<VoyagerState, VoyagerAction>> a2,
+										final int label, final double fp_weight )
+								{
+									return AbstractionExperiments.computeInstanceWeight( s1, a1, s2, a2, label, fp_weight );
+								}
+					};
+					final Policy<VoyagerState, VoyagerAction> abstraction_executor
+						= new OptionPolicy<VoyagerState, VoyagerAction>(
+							new SingleStepAdapter<VoyagerState, VoyagerAction>(
+								new MarginalPolicy<VoyagerState, Option<VoyagerState, VoyagerAction>>(
+									new FixedEffortPolicy<VoyagerState, JointAction<Option<VoyagerState, VoyagerAction>>>(
+										abstraction_builder, params_.max_time[player_] ),
+									0 ) ) );
+					
+					policies.add( abstraction_executor );
+					policies.add( createFixedPolicy( game, Player.Max ) );
+					final JointPolicy<VoyagerState, VoyagerAction> joint_policy
+						= new JointPolicy<VoyagerState, VoyagerAction>( policies );
+					
+					final Episode<VoyagerState, VoyagerAction> episode
+						= new Episode<VoyagerState, VoyagerAction>( primitive_sim, joint_policy );
+					if( vis != null ) {
+						vis.attach( episode );
+					}
+					episode.run();
+					
+					// TODO: Not using context for debugging
+					System.out.println( "*** Merging instances" );
+					for( final Map.Entry<?, Instances> e : abstraction_builder.instances().entrySet() ) {
+						dataset.addAll( e.getValue() );
+					}
+					saver.setInstances( dataset );
+					try {
+						saver.writeBatch();
+					}
+					catch( final IOException ex ) {
+						throw new RuntimeException( ex );
+					}
 				}
-				episode.run();
+				else if( variant == online ) {
+					final MctsVisitor<VoyagerState, AggregateState<VoyagerState>, Option<VoyagerState, VoyagerAction>> visitor
+						= new ControlMctsVisitor<AggregateState<VoyagerState>, Option<VoyagerState, VoyagerAction>>();
+					
+					final Classifier c;
+					try {
+						// TODO: Hardcoded path
+						final Object[] weka_model = weka.core.SerializationHelper.readAll(
+							"C:/Users/jhostetler/osu/rts/galcon/MCPlanning/master_random-forest.model" );
+						c = (Classifier) weka_model[0];
+					}
+					catch( final Exception ex ) {
+						throw new RuntimeException( ex );
+					}
+					final Representer<VoyagerState, AggregateState<VoyagerState>> repr
+						= new Aggregator<VoyagerState, VoyagerStateToken>( base_repr, attributes, c );
+					
+					final Policy<VoyagerState, JointAction<Option<VoyagerState, VoyagerAction>>>
+						rollout_policy = new RandomPolicy<VoyagerState, JointAction<Option<VoyagerState, VoyagerAction>>>(
+							0 /*Player*/, game.nextSeed(), pgen.create() );
 				
-		//			final GameTree<VoyagerStateToken, JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>
-		//				ss_tree = factory.create( visitor );
-				
-//				final GameTree<AggregateState, JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>
-//					ss_tree = new VoyagerAggregateSparseSampleTree<
-//						VoyagerStateToken, Option<VoyagerState, UndoableAction<VoyagerState>>
-//					>( joint_opt_sim, aggregator, pgen, width_, depth_,
-//					   rollout_policy, rollout_width_, rollout_depth_, visitor );
-//				ss_tree.run();
-				
-//				System.out.println( "***** ss_tree built" );
-//				ss_tree.root().accept( TreePrinter.create( ss_tree ) );
-				
-				/*
-				final GameTreeStateSimilarityDataset<VoyagerStateToken, JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>
-					dataset = new ContextualPiStar<Option<VoyagerState, UndoableAction<VoyagerState>>>(
-						ss_tree, attributes,
-						Player.Min.ordinal(), false_positive_weight_ );
-				dataset.run();
-				
-				// TODO: Not using context for debugging
-				final Instances instances = dataset.getInstances( null );
-				final Classifier classifier = createClassifier();
-				System.out.println( "*** Building classifier" );
-				try {
-					classifier.buildClassifier( instances );
+					final PrintStream log_stream;
+					try {
+						log_stream = new PrintStream( new BufferedOutputStream( new FileOutputStream(
+							new File( env_.root_directory, "online" + i + ".log" ) ) ) );
+					}
+					catch( final FileNotFoundException ex ) {
+						throw new RuntimeException( ex );
+					}
+					
+					final BackupRule<AggregateState<VoyagerState>,
+								 	 Option<VoyagerState, VoyagerAction>> backup
+						= BackupRule.<AggregateState<VoyagerState>,
+									  Option<VoyagerState, VoyagerAction>>MaxMinQ();
+					final GameTreeFactory<
+						VoyagerState, AggregateState<VoyagerState>, Option<VoyagerState, VoyagerAction>
+					> factory
+						= new SparseSampleTree.Factory<VoyagerState, AggregateState<VoyagerState>,
+													   Option<VoyagerState, VoyagerAction>>(
+							opt_sim, repr, pgen, width_, depth_,
+							rollout_policy, rollout_width_, rollout_depth_, backup );
+					
+					final SearchPolicy<VoyagerState, AggregateState<VoyagerState>,
+									   Option<VoyagerState, VoyagerAction>>
+						search_policy = new SearchPolicy<VoyagerState, AggregateState<VoyagerState>,
+									   					 Option<VoyagerState, VoyagerAction>>(
+							factory, visitor, log_stream ) {
+
+								@Override
+								protected JointAction<Option<VoyagerState, VoyagerAction>> selectAction(
+										final GameTree<AggregateState<VoyagerState>, Option<VoyagerState, VoyagerAction>> tree )
+								{
+									return BackupRules.MaxMinAction( tree.root() ).a();
+								}
+
+								@Override
+								public int hashCode()
+								{ return System.identityHashCode( this ); }
+
+								@Override
+								public boolean equals( final Object that )
+								{ return this == that; }
+					};
+					final Policy<VoyagerState, VoyagerAction> min_policy
+						= new OptionPolicy<VoyagerState, VoyagerAction>(
+							new SingleStepAdapter<VoyagerState, VoyagerAction>(
+								new MarginalPolicy<VoyagerState, Option<VoyagerState, VoyagerAction>>(
+									new FixedEffortPolicy<VoyagerState, JointAction<Option<VoyagerState, VoyagerAction>>>(
+										search_policy, params_.max_time[player_] ),
+									0 ) ) );
+					
+					policies.add( min_policy );
+					policies.add( createFixedPolicy( game, Player.Max ) );
+					final JointPolicy<VoyagerState, VoyagerAction> joint_policy
+						= new JointPolicy<VoyagerState, VoyagerAction>( policies );
+					
+					final Episode<VoyagerState, VoyagerAction> episode
+						= new Episode<VoyagerState, VoyagerAction>( primitive_sim, joint_policy );
+					if( vis != null ) {
+						vis.attach( episode );
+					}
+					episode.run();
 				}
-				catch( final Exception ex ) {
-					System.out.println( "! Error in buildClassifier():" );
-					ex.printStackTrace();
-					System.exit( -1 );
-				}
-				System.out.println( classifier );
-				*/
 			}
+			
+//			int npositive = 0;
+//			for( final Instance inst : dataset ) {
+//				if( inst.classValue() == 1.0 ) {
+//					npositive += 1;
+//				}
+//			}
+//			System.out.println( "========== FULL DATASET ==========" );
+//			System.out.println( "ninstances = [" + (dataset.size() - npositive) + ", " + npositive + "]" );
+//			System.out.println( "========== ============ ==========" );
+//
+//			final Classifier classifier = createClassifier();
+//			System.out.println( "*** Building classifier" );
+//			try {
+//				classifier.buildClassifier( dataset );
+//			}
+//			catch( final Exception ex ) {
+//				System.out.println( "! Error in buildClassifier():" );
+//				ex.printStackTrace();
+//				System.exit( -1 );
+//			}
+//			System.out.println( classifier );
 		}
 		
 		final Classifier createClassifier()
 		{
-			final J48 classifier = new J48();
+			final Logistic classifier = new Logistic();
+			return classifier;
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
+	public static class IrrelevanceInstance
+	{
+		
+	}
+	
+	public static class IrrelevanceDomain extends Experiment<VoyagerParameters, IrrelevanceInstance>
+	{
+		public static final String log_filename = "log.csv";
+		
+		private Environment env_ = null;
+		private VoyagerParameters params_ = null;
+		private IrrelevanceInstance world_ = null;
+		
+		private final int width_;
+		private final int depth_;
+		private final int rollout_width_;
+		private final int rollout_depth_;
+		private final int act_epoch_;
+		private final int lookahead_epoch_;
+		private final double false_positive_weight_;
+		private final double q_tolerance_;
+		
+		public EndScoreRecorder end_state = null;
+		public ExecutionTimer<VoyagerState, VoyagerAction> timer = null;
+		
+		private final VoyagerVisualization vis_ = null;
+		
+		// TODO: This is the player index we're building the abstraction for.
+		// Should be a parameter.
+		private final int player_ = 0;
+		
+		public IrrelevanceDomain( final String[] args )
+		{
+			width_ = Integer.parseInt( args[0] );
+			depth_ = Integer.parseInt( args[1] );
+			rollout_width_ = Integer.parseInt( args[2] );
+			rollout_depth_ = Integer.parseInt( args[3] );
+			act_epoch_ = Integer.parseInt( args[4] );
+			lookahead_epoch_ = Integer.parseInt( args[5] );
+			false_positive_weight_ = Double.parseDouble( args[6] );
+			q_tolerance_ = Double.parseDouble( args[7] );
+		}
+		
+		@Override
+		public String getFileSystemName()
+		{
+			return "irrelevance";
+		}
+		
+		@Override
+		public void setup( final Environment env, final VoyagerParameters params, final IrrelevanceInstance world )
+		{
+			env_ = env;
+			params_ = params;
+			world_ = world;
 			
+			end_state = new EndScoreRecorder();
+			timer = new ExecutionTimer<VoyagerState, VoyagerAction>( params_.Nplayers );
+			
+			try {
+				final PrintStream pout = new PrintStream( new File( env.root_directory, "parameters.csv" ) );
+				params_.writeCsv( pout );
+				pout.close();
+				
+//				final PrintStream iout = new PrintStream( new File( env.root_directory, "instance.csv" ) );
+//				world_.writeCsv( iout );
+//				iout.close();
+			}
+			catch( final FileNotFoundException ex ) {
+				throw new RuntimeException( ex );
+			}
+		}
+		
+		@Override
+		public void finish()
+		{ }
+	
+		@Override
+		public void run()
+		{
+			final int offline = 0;
+			final int online = 1;
+			final int variant = online;
+			final int ntrajectories = 50; // TODO: Make this a parameter
+			for( int i = 0; i < ntrajectories; ++i ) {
+				System.out.println( "[Trajectory " + i + "]" );
+				
+				// TODO: Where should these quantities come from?
+				final Irrelevance.IdentityRepresenter base_repr = new Irrelevance.IdentityRepresenter();
+				final ArrayList<Attribute> attributes = Irrelevance.attributes();
+				
+				// Set up sparse sample tree
+				//
+				final UndoSimulator<Irrelevance.State, Irrelevance.Action> primitive_sim = new Irrelevance.Simulator();
+				final Irrelevance.ActionGen action_gen = new Irrelevance.ActionGen( env_.rng );
+				
+				final ArrayList<Policy<VoyagerState, VoyagerAction>> policies
+					= new ArrayList<Policy<VoyagerState, VoyagerAction>>();
+				if( variant == offline ) {
+					final Representer<Irrelevance.State, Irrelevance.IdentityRepresentation> repr = base_repr;
+					final MctsVisitor<Irrelevance.State, Irrelevance.IdentityRepresentation, Irrelevance.Action> visitor
+						= new Irrelevance.Visitor<Irrelevance.IdentityRepresentation, Irrelevance.Action>();
+					final Policy<Irrelevance.State, JointAction<Irrelevance.Action>>
+						rollout_policy = new RandomPolicy<Irrelevance.State, JointAction<Irrelevance.Action>>(
+							0 /*Player*/, env_.rng.nextInt(), action_gen.create() );
+				
+					final String name = "t" + i;
+					final Instances dataset = WekaUtil.createEmptyInstances( name, attributes );
+					final File dataset_file = new File( env_.root_directory, name + ".arff" );
+					final Saver saver = new ArffSaver();
+					try {
+						saver.setFile( dataset_file );
+					}
+					catch( final IOException ex ) {
+						throw new RuntimeException( ex );
+					}
+					
+					final PrintStream log_stream;
+					try {
+						log_stream = new PrintStream( new BufferedOutputStream( new FileOutputStream(
+							new File( env_.root_directory, "tree" + i + ".log" ) ) ) );
+					}
+					catch( final FileNotFoundException ex ) {
+						throw new RuntimeException( ex );
+					}
+					
+					final BackupRule<Irrelevance.IdentityRepresentation, Irrelevance.Action> backup
+						= BackupRule.<Irrelevance.IdentityRepresentation, Irrelevance.Action>MaxQ();
+					final GameTreeFactory<
+						Irrelevance.State, Irrelevance.IdentityRepresentation, Irrelevance.Action
+					> factory
+						= new SparseSampleTree.Factory<
+								Irrelevance.State, Irrelevance.IdentityRepresentation, Irrelevance.Action>(
+							primitive_sim, repr, action_gen, width_, depth_,
+							rollout_policy, rollout_width_, rollout_depth_, backup );
+					final int min_samples = 1;
+					final int max_instances = 256;
+					final AbstractionBuilder<Irrelevance.State, Irrelevance.IdentityRepresentation, Irrelevance.Action>
+						abstraction_builder	= new AbstractionBuilder<
+								Irrelevance.State, Irrelevance.IdentityRepresentation, Irrelevance.Action>(
+							factory, visitor, attributes, Player.Min.ordinal(),
+							min_samples, max_instances, false_positive_weight_, q_tolerance_, false, log_stream ) {
+								@Override
+								public double computeInstanceWeight(
+										final StateNode<IdentityRepresentation, Action> s1,
+										final ActionNode<IdentityRepresentation, Action> a1,
+										final StateNode<IdentityRepresentation, Action> s2,
+										final ActionNode<IdentityRepresentation, Action> a2,
+										final int label, final double fp_weight )
+								{
+									return AbstractionExperiments.computeInstanceWeight( s1, a1, s2, a2, label, fp_weight );
+								}
+					};
+					final Policy<Irrelevance.State, JointAction<Irrelevance.Action>> abstraction_executor
+						= new FixedEffortPolicy<Irrelevance.State, JointAction<Irrelevance.Action>>(
+							abstraction_builder, params_.max_time[player_] );
+					
+					final Episode<Irrelevance.State, Irrelevance.Action> episode
+						= new Episode<Irrelevance.State, Irrelevance.Action>(
+							primitive_sim, abstraction_executor );
+					episode.run();
+					
+					// TODO: Not using context for debugging
+					System.out.println( "*** Merging instances" );
+					for( final Map.Entry<?, Instances> e : abstraction_builder.instances().entrySet() ) {
+						dataset.addAll( e.getValue() );
+					}
+					saver.setInstances( dataset );
+					try {
+						saver.writeBatch();
+					}
+					catch( final IOException ex ) {
+						throw new RuntimeException( ex );
+					}
+				}
+				else if( variant == online ) {
+					final MctsVisitor<Irrelevance.State, AggregateState<Irrelevance.State>, Irrelevance.Action>
+						visitor	= new Irrelevance.Visitor<AggregateState<Irrelevance.State>, Irrelevance.Action>();
+					
+					final Classifier c;
+					try {
+						// TODO: Hardcoded path
+						final Object[] weka_model = weka.core.SerializationHelper.readAll(
+							"C:/Users/jhostetler/osu/rts/galcon/MCPlanning/master_random-forest.model" );
+						c = (Classifier) weka_model[0];
+					}
+					catch( final Exception ex ) {
+						throw new RuntimeException( ex );
+					}
+					final Representer<Irrelevance.State, AggregateState<Irrelevance.State>> repr
+						= new Aggregator<Irrelevance.State, Irrelevance.IdentityRepresentation>( base_repr, attributes, c );
+					
+					final Policy<Irrelevance.State, JointAction<Irrelevance.Action>>
+						rollout_policy = new RandomPolicy<Irrelevance.State, JointAction<Irrelevance.Action>>(
+							0 /*Player*/, env_.rng.nextInt(), action_gen.create() );
+				
+					final PrintStream log_stream;
+					try {
+						log_stream = new PrintStream( new BufferedOutputStream( new FileOutputStream(
+							new File( env_.root_directory, "online" + i + ".log" ) ) ) );
+					}
+					catch( final FileNotFoundException ex ) {
+						throw new RuntimeException( ex );
+					}
+					
+					final BackupRule<AggregateState<Irrelevance.State>, Irrelevance.Action> backup
+						= BackupRule.<AggregateState<Irrelevance.State>, Irrelevance.Action>MaxMinQ();
+					final GameTreeFactory<
+						Irrelevance.State, AggregateState<Irrelevance.State>, Irrelevance.Action
+					> factory
+						= new SparseSampleTree.Factory<Irrelevance.State, AggregateState<Irrelevance.State>, Irrelevance.Action>(
+							primitive_sim, repr, action_gen, width_, depth_,
+							rollout_policy, rollout_width_, rollout_depth_, backup );
+					
+					final SearchPolicy<Irrelevance.State, AggregateState<Irrelevance.State>,
+									   Irrelevance.Action>
+						search_policy = new SearchPolicy<Irrelevance.State, AggregateState<Irrelevance.State>,
+									   					 Irrelevance.Action>(
+							factory, visitor, log_stream ) {
+
+								@Override
+								protected JointAction<Irrelevance.Action> selectAction(
+										final GameTree<AggregateState<Irrelevance.State>, Irrelevance.Action> tree )
+								{
+									return BackupRules.MaxMinAction( tree.root() ).a();
+								}
+
+								@Override
+								public int hashCode()
+								{ return System.identityHashCode( this ); }
+
+								@Override
+								public boolean equals( final Object that )
+								{ return this == that; }
+					};
+					final Policy<Irrelevance.State, JointAction<Irrelevance.Action>> min_policy
+						= new FixedEffortPolicy<Irrelevance.State, JointAction<Irrelevance.Action>>(
+							search_policy, params_.max_time[player_] );
+					
+					final Episode<Irrelevance.State, Irrelevance.Action> episode
+						= new Episode<Irrelevance.State, Irrelevance.Action>(
+							primitive_sim, min_policy );
+					episode.run();
+				}
+			}
+			
+//			int npositive = 0;
+//			for( final Instance inst : dataset ) {
+//				if( inst.classValue() == 1.0 ) {
+//					npositive += 1;
+//				}
+//			}
+//			System.out.println( "========== FULL DATASET ==========" );
+//			System.out.println( "ninstances = [" + (dataset.size() - npositive) + ", " + npositive + "]" );
+//			System.out.println( "========== ============ ==========" );
+//
+//			final Classifier classifier = createClassifier();
+//			System.out.println( "*** Building classifier" );
+//			try {
+//				classifier.buildClassifier( dataset );
+//			}
+//			catch( final Exception ex ) {
+//				System.out.println( "! Error in buildClassifier():" );
+//				ex.printStackTrace();
+//				System.exit( -1 );
+//			}
+//			System.out.println( classifier );
+		}
+		
+		final Classifier createClassifier()
+		{
+			final Logistic classifier = new Logistic();
 			return classifier;
 		}
 	}

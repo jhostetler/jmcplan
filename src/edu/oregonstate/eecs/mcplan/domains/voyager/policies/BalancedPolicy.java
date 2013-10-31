@@ -13,14 +13,14 @@ import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
-import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.domains.voyager.EntityType;
 import edu.oregonstate.eecs.mcplan.domains.voyager.LaunchAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.NothingAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Planet;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
 import edu.oregonstate.eecs.mcplan.domains.voyager.SetProductionAction;
+import edu.oregonstate.eecs.mcplan.domains.voyager.Unit;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Voyager;
+import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
 import edu.oregonstate.eecs.mcplan.util.GibbsDistribution;
 
@@ -34,7 +34,7 @@ import edu.oregonstate.eecs.mcplan.util.GibbsDistribution;
  * 
  * @author jhostetler
  */
-public class BalancedPolicy extends AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
+public class BalancedPolicy extends AnytimePolicy<VoyagerState, VoyagerAction>
 {
 	// TODO: Seeding
 	private static final MersenneTwister rng = new MersenneTwister( 42 );
@@ -110,7 +110,7 @@ public class BalancedPolicy extends AnytimePolicy<VoyagerState, UndoableAction<V
 	private static int defense( final int[] population )
 	{
 		int capture_strength = 0;
-		for( final EntityType type : EntityType.values() ) {
+		for( final Unit type : Unit.values() ) {
 			capture_strength += population[type.ordinal()] * type.defense();
 		}
 		return capture_strength;
@@ -125,7 +125,7 @@ public class BalancedPolicy extends AnytimePolicy<VoyagerState, UndoableAction<V
 	 * @see edu.oregonstate.eecs.mcplan.Policy#getAction()
 	 */
 	@Override
-	public UndoableAction<VoyagerState> getAction()
+	public VoyagerAction getAction()
 	{
 		final ArrayList<Planet> friendly_planets = new ArrayList<Planet>();
 		final ArrayList<Planet> nonfriendly_planets = new ArrayList<Planet>();
@@ -137,17 +137,17 @@ public class BalancedPolicy extends AnytimePolicy<VoyagerState, UndoableAction<V
 		for( final Planet p : s_.planets ) {
 			if( p.owner() == player_ ) {
 				friendly_planets.add( p );
-				for( final EntityType type : EntityType.values() ) {
+				for( final Unit type : Unit.values() ) {
 					friendly_strength += p.population( type ) * type.defense();
 					friendly_pop[type.ordinal()] += p.population( type );
 				}
-				worker_balance += p.population( EntityType.Worker );
+				worker_balance += p.population( Unit.Worker );
 				worker_balance -= p.capacity;
 			}
 			else {
 				nonfriendly_planets.add( p );
 				if( p.owner() == player_.enemy() ) {
-					for( final EntityType type : EntityType.values() ) {
+					for( final Unit type : Unit.values() ) {
 						enemy_strength += p.population( type ) * type.attack();
 						enemy_pop[type.ordinal()] += p.population( type );
 					}
@@ -161,17 +161,17 @@ public class BalancedPolicy extends AnytimePolicy<VoyagerState, UndoableAction<V
 		if( too_weak || too_strong ) {
 			final ArrayList<Planet> expecting_planets = new ArrayList<Planet>();
 			for( final Planet p : friendly_planets ) {
-				final EntityType next = p.nextProduced();
+				final Unit next = p.nextProduced();
 				final int investment = p.storedProduction()[next.ordinal()];
 				// Investment condition means planet completed production last turn
 				if( next != null && investment < Voyager.production( p ) ) {
 					if( too_weak ) {
-						if( p.nextProduced() == EntityType.Worker ) {
+						if( p.nextProduced() == Unit.Worker ) {
 							expecting_planets.add( p );
 						}
 					}
 					else { // too_strong
-						if( p.nextProduced() == EntityType.Soldier ) {
+						if( p.nextProduced() == Unit.Soldier ) {
 							expecting_planets.add( p );
 						}
 					}
@@ -184,10 +184,10 @@ public class BalancedPolicy extends AnytimePolicy<VoyagerState, UndoableAction<V
 				} );
 				for( final Planet p : expecting_planets ) {
 					if( too_weak ) {
-						return new SetProductionAction(	p, EntityType.Soldier );
+						return new SetProductionAction(	p, Unit.Soldier );
 					}
 					else if( worker_balance < 0 ) {
-						return new SetProductionAction( p, EntityType.Worker );
+						return new SetProductionAction( p, Unit.Worker );
 					}
 				}
 			}
@@ -200,8 +200,8 @@ public class BalancedPolicy extends AnytimePolicy<VoyagerState, UndoableAction<V
 		Planet fullest = null;
 		int fullness = 0;
 		for( final Planet p : friendly_planets ) {
-			final int w = p.population( EntityType.Worker );
-			final int weff = w + Voyager.enroute( s_, p, player_, EntityType.Worker );
+			final int w = p.population( Unit.Worker );
+			final int weff = w + Voyager.enroute( s_, p, player_, Unit.Worker );
 			if( w > p.capacity ) {
 				final int over = w - p.capacity;
 				if( over > overfullness ) {
@@ -223,14 +223,14 @@ public class BalancedPolicy extends AnytimePolicy<VoyagerState, UndoableAction<V
 		}
 		if( underfull != null ) {
 			if( overfull != null ) {
-				final int[] launch_pop = new int[EntityType.values().length];
-				launch_pop[EntityType.Worker.ordinal()] = Math.min( underfullness, overfullness );
+				final int[] launch_pop = new int[Unit.values().length];
+				launch_pop[Unit.Worker.ordinal()] = Math.min( underfullness, overfullness );
 				return new LaunchAction( overfull, underfull, launch_pop );
 			}
-			else if( underfull.population( EntityType.Worker ) == 0
+			else if( underfull.population( Unit.Worker ) == 0
 					 && fullest != null && !fullest.equals( underfull ) ) {
-				final int[] launch_pop = new int[EntityType.values().length];
-				launch_pop[EntityType.Worker.ordinal()] = 1;
+				final int[] launch_pop = new int[Unit.values().length];
+				launch_pop[Unit.Worker.ordinal()] = 1;
 				return new LaunchAction( fullest, underfull, launch_pop );
 			}
 		}
@@ -257,19 +257,19 @@ public class BalancedPolicy extends AnytimePolicy<VoyagerState, UndoableAction<V
 		double nn_strength = defense( near_nonfriendly.population() );
 		nn_strength += win_margin_ * enemy_strength;
 		final int points_needed = Math.max( (int) Math.ceil( nn_strength ), 1 );
-		final int[] nf_pop = Arrays.copyOf( near_friendly.population(), EntityType.values().length );
-		nf_pop[EntityType.Worker.ordinal()]
-			= (int) Math.floor( combat_worker_ratio_ * nf_pop[EntityType.Worker.ordinal()] );
+		final int[] nf_pop = Arrays.copyOf( near_friendly.population(), Unit.values().length );
+		nf_pop[Unit.Worker.ordinal()]
+			= (int) Math.floor( combat_worker_ratio_ * nf_pop[Unit.Worker.ordinal()] );
 		final int nf_strength = defense( nf_pop );
-		final int spare_workers = Math.max( 0, nf_pop[EntityType.Worker.ordinal()] - 1 );
-		final int spare_soldiers = Math.max( 0, nf_pop[EntityType.Soldier.ordinal()] - 1 );
+		final int spare_workers = Math.max( 0, nf_pop[Unit.Worker.ordinal()] - 1 );
+		final int spare_soldiers = Math.max( 0, nf_pop[Unit.Soldier.ordinal()] - 1 );
 		final int usable_workers = Math.min( near_nonfriendly.capacity, spare_workers );
 		final int soldiers_needed = Math.max( 0, (int) Math.ceil(
-			points_needed / (double) EntityType.Soldier.attack() ) );
+			points_needed / (double) Unit.Soldier.attack() ) );
 		if( spare_soldiers >= soldiers_needed ) {
-			final int[] launch_pop = new int[EntityType.values().length];
-			launch_pop[EntityType.Soldier.ordinal()] = soldiers_needed;
-			launch_pop[EntityType.Worker.ordinal()] = usable_workers;
+			final int[] launch_pop = new int[Unit.values().length];
+			launch_pop[Unit.Soldier.ordinal()] = soldiers_needed;
+			launch_pop[Unit.Worker.ordinal()] = usable_workers;
 			return new LaunchAction( near_friendly, near_nonfriendly, launch_pop );
 		}
 		
@@ -282,10 +282,10 @@ public class BalancedPolicy extends AnytimePolicy<VoyagerState, UndoableAction<V
 			} );
 			for( final Planet p : friendly_planets ) {
 				// TODO: Magic number 2
-				if( p.id != near_friendly.id && p.population( EntityType.Soldier ) > 2 ) {
-					final int[] launch_pop = new int[EntityType.values().length];
-					launch_pop[EntityType.Soldier.ordinal()]
-						= (int) Math.floor( reinforce_soldier_ratio_ * p.population( EntityType.Soldier ) );
+				if( p.id != near_friendly.id && p.population( Unit.Soldier ) > 2 ) {
+					final int[] launch_pop = new int[Unit.values().length];
+					launch_pop[Unit.Soldier.ordinal()]
+						= (int) Math.floor( reinforce_soldier_ratio_ * p.population( Unit.Soldier ) );
 					return new LaunchAction( p, near_friendly, launch_pop );
 				}
 			}
@@ -294,9 +294,9 @@ public class BalancedPolicy extends AnytimePolicy<VoyagerState, UndoableAction<V
 		// TODO: Maybe we should switch everyone to Soldier production here
 		// if all planets are maxed.
 		for( final Planet p : friendly_planets ) {
-			final int w = p.population( EntityType.Worker );
-			if( w >= p.capacity && p.nextProduced() == EntityType.Worker ) {
-				return new SetProductionAction( p, EntityType.Soldier );
+			final int w = p.population( Unit.Worker );
+			if( w >= p.capacity && p.nextProduced() == Unit.Worker ) {
+				return new SetProductionAction( p, Unit.Soldier );
 			}
 		}
 		
@@ -337,7 +337,7 @@ public class BalancedPolicy extends AnytimePolicy<VoyagerState, UndoableAction<V
 	}
 
 	@Override
-	public UndoableAction<VoyagerState> getAction( final long control )
+	public VoyagerAction getAction( final long control )
 	{
 		return getAction();
 	}

@@ -89,25 +89,29 @@ public class VoyagerState implements State<VoyagerState, VoyagerStateToken>
 	public double[] featureVector()
 	{
 		final TDoubleList fv = new TDoubleArrayList();
+		
+		// Planet features
 		for( final Planet p : planets ) {
 			addPlanetFeatures( p, fv );
 		}
+		
+		// Ship features
 		final int ship_offset = fv.size();
-		final int Nplayer_ships = (hash.max_eta + 1) * EntityType.values().length;
+		final int Nplayer_ships = (hash.max_eta + 1) * Unit.values().length;
 		fv.addAll( new double[hash.Nplanets * Player.competitors * Nplayer_ships] );
 		final int planet_numbers = Player.competitors * Nplayer_ships;
-		
 		// Format:
 		// for each planet -> for each player -> for each eta -> for each type
 		for( final Spaceship ship : spaceships ) {
 			final int i = ship_offset // Offset to ship features
 						+ ship.dest.id * planet_numbers // Offset to dest planet
 						+ ship.owner.ordinal() * Nplayer_ships // Offset to player
-						+ ship.arrival_time * EntityType.values().length; // Offset to eta
-			for( int t = 0; t < EntityType.values().length; ++t ) {
+						+ ship.arrival_time * Unit.values().length; // Offset to eta
+			for( int t = 0; t < Unit.values().length; ++t ) {
 				fv.set( i + t, fv.get( i + t ) + ship.population[t] );
 			}
 		}
+		
 		return fv.toArray();
 	}
 	
@@ -121,10 +125,10 @@ public class VoyagerState implements State<VoyagerState, VoyagerStateToken>
 				fv.add( 0.0 );
 			}
 		}
-		for( final EntityType type : EntityType.values() ) {
+		for( final Unit type : Unit.values() ) {
 			fv.add( p.population( type ) );
 		}
-		for( final EntityType type : EntityType.values() ) {
+		for( final Unit type : Unit.values() ) {
 			fv.add( p.storedProduction( type ) );
 		}
 	}

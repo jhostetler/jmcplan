@@ -18,7 +18,18 @@ public class IdentityRepresenter implements FactoredRepresenter<VoyagerState, Vo
 	
 	public IdentityRepresenter( final int Nplanets, final int max_eta )
 	{
-		attributes_ = VoyagerStateToken.attributes( Nplanets, max_eta );
+		this( VoyagerStateToken.attributes( Nplanets, max_eta ) );
+	}
+	
+	public IdentityRepresenter( final ArrayList<Attribute> attributes )
+	{
+		attributes_ = attributes;
+	}
+	
+	@Override
+	public IdentityRepresenter create()
+	{
+		return new IdentityRepresenter( attributes_ );
 	}
 	
 	@Override

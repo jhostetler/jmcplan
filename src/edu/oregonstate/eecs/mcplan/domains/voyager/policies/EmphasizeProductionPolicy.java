@@ -7,23 +7,23 @@ import java.util.Comparator;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
-import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.domains.voyager.EntityType;
 import edu.oregonstate.eecs.mcplan.domains.voyager.NothingAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Planet;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
 import edu.oregonstate.eecs.mcplan.domains.voyager.SetProductionAction;
+import edu.oregonstate.eecs.mcplan.domains.voyager.Unit;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Voyager;
+import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
 
 /**
  * Switches planets' production to the specified type, in order of how much
  * time they've invested on their current project.
  */
-public class EmphasizeProductionPolicy extends AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
+public class EmphasizeProductionPolicy extends AnytimePolicy<VoyagerState, VoyagerAction>
 {
 	private final Player self_;
-	private final EntityType type_;
+	private final Unit type_;
 	
 	private VoyagerState s_ = null;
 	private long t_ = 0;
@@ -47,7 +47,7 @@ public class EmphasizeProductionPolicy extends AnytimePolicy<VoyagerState, Undoa
 			   && type_ == that.type_;
 	}
 	
-	public EmphasizeProductionPolicy( final Player self, final EntityType type )
+	public EmphasizeProductionPolicy( final Player self, final Unit type )
 	{
 		self_ = self;
 		type_ = type;
@@ -61,7 +61,7 @@ public class EmphasizeProductionPolicy extends AnytimePolicy<VoyagerState, Undoa
 	}
 
 	@Override
-	public UndoableAction<VoyagerState> getAction()
+	public VoyagerAction getAction()
 	{
 		final ArrayList<Planet> friendly_planets = Voyager.playerPlanets( s_, self_ );
 		
@@ -116,7 +116,7 @@ public class EmphasizeProductionPolicy extends AnytimePolicy<VoyagerState, Undoa
 	}
 
 	@Override
-	public UndoableAction<VoyagerState> getAction( final long control )
+	public VoyagerAction getAction( final long control )
 	{
 		return getAction();
 	}

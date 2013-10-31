@@ -42,11 +42,11 @@ public class Planet implements Comparable<Planet>, CsvEntry
 	
 	private final String csv_static_;
 	
-	private final int[] population_ = new int[EntityType.values().length];
+	private final int[] population_ = new int[Unit.values().length];
 	private int total_population_ = 0;
 	private Player owner_;
-	private EntityType next_produced_ = EntityType.defaultProduction();
-	private final int[] stored_production_ = new int[EntityType.values().length];
+	private Unit next_produced_ = Unit.defaultProduction();
+	private final int[] stored_production_ = new int[Unit.values().length];
 	
 	private final VoyagerHash hash_;
 	private long zobrist_hash_ = 0L;
@@ -57,7 +57,7 @@ public class Planet implements Comparable<Planet>, CsvEntry
 	private static final int production_idx = 1;
 	private static final int population_idx = 2;
 	private static final int population_stride = 3;
-	private static final int stored_production_idx = population_idx + (EntityType.values().length * population_stride);
+	private static final int stored_production_idx = population_idx + (Unit.values().length * population_stride);
 	private static final int stored_production_stride = 3;
 	
 	@Override
@@ -101,7 +101,7 @@ public class Planet implements Comparable<Planet>, CsvEntry
 		repr_[owner_idx] = Character.forDigit( owner.id, radix_10 );
 		zobrist_hash_ ^= hash.hashProduction( this, nextProduced() );
 		repr_[production_idx] = Character.forDigit( nextProduced().ordinal(), radix_10 );
-		for( final EntityType type : EntityType.values() ) {
+		for( final Unit type : Unit.values() ) {
 			final int pop = population( type );
 			final int pop_start = population_idx + (type.ordinal() * population_stride);
 			zobrist_hash_ ^= hash.hashPopulation( this, type, pop );
@@ -120,12 +120,12 @@ public class Planet implements Comparable<Planet>, CsvEntry
 		}
 	}
 	
-	public EntityType nextProduced()
+	public Unit nextProduced()
 	{
 		return next_produced_;
 	}
 	
-	public void setStoredProduction( final EntityType type, final int p )
+	public void setStoredProduction( final Unit type, final int p )
 	{
 		assert( p >= 0 );
 		assert( p <= type.cost() );
@@ -145,7 +145,7 @@ public class Planet implements Comparable<Planet>, CsvEntry
 //			assert( p >= 0 );
 //			assert( p <= EntityType.values()[i].cost() );
 //			stored_production_[i] = p;
-			setStoredProduction( EntityType.values()[i], production[i] );
+			setStoredProduction( Unit.values()[i], production[i] );
 		}
 	}
 	
@@ -154,17 +154,17 @@ public class Planet implements Comparable<Planet>, CsvEntry
 		return stored_production_;
 	}
 	
-	public int storedProduction( final EntityType type )
+	public int storedProduction( final Unit type )
 	{
 		return stored_production_[type.ordinal()];
 	}
 	
-	public int remainingProduction( final EntityType type )
+	public int remainingProduction( final Unit type )
 	{
 		return type.cost() - stored_production_[type.ordinal()];
 	}
 	
-	public Planet setProduction( final EntityType type )
+	public Planet setProduction( final Unit type )
 	{
 		final long old_hash = hash_.hashProduction( this, nextProduced() );
 		zobrist_hash_ ^= old_hash;
@@ -175,7 +175,7 @@ public class Planet implements Comparable<Planet>, CsvEntry
 		return this;
 	}
 	
-	public int population( final EntityType type )
+	public int population( final Unit type )
 	{
 		return population_[type.ordinal()];
 	}
@@ -198,12 +198,12 @@ public class Planet implements Comparable<Planet>, CsvEntry
 //			assert( pop[i] >= 0 );
 //			population_[i] = pop[i];
 //			total_population_ += pop[i];
-			setPopulation( EntityType.values()[i], pop[i] );
+			setPopulation( Unit.values()[i], pop[i] );
 		}
 		return this;
 	}
 	
-	public Planet setPopulation( final EntityType type, final int pop )
+	public Planet setPopulation( final Unit type, final int pop )
 	{
 		assert( pop >= 0 );
 		final int i = type.ordinal();
@@ -220,7 +220,7 @@ public class Planet implements Comparable<Planet>, CsvEntry
 		return this;
 	}
 	
-	public void incrementPopulation( final EntityType type, final int p )
+	public void incrementPopulation( final Unit type, final int p )
 	{
 //		assert( p >= 0 );
 //		final int i = type.ordinal();
@@ -231,12 +231,12 @@ public class Planet implements Comparable<Planet>, CsvEntry
 		setPopulation( type, population_[type.ordinal()] + p );
 	}
 	
-	public void incrementPopulation( final EntityType type )
+	public void incrementPopulation( final Unit type )
 	{
 		incrementPopulation( type, 1 );
 	}
 	
-	public void decrementPopulation( final EntityType type, final int p )
+	public void decrementPopulation( final Unit type, final int p )
 	{
 //		assert( p >= 0 );
 //		final int i = type.ordinal();
@@ -247,7 +247,7 @@ public class Planet implements Comparable<Planet>, CsvEntry
 		setPopulation( type, population_[type.ordinal()] - p );
 	}
 	
-	public void decrementPopulation( final EntityType type )
+	public void decrementPopulation( final Unit type )
 	{
 		decrementPopulation( type, 1 );
 	}

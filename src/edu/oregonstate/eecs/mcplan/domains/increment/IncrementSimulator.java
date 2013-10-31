@@ -45,7 +45,7 @@ public class IncrementSimulator extends SimultaneousMoveSimulator<IncrementState
 	}
 	
 	@Override
-	public int getNumAgents()
+	public int nagents()
 	{
 		return 2;
 	}
@@ -88,7 +88,7 @@ public class IncrementSimulator extends SimultaneousMoveSimulator<IncrementState
 	}
 
 	@Override
-	public double[] getReward()
+	public double[] reward()
 	{
 		return reward_history_.peek();
 	}

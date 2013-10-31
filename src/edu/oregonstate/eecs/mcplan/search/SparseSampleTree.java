@@ -3,7 +3,6 @@
  */
 package edu.oregonstate.eecs.mcplan.search;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.commons.math3.random.MersenneTwister;
@@ -11,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
+import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.RandomPolicy;
 import edu.oregonstate.eecs.mcplan.Representation;
@@ -40,19 +40,19 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 	{
 		private final UndoSimulator<S, A> sim_;
 		private final Representer<S, X> repr_;
-		private final ActionGenerator<S, ? extends A> actions_;
+		private final ActionGenerator<S, JointAction<A>> actions_;
 		private final int width_;
 		private final int depth_;
-		private final Policy<S, A> rollout_policy_;
+		private final Policy<S, JointAction<A>> rollout_policy_;
 		private final int rollout_width_;
 		private final int rollout_depth_;
 		private final BackupRule<X, A> backup_;
 		
 		public Factory( final UndoSimulator<S, A> sim,
 						  final Representer<S, X> repr,
-						  final ActionGenerator<S, ? extends A> actions,
+						  final ActionGenerator<S, JointAction<A>> actions,
 						  final int width, final int depth,
-						  final Policy<S, A> rollout_policy,
+						  final Policy<S, JointAction<A>> rollout_policy,
 						  final int rollout_width, final int rollout_depth,
 						  final BackupRule<X, A> backup )
 		{
@@ -68,22 +68,22 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 		}
 		
 		@Override
-		public GameTree<X, A> create( final MctsVisitor<S, A> visitor )
+		public GameTree<X, A> create( final MctsVisitor<S, X, A> visitor )
 		{
-			return new SparseSampleTree<S, X, A>( sim_, repr_, actions_, width_, depth_,
+			return new SparseSampleTree<S, X, A>( sim_, repr_.create(), actions_, width_, depth_,
 												  rollout_policy_, rollout_width_, rollout_depth_, visitor ) {
 				@Override
-				protected StateNode<X, A> createStateNode( final ActionNode<X, A> an, final X x,
-														   final int nagents, final int turn )
+				protected MutableStateNode<S, X, A> createStateNode(
+					final MutableActionNode<S, X, A> an, final X x, final int nagents, final int[] turn )
 				{
-					return new DelegateStateNode<X, A>( backup_, x, nagents, turn );
+					return new DelegateStateNode<S, X, A>( backup_, x, nagents, turn );
 				}
 				
 				@Override
-				protected StateNode<X, A> fetchStateNode( final ActionNode<X, A> an, final X x,
-														   final int nagents, final int turn )
+				protected MutableStateNode<S, X, A> fetchStateNode(
+					final MutableActionNode<S, X, A> an, final X x, final int nagents, final int[] turn )
 				{
-					for( final StateNode<X, A> agg : Fn.in( an.successors() ) ) {
+					for( final MutableStateNode<S, X, A> agg : Fn.in( an.successors() ) ) {
 						if( agg.token.equals( x ) ) {
 							return agg;
 						}
@@ -98,12 +98,12 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 	
 	protected final UndoSimulator<S, A> sim_;
 	protected final Representer<S, X> repr_;
-	protected final ActionGenerator<S, ? extends A> actions_;
-	protected final MctsVisitor<S, A> visitor_;
+	protected final ActionGenerator<S, JointAction<A>> actions_;
+	protected final MctsVisitor<S, X, A> visitor_;
 	protected final int width_;
 	protected final int depth_;
-	protected final Policy<S, A> rollout_policy_;
-	protected final int rollout_width_; // TODO: Should be a parameter
+	protected final Policy<S, JointAction<A>> rollout_policy_;
+	protected final int rollout_width_;
 	protected final int rollout_depth_;
 	
 	// TODO: Should be a parameter
@@ -111,15 +111,15 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 	
 	private boolean complete_ = false;
 	private StateNode<X, A> root_ = null;
-	private Map<A, Double> qtable_ = null;
+	private final Map<A, Double> qtable_ = null;
 	
 	public SparseSampleTree( final UndoSimulator<S, A> sim,
 					  final Representer<S, X> repr,
-					  final ActionGenerator<S, ? extends A> actions,
+					  final ActionGenerator<S, JointAction<A>> actions,
 					  final int width, final int depth,
-					  final Policy<S, A> rollout_policy,
+					  final Policy<S, JointAction<A>> rollout_policy,
 					  final int rollout_width, final int rollout_depth,
-					  final MctsVisitor<S, A> visitor )
+					  final MctsVisitor<S, X, A> visitor )
 	{
 		sim_ = sim;
 		repr_ = repr;
@@ -132,11 +132,11 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 		visitor_ = visitor;
 	}
 	
-	protected abstract StateNode<X, A> createStateNode( final ActionNode<X, A> an, final X x,
-														final int nagents, final int turn );
+	protected abstract MutableStateNode<S, X, A> createStateNode(
+		final MutableActionNode<S, X, A> an, final X x, final int nagents, final int[] turn );
 	
-	protected abstract StateNode<X, A> fetchStateNode( final ActionNode<X, A> an, final X x,
-														final int nagents, final int turn );
+	protected abstract MutableStateNode<S, X, A> fetchStateNode(
+		final MutableActionNode<S, X, A> an, final X x, final int nagents, final int[] turn );
 
 	@Override
 	public StateNode<X, A> root()
@@ -147,31 +147,17 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 	@Override
 	public void run()
 	{
-//		final S s0 = sim_.state();
-//		final X x0 = repr_.encode( s0 );
-//		root_ = createStateNode( x0, sim_.getNumAgents(), sim_.getTurn() ); //new StateNode<X, A>( x0, sim_.getNumAgents(), sim_.getTurn() );
-		// NOTE: Making an assumption about the indices of players here.
-//		final int turn = sim_.getTurn();
-//		System.out.println( "[SS: starting on Turn " + turn + "]" );
-//		visitor_.startEpisode( s0, sim_.getNumAgents(), turn );
-//		int rollout_count = 0;
-//		while( visitor_.startRollout( s0, turn ) ) {
-//			visit( root_, depth_, visitor_ );
-//			rollout_count += 1;
-//		}
-//		log.info( "rollout_count = {}", rollout_count );
-//		visit( root_, depth_, visitor_ );
-		
 		root_ = createSubtree( null, depth_, visitor_ );
-		qtable_ = makeQTable( root_ );
+//		qtable_ = makeQTable( root_ );
 		complete_ = true;
 	}
 	
-	private ActionNode<X, A> rollout( final StateNode<X, A> sn, final int depth, final MctsVisitor<S, A> visitor )
+	private MutableActionNode<S, X, A> rollout(
+		final MutableStateNode<S, X, A> sn, final int depth, final MctsVisitor<S, X, A> visitor )
 	{
 //		System.out.println( "rollout()" );
-		final int nagents = sim_.getNumAgents();
-		final ActionNode<X, A> an = new ActionNode<X, A>( null, nagents );
+		final int nagents = sim_.nagents();
+		final MutableActionNode<S, X, A> an = new MutableActionNode<S, X, A>( null, nagents, repr_.create() );
 		for( int w = 0; w < rollout_width_; ++w ) {
 			an.visit();
 			int count = 0;
@@ -179,8 +165,8 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 			double running_discount = 1.0;
 			while( true ) {
 				final S s = sim_.state();
-				final X x = repr_.encode( s );
-				final int turn = sim_.getTurn();
+				final int[] turn = sim_.turn();
+				final X x = an.repr().encode( s ); //repr_.encode( s );
 				running_discount *= discount_;
 				if( sim_.isTerminalState() ) {
 					final double[] r = visitor.terminal( s, turn );
@@ -192,7 +178,7 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 				else if( depth == 0 ) {
 					// TODO: We should have a way of giving e.g. an "optimistic"
 					// reward (Vmax) here. Like a 'getDefaultReward( double r )' method.
-					final double[] r = sim_.getReward();
+					final double[] r = sim_.reward();
 					touchLeafNode( r, an, x, turn );
 					Fn.scalar_multiply_inplace( r, running_discount );
 					Fn.vplus_inplace( q, r );
@@ -202,14 +188,14 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 					// TODO: Should rollout_policy be a policy over X's? Current
 					// approach (Policy<S, A>) is more flexible since the policy
 					// can use a different representation internally.
-					final double[] r = sim_.getReward();
-					final Policy<S, A> pi = rollout_policy_;
+					final double[] r = sim_.reward();
+					final Policy<S, JointAction<A>> pi = rollout_policy_;
 					pi.setState( sim_.state(), sim_.t() );
-					final A a = pi.getAction();
+					final JointAction<A> a = pi.getAction();
 					sim_.takeAction( a );
 					count += 1;
 					final S sprime = sim_.state();
-					visitor.defaultAction( a, sprime, sim_.getTurn() );
+					visitor.defaultAction( a, sprime, sim_.turn() );
 					pi.actionResult( sprime, r );
 					Fn.scalar_multiply_inplace( r, running_discount );
 					Fn.vplus_inplace( q, r );
@@ -236,52 +222,61 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 	 * @param visitor
 	 * @return
 	 */
-	private StateNode<X, A> createSubtree( final ActionNode<X, A> an, final int depth, final MctsVisitor<S, A> visitor )
+	private MutableStateNode<S, X, A> createSubtree(
+		final MutableActionNode<S, X, A> an, final int depth, final MctsVisitor<S, X, A> visitor )
 	{
 		final S s = sim_.state();
-		final X x = repr_.encode( s );
-		final int turn = sim_.getTurn();
-		final int nagents = sim_.getNumAgents();
+		final int[] turn = sim_.turn();
+		final int nagents = sim_.nagents();
+		
+		final X x;
 		if( an != null ) {
-			visitor.treeAction( an.a, s, turn );
+			visitor.treeAction( an.a(), s, turn );
+			x = an.repr().encode( s );
 		}
 		else {
-			visitor_.startEpisode( s, nagents, turn );
+			visitor.startEpisode( s, nagents, turn );
+			x = repr_.encode( s );
 		}
 		
 		if( sim_.isTerminalState() ) {
-			final StateNode<X, A> sn = touchLeafNode( visitor.terminal( s, turn ), an, x, turn );
+			final MutableStateNode<S, X, A> sn = touchLeafNode( visitor.terminal( s, turn ), an, x, turn );
 			return sn;
 		}
 		else if( visitor.halt() ) {
-			final StateNode<X, A> sn = touchLeafNode( sim_.getReward(), an, x, turn );
+			final MutableStateNode<S, X, A> sn = touchLeafNode( sim_.reward(), an, x, turn );
 			return sn;
 		}
 		else if( depth == 0 ) {
-			final StateNode<X, A> sn = touchRolloutNode( an, x, turn );
-			final ActionNode<X, A> an_prime = rollout( sn, rollout_depth_, visitor );
-			sn.attachSuccessor( an_prime.a, an_prime );
+			final MutableStateNode<S, X, A> sn = touchRolloutNode( an, x, turn );
+			final MutableActionNode<S, X, A> an_prime = rollout( sn, rollout_depth_, visitor );
+			sn.attachSuccessor( an_prime.a(), an_prime );
 			visitor.checkpoint();
 			return sn;
 		}
 		else {
-			final StateNode<X, A> sn = touchStateNode( an, x, turn );
-			final ActionGenerator<S, ? extends A> action_gen = actions_.create();
-			action_gen.setState( s, sim_.t(), turn );
-			
-			while( action_gen.hasNext() ) {
-				final A a = action_gen.next();
-				final ActionNode<X, A> sa = requireActionNode( sn, a ); //sn.action( a );
-				System.out.println( "depth " + depth + ", action " + a );
-				for( int w = 0; w < width_; ++w ) {
-					sa.visit();
-					sim_.takeAction( sa.a.create() );
-					final double[] r = sim_.getReward();
-					final StateNode<X, A> snprime = createSubtree( sa, depth - 1, visitor );
-					sa.updateQ( snprime.v() );
-					sa.updateR( r );
-					sim_.untakeLastAction();
+			final MutableStateNode<S, X, A> sn = touchStateNode( an, x, turn );
+			// Sample below 'sn' only if this is the first visit
+			if( sn.n() == 1 ) {
+				final ActionGenerator<S, JointAction<A>> action_gen = actions_.create();
+				action_gen.setState( s, sim_.t(), turn );
+				while( action_gen.hasNext() ) {
+					final JointAction<A> a = action_gen.next();
+					final MutableActionNode<S, X, A> sa = requireActionNode( sn, a );
+					System.out.println( "depth " + depth + ", action " + a );
+					for( int w = 0; w < width_; ++w ) {
+						sa.visit();
+						sim_.takeAction( sa.a().create() );
+						final double[] r = sim_.reward();
+						final MutableStateNode<S, X, A> snprime = createSubtree( sa, depth - 1, visitor );
+						sa.updateQ( snprime.v() );
+						sa.updateR( r );
+						sim_.untakeLastAction();
+					}
 				}
+			}
+			else {
+//				System.out.println( "! Aggregator hit!" );
 			}
 			return sn;
 		}
@@ -335,17 +330,17 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 	}
 	*/
 	
-	private StateNode<X, A> touchStateNode( final ActionNode<X, A> an, final X x, final int turn )
+	private MutableStateNode<S, X, A> touchStateNode( final MutableActionNode<S, X, A> an, final X x, final int[] turn )
 	{
-		StateNode<X, A> sn = null;
+		MutableStateNode<S, X, A> sn = null;
 		if( an == null ) {
-			sn = createStateNode( an, x, sim_.getNumAgents(), turn );
+			sn = createStateNode( an, x, sim_.nagents(), turn );
 		}
 		else {
 //			sn = an.getStateNode( x, turn );
-			sn = fetchStateNode( an, x, sim_.getNumAgents(), turn );
+			sn = fetchStateNode( an, x, sim_.nagents(), turn );
 			if( sn == null ) {
-				sn = createStateNode( an, x, sim_.getNumAgents(), turn ); //new StateNode<X, A>( x, sim_.getNumAgents(), turn );
+				sn = createStateNode( an, x, sim_.nagents(), turn ); //new StateNode<X, A>( x, sim_.getNumAgents(), turn );
 				an.attachSuccessor( x, turn, sn );
 			}
 		}
@@ -353,16 +348,16 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 		return sn;
 	}
 	
-	private StateNode<X, A> touchRolloutNode( final ActionNode<X, A> an, final X x, final int turn )
+	private MutableStateNode<S, X, A> touchRolloutNode( final MutableActionNode<S, X, A> an, final X x, final int[] turn )
 	{
-		StateNode<X, A> sn = null;
+		MutableStateNode<S, X, A> sn = null;
 		if( an == null ) {
-			sn = new MeanStateNode<X, A>( x, sim_.getNumAgents(), turn );
+			sn = new MeanStateNode<S, X, A>( x, sim_.nagents(), turn );
 		}
 		else {
 			sn = an.getStateNode( x, turn );
 			if( sn == null ) {
-				sn = new MeanStateNode<X, A>( x, sim_.getNumAgents(), turn );
+				sn = new MeanStateNode<S, X, A>( x, sim_.nagents(), turn );
 				an.attachSuccessor( x, turn, sn );
 			}
 		}
@@ -370,16 +365,17 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 		return sn;
 	}
 	
-	private StateNode<X, A> touchLeafNode( final double[] v, final ActionNode<X, A> an, final X x, final int turn )
+	private MutableStateNode<S, X, A> touchLeafNode(
+		final double[] v, final MutableActionNode<S, X, A> an, final X x, final int[] turn )
 	{
-		StateNode<X, A> sn = null;
+		MutableStateNode<S, X, A> sn = null;
 		if( an == null ) {
-			sn = new LeafStateNode<X, A>( v, x, sim_.getNumAgents(), turn );
+			sn = new LeafStateNode<S, X, A>( v, x, sim_.nagents(), turn );
 		}
 		else {
 			sn = an.getStateNode( x, turn );
 			if( sn == null ) {
-				sn = new LeafStateNode<X, A>( v, x, sim_.getNumAgents(), turn );
+				sn = new LeafStateNode<S, X, A>( v, x, sim_.nagents(), turn );
 				an.attachSuccessor( x, turn, sn );
 			}
 		}
@@ -387,11 +383,11 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 		return sn;
 	}
 	
-	private ActionNode<X, A> requireActionNode( final StateNode<X, A> sn, final A a )
+	private MutableActionNode<S, X, A> requireActionNode( final MutableStateNode<S, X, A> sn, final JointAction<A> a )
 	{
-		ActionNode<X, A> an = sn.getActionNode( a );
+		MutableActionNode<S, X, A> an = sn.getActionNode( a );
 		if( an == null ) {
-			an = new ActionNode<X, A>( a, sim_.getNumAgents() ); //new StateNode<X, A>( x, sim_.getNumAgents(), turn );
+			an = new MutableActionNode<S, X, A>( a, sim_.nagents(), repr_.create() ); //new StateNode<X, A>( x, sim_.getNumAgents(), turn );
 			sn.attachSuccessor( a, an );
 		}
 		return an;
@@ -408,20 +404,20 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 	 */
 //	public abstract double[] backupRollout( final double[] r );
 	
-	private Map<A, Double> makeQTable( final StateNode<X, A> root )
-	{
-		final Map<A, Double> q = new HashMap<A, Double>();
-		for( final ActionNode<X, A> an : Fn.in( root.successors() ) ) {
-			// TODO: This is where representing rollouts as ActionNodes with
-			// a = null is problematic. We could adopt the convention that
-			// ActionNodes with a = null are never counted, but then we need
-			// null tests everywhere.
-			if( an.a != null ) {
-				q.put( an.a.create(), an.q( root.turn ) );
-			}
-		}
-		return q;
-	}
+//	private Map<A, Double> makeQTable( final StateNode<X, A> root )
+//	{
+//		final Map<A, Double> q = new HashMap<A, Double>();
+//		for( final ActionNode<X, A> an : Fn.in( root.successors() ) ) {
+//			// TODO: This is where representing rollouts as ActionNodes with
+//			// a = null is problematic. We could adopt the convention that
+//			// ActionNodes with a = null are never counted, but then we need
+//			// null tests everywhere.
+//			if( an.a() != null ) {
+//				q.put( an.a().create(), an.q( root.turn ) );
+//			}
+//		}
+//		return q;
+//	}
 	
 	public static void main( final String[] args )
 	{
@@ -441,11 +437,20 @@ public abstract class SparseSampleTree<S, X extends Representation<S>, A extends
 				TimeLimitMctsVisitor.create( new Visitor<UndoableAction<State>>(), new Countdown( 1000 ) ) )
 			{
 				@Override
-				protected StateNode<Representation<State>, UndoableAction<State>> createStateNode(
-						final ActionNode<Representation<State>, UndoableAction<State>> an,
+				protected MutableStateNode<State, Representation<State>, UndoableAction<State>> createStateNode(
+						final MutableActionNode<State, Representation<State>, UndoableAction<State>> an,
 						final Representation<State> x, final int nagents, final int turn )
 				{
-					return new MaxStateNode<Representation<State>, UndoableAction<State>>( 0, x, nagents, turn );
+					return new MaxStateNode<State, Representation<State>, UndoableAction<State>>( 0, x, nagents, turn );
+				}
+
+				@Override
+				protected MutableStateNode<State, Representation<State>, UndoableAction<State>> fetchStateNode(
+						final MutableActionNode<State, Representation<State>, UndoableAction<State>> an,
+						final Representation<State> x, final int nagents, final int turn )
+				{
+					// TODO Auto-generated method stub
+					return null;
 				}
 			};
 		tree.run();

@@ -70,7 +70,7 @@ public class ExpectimaxSearch<S, A extends UndoableAction<S, A>> implements Runn
 	{
 		visitor_.startVertex( sim_.state() );
 		// NOTE: Making an assumption about the indices of players here.
-		final int turn = sim_.getTurn();
+		final int turn = sim_.turn();
 		if( turn == 0 ) {
 			// Player 0 is the maximizing player
 			score_ = visit( max_depth_ - turn, alpha_, beta_, 1, pv_, visitor_ );
@@ -184,7 +184,7 @@ public class ExpectimaxSearch<S, A extends UndoableAction<S, A>> implements Runn
 			@Override
 			public double heuristic( final FastGalconState s )
 			{
-				final int player = s.getTurn();
+				final int player = s.turn();
 				final int lookahead = 40;
 				final FastGalconEvent nothing = new FastGalconNothingAction();
 				// Run simulator forward

@@ -8,7 +8,7 @@ import java.util.Collections;
 
 import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.domains.voyager.EntityType;
+import edu.oregonstate.eecs.mcplan.domains.voyager.Unit;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Planet;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Spaceship;
@@ -46,7 +46,7 @@ public class VoyagerGameLogger implements EpisodeListener<VoyagerState, Undoable
 	{
 		// Game log
 		game_log_.print( "t" );
-		for( final EntityType type : EntityType.values() ) {
+		for( final Unit type : Unit.values() ) {
 			game_log_.print( "," );
 			game_log_.print( type );
 		}
@@ -78,7 +78,7 @@ public class VoyagerGameLogger implements EpisodeListener<VoyagerState, Undoable
 		// Game state
 		game_log_.print( t_ );
 		
-		final int[] pop = new int[EntityType.values().length];
+		final int[] pop = new int[Unit.values().length];
 		for( final Planet p : sprime.planets ) {
 			if( p.owner() == Player.Min ) {
 				Fn.vminus_inplace( pop, p.population() );

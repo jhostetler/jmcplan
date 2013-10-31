@@ -222,11 +222,11 @@ public abstract class UctSearch<S, F extends Representer<S, F>, A extends Virtua
 	{
 		final S s0 = sim_.state();
 		final Representation<S, F> x0 = repr_.encode( s0 );
-		root_ = new StateNode<Representation<S, F>, A>( x0, sim_.getNumAgents(), sim_.getTurn() );
+		root_ = new StateNode<Representation<S, F>, A>( x0, sim_.nagents(), sim_.turn() );
 		// NOTE: Making an assumption about the indices of players here.
-		final int turn = sim_.getTurn();
+		final int turn = sim_.turn();
 		System.out.println( "[Uct: starting on Turn " + turn + "]" );
-		visitor_.startEpisode( s0, sim_.getNumAgents(), turn );
+		visitor_.startEpisode( s0, sim_.nagents(), turn );
 		int rollout_count = 0;
 		while( visitor_.startRollout( s0, turn ) ) {
 			visit( root_, 0 /* TODO: depth limit */, visitor_ );
@@ -283,16 +283,16 @@ public abstract class UctSearch<S, F extends Representer<S, F>, A extends Virtua
 		final S s = sim_.state();
 		final double[] r;
 		if( sim_.isTerminalState( ) ) {
-			r = visitor.terminal( s, sim_.getTurn() );
+			r = visitor.terminal( s, sim_.turn() );
 		}
 		else {
-			final int turn = sim_.getTurn();
+			final int turn = sim_.turn();
 			final Policy<S, A> pi = rollout_policy_;
 			pi.setState( sim_.state(), sim_.t() );
 			final A a = pi.getAction();
 			sim_.takeAction( a );
 			final S sprime = sim_.state();
-			visitor.defaultAction( a, sprime, sim_.getTurn() );
+			visitor.defaultAction( a, sprime, sim_.turn() );
 			r = rollout( visitor );
 			pi.actionResult( sprime, r );
 			sim_.untakeLastAction();
@@ -305,19 +305,19 @@ public abstract class UctSearch<S, F extends Representer<S, F>, A extends Virtua
 		final S s = sim_.state();
 		sn.visit();
 		if( sim_.isTerminalState( ) ) {
-			return visitor.terminal( s, sim_.getTurn() );
+			return visitor.terminal( s, sim_.turn() );
 		}
 		else {
-			final int turn = sim_.getTurn();
+			final int turn = sim_.turn();
 //			assert( sn.turn == turn );
 			final ActionGenerator<S, ? extends A> action_gen = actions_.create();
 			action_gen.setState( s, sim_.t(), turn );
 			final ActionNode<Representation<S, F>, A> sa = selectAction( sn, action_gen );
 			sa.visit();
 			sim_.takeAction( sa.a );
-			final double[] r = sim_.getReward();
+			final double[] r = sim_.reward();
 			final S sprime = sim_.state();
-			visitor.treeAction( sa.a, sprime, sim_.getTurn() );
+			visitor.treeAction( sa.a, sprime, sim_.turn() );
 			final double[] q;
 			if( sa.n() == 1 ) {
 				// Leaf node
@@ -325,7 +325,7 @@ public abstract class UctSearch<S, F extends Representer<S, F>, A extends Virtua
 			}
 			else {
 				final Representation<S, F> x = repr_.encode( sprime );
-				final StateNode<Representation<S, F>, A> snprime = sa.stateNode( x, sim_.getTurn() );
+				final StateNode<Representation<S, F>, A> snprime = sa.stateNode( x, sim_.turn() );
 				q = visit( snprime, depth - 1, visitor );
 			}
 			sa.updateR( r );

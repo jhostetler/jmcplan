@@ -17,8 +17,10 @@ import java.util.List;
 import javax.swing.JFrame;
 
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
+import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.domains.voyager.policies.BalancedPolicy;
 import edu.oregonstate.eecs.mcplan.search.RolloutPolicy;
 import edu.oregonstate.eecs.mcplan.sim.Episode;
@@ -29,7 +31,7 @@ import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveRunner;
  * @author jhostetler
  *
  */
-public class VoyagerVisualization<A> extends JFrame
+public class VoyagerVisualization<A extends VirtualConstructor<A>> extends JFrame
 {
 	private static class VoyagerCanvas extends Canvas
 	{
@@ -69,7 +71,7 @@ public class VoyagerVisualization<A> extends JFrame
 			}
 		}
 		
-		private Color entityColor( final EntityType type )
+		private Color entityColor( final Unit type )
 		{
 			if( type == null ) {
 				return background_color;
@@ -90,7 +92,7 @@ public class VoyagerVisualization<A> extends JFrame
 		{
 			final StringBuilder sb = new StringBuilder();
 			boolean sep = false;
-			for( final EntityType type : EntityType.values() ) {
+			for( final Unit type : Unit.values() ) {
 				if( sep ) {
 					sb.append( "/" );
 				}
@@ -102,7 +104,7 @@ public class VoyagerVisualization<A> extends JFrame
 			return sb.toString();
 		}
 		
-		private void drawPopulation( final Graphics2D g, final Planet p, final EntityType type,
+		private void drawPopulation( final Graphics2D g, final Planet p, final Unit type,
 									 final int x, final int y, final int uh, final int sep )
 		{
 			final int w25 = 10;
@@ -171,7 +173,7 @@ public class VoyagerVisualization<A> extends JFrame
 				final int uh = 4;
 				final int sep = 2;
 				int yi = y + d + sep;
-				for( final EntityType type : EntityType.values() ) {
+				for( final Unit type : Unit.values() ) {
 					drawPopulation( g, p, type, x, yi, uh, sep );
 					yi += uh + sep;
 				}
@@ -191,7 +193,7 @@ public class VoyagerVisualization<A> extends JFrame
 		}
 	}
 	
-	private static class CanvasUpdater<A> implements EpisodeListener<VoyagerState, A>
+	private static class CanvasUpdater<A extends VirtualConstructor<A>> implements EpisodeListener<VoyagerState, A>
 	{
 		private final VoyagerCanvas canvas_;
 		private final int sleep_;
@@ -203,7 +205,7 @@ public class VoyagerVisualization<A> extends JFrame
 		}
 		
 		@Override
-		public <P extends Policy<VoyagerState, A>> void startState(
+		public <P extends Policy<VoyagerState, JointAction<A>>> void startState(
 				final VoyagerState s, final P pi )
 		{
 			canvas_.updateState( s );
@@ -214,7 +216,7 @@ public class VoyagerVisualization<A> extends JFrame
 		{ }
 
 		@Override
-		public void postGetAction( final A action )
+		public void postGetAction( final JointAction<A> action )
 		{ }
 
 		@Override
@@ -260,8 +262,7 @@ public class VoyagerVisualization<A> extends JFrame
 		canvas_.updateState( state );
 	}
 	
-	public
-	void attach( final Episode<VoyagerState, A> episode )
+	public void attach( final Episode<VoyagerState, A> episode )
 	{
 		episode.addListener( new CanvasUpdater<A>( canvas_, sleep_ ) );
 	}

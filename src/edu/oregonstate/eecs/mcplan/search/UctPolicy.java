@@ -110,7 +110,7 @@ public class UctPolicy<S, F extends Representer<S, F>, A extends VirtualConstruc
 	@Override
 	public A getAction( final long control )
 	{
-		log.info( "getAction( {} ), player {}", control, sim_.getTurn() );
+		log.info( "getAction( {} ), player {}", control, sim_.turn() );
 		final MctsNegamaxVisitor<S, A> time_limit
 			= new TimeLimitMctsNegamaxVisitor<S, A>( visitor_, new Countdown( control ) );
 		final UctNegamaxSearch<S, F, A> search
@@ -128,7 +128,7 @@ public class UctPolicy<S, F extends Representer<S, F>, A extends VirtualConstruc
 		}
 		else {
 			log.info( "! Using default policy" );
-			final Policy<S, A> pi = default_policies_.get( sim_.getTurn() );
+			final Policy<S, A> pi = default_policies_.get( sim_.turn() );
 			pi.setState( s_, t_ );
 			return pi.getAction();
 		}

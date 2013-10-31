@@ -15,9 +15,19 @@ public class TreePrinter<S, A extends VirtualConstructor<A>>
 		return new TreePrinter<S, A>();
 	}
 	
-	private final PrintStream out_ = System.out;
+	private final PrintStream out_;
 	private int d_ = 0;
-	private int turn_ = 0;
+	private int[] turn_ = null;
+	
+	public TreePrinter()
+	{
+		this( System.out );
+	}
+	
+	public TreePrinter( final PrintStream out )
+	{
+		out_ = out;
+	}
 	
 	@Override
 	public void visit( final StateNode<S, A> s )
@@ -35,7 +45,7 @@ public class TreePrinter<S, A extends VirtualConstructor<A>>
 		out_.print( Arrays.toString( s.v() ) );
 		out_.println();
 		d_ += 1;
-		final int old_turn = turn_;
+		final int[] old_turn = turn_;
 		turn_ = s.turn;
 		for( final ActionNode<S, A> a : Fn.in( s.successors() ) ) {
 			a.accept( this );
@@ -55,13 +65,16 @@ public class TreePrinter<S, A extends VirtualConstructor<A>>
 		out_.print( ": n = " );
 		out_.print( a.n() );
 		out_.print( ": " );
-		out_.print( a.a );
+		out_.print( a.a() );
 		out_.print( ": q = " );
-		out_.print( a.q( turn_ ) );
+		out_.print( a.q() );
 		out_.print( ", var = " );
-		out_.print( a.qvar( turn_ ) );
-		out_.print( ", 95% = " );
-		out_.print( 2 * Math.sqrt( a.qvar( turn_ ) ) );
+		out_.print( a.qvar() );
+		out_.print( ", 95% = [" );
+		for( final double sigma : a.qvar() ) {
+			out_.print( 2 * Math.sqrt( sigma ) );
+		}
+		out_.print( "]" );
 		out_.println();
 		d_ += 1;
 		for( final StateNode<S, A> s : Fn.in( a.successors() ) ) {

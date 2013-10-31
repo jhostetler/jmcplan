@@ -129,7 +129,7 @@ public class UctSearcher<S extends Tokenizable<T>, T, A extends UndoableAction<S
 		final S s0 = sim_.state();
 		root_ = new StateNode( s0.token() );
 		// NOTE: Making an assumption about the indices of players here.
-		final int turn = sim_.getTurn();
+		final int turn = sim_.turn();
 		System.out.println( "[Uct: starting on Turn " + turn + "]" );
 		visitor_.startEpisode( s0 );
 		int rollout_count = 0;
@@ -178,7 +178,7 @@ public class UctSearcher<S extends Tokenizable<T>, T, A extends UndoableAction<S
 			return color * visitor.terminal( s );
 		}
 		
-		final Policy<S, A> pi = rollout_policies_.get( sim_.getTurn() );
+		final Policy<S, A> pi = rollout_policies_.get( sim_.turn() );
 		pi.setState( sim_.state(), sim_.t() );
 		final A a = pi.getAction();
 		sim_.takeAction( a );
@@ -192,13 +192,13 @@ public class UctSearcher<S extends Tokenizable<T>, T, A extends UndoableAction<S
 	
 	private double visit( final StateNode sn, final int depth, final int color, final MctsNegamaxVisitor<S> visitor )
 	{
-		assert( color * sim_.getTurn() <= 0 );
+		assert( color * sim_.turn() <= 0 );
 		final S s = sim_.state();
 		sn.n += 1;
 		if( sim_.isTerminalState( ) ) {
 			return color * visitor.terminal( s );
 		}
-		final int turn = sim_.getTurn();
+		final int turn = sim_.turn();
 		final ActionGenerator<S, ? extends A> action_gen = actions_.create();
 		action_gen.setState( s, sim_.t(), turn );
 		final ActionNode sa = selectAction( sn, action_gen );

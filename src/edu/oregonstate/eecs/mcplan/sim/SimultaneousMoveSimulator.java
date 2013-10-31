@@ -12,14 +12,17 @@ import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.ListUtil;
 
 /**
  * @author jhostetler
  *
  */
-public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S>> implements UndoSimulator<S, A>
+public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S> & VirtualConstructor<A>>
+	implements UndoSimulator<S, A>
 {
 	private static final Logger log = LoggerFactory.getLogger( SimultaneousMoveSimulator.class );
 	
@@ -34,9 +37,9 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S>> 
 	
 	public SimultaneousMoveSimulator()
 	{
-		pushActionSet( getNumAgents() );
+		pushActionSet( nagents() );
 		event_history_.push( new ArrayDeque<UndoableAction<S>>() );
-		turn_taken_ = new boolean[getNumAgents()];
+		turn_taken_ = new boolean[nagents()];
 	}
 	
 	protected SimultaneousMoveSimulator( final int num_agents )
@@ -66,7 +69,7 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S>> 
 			assert( !b );
 		}
 		assert( turn >= 0 );
-		assert( turn < getNumAgents() );
+		assert( turn < nagents() );
 		turn_ = turn;
 	}
 	
@@ -87,14 +90,16 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S>> 
 	 * @see edu.oregonstate.eecs.mcplan.agents.galcon.UndoSimulator#takeAction(edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction)
 	 */
 	@Override
-	public final void takeAction( final A a )
+	public final void takeAction( final JointAction<A> j )
 	{
 		assert( !turn_taken_[turn_] );
+		final A a = j.get( turn_ );
+		assert( a != null ); // TODO: Do we really want to use null for that?
 		turn_taken_[turn_] = true;
 		action_history_.peek().set( turn_, a );
 		move_order_history_.peek().push( turn_ );
 		turn_ += 1;
-		if( turn_ == getNumAgents() ) {
+		if( turn_ == nagents() ) {
 			turn_ = 0;
 		}
 		
@@ -107,7 +112,7 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S>> 
 		}
 		
 		if( step ) {
-			assert( move_order_history_.peek().size() == getNumAgents() );
+			assert( move_order_history_.peek().size() == nagents() );
 			for( final int i : move_order_history_.peek() ) {
 				final A ai = action_history_.peek().get( i );
 				log.trace( "do action {}", ai.toString() );
@@ -119,7 +124,7 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S>> 
 //			}
 			// Delegate world update to subclass.
 			advance();
-			pushActionSet( getNumAgents() );
+			pushActionSet( nagents() );
 			event_history_.push( new ArrayDeque<UndoableAction<S>>() );
 			Arrays.fill( turn_taken_, false );
 			++t_;
@@ -139,7 +144,7 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S>> 
 	{
 		turn_ -= 1;
 		if( turn_ < 0 ) {
-			turn_ = getNumAgents() - 1;
+			turn_ = nagents() - 1;
 		}
 		
 		boolean unstep = true;
@@ -218,16 +223,16 @@ public abstract class SimultaneousMoveSimulator<S, A extends UndoableAction<S>> 
 	 * @see edu.oregonstate.eecs.mcplan.agents.galcon.UndoSimulator#getTurn()
 	 */
 	@Override
-	public final int getTurn()
+	public final int[] turn()
 	{
-		return turn_;
+		return new int[] { turn_ };
 	}
 	
 	/* (non-Javadoc)
 	 * @see edu.oregonstate.eecs.mcplan.agents.galcon.UndoSimulator#getReward()
 	 */
 	@Override
-	public abstract double[] getReward();
+	public abstract double[] reward();
 	
 	/* (non-Javadoc)
 	 * @see edu.oregonstate.eecs.mcplan.agents.galcon.UndoSimulator#detailString()

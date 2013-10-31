@@ -77,7 +77,7 @@ public class IterativeDeepeningHeuristicPolicy<S, A extends UndoableAction<S, A>
 		final IterativeDeepeningHeuristic<S, A> heuristic
 			= new IterativeDeepeningHeuristic<S, A>( bv, max_depth_, sim_, action_gen_.create() );
 		final NegamaxSearch<S, A> search = new NegamaxSearch<S, A>(
-			sim_, sim_.getNumAgents() /* One level at normal time discretization */,
+			sim_, sim_.nagents() /* One level at normal time discretization */,
 			action_gen_.create(), heuristic );
 		search.run();
 		

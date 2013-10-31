@@ -10,14 +10,13 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * @author jhostetler
  *
  */
-public class LaunchAction implements UndoableAction<VoyagerState>
+public class LaunchAction extends VoyagerAction
 {
 	public static final Logger log = LoggerFactory.getLogger( LaunchAction.class );
 	
@@ -26,7 +25,7 @@ public class LaunchAction implements UndoableAction<VoyagerState>
 	public final int[] population;
 	
 	private Player old_owner_ = null;
-	private EntityType old_production_ = null;
+	private Unit old_production_ = null;
 	private int[] old_stored_production_ = null;
 	private Spaceship spaceship_ = null;
 	private boolean done_ = false;
@@ -66,7 +65,7 @@ public class LaunchAction implements UndoableAction<VoyagerState>
 			}
 		}
 		for( int i = 0; i < population.length; ++i ) {
-			src.incrementPopulation( EntityType.values()[i], population[i] );
+			src.incrementPopulation( Unit.values()[i], population[i] );
 		}
 		src.setOwner( old_owner_ );
 		src.setProduction( old_production_ );
@@ -86,7 +85,7 @@ public class LaunchAction implements UndoableAction<VoyagerState>
 		old_production_ = src.nextProduced();
 		old_stored_production_ = Arrays.copyOf( src.storedProduction(), src.storedProduction().length );
 		for( int i = 0; i < population.length; ++i ) {
-			src.decrementPopulation( EntityType.values()[i], population[i] );
+			src.decrementPopulation( Unit.values()[i], population[i] );
 		}
 		assert( src.totalPopulation() >= 0 );
 		spaceship_ = new Spaceship.Builder()
@@ -96,8 +95,8 @@ public class LaunchAction implements UndoableAction<VoyagerState>
 			.finish( s.spaceship_factory );
 		if( src.totalPopulation() == 0 ) {
 			src.setOwner( Player.Neutral );
-			src.setProduction( EntityType.defaultProduction() );
-			src.setStoredProduction( Fn.repeat( 0, EntityType.values().length ) );
+			src.setProduction( Unit.defaultProduction() );
+			src.setStoredProduction( Fn.repeat( 0, Unit.values().length ) );
 		}
 		s.spaceships.add( spaceship_ );
 		done_ = true;
@@ -116,7 +115,7 @@ public class LaunchAction implements UndoableAction<VoyagerState>
 	 * @see edu.oregonstate.eecs.mcplan.agents.galcon.Action#create()
 	 */
 	@Override
-	public UndoableAction<VoyagerState> create()
+	public LaunchAction create()
 	{
 //		throw new AssertionError();
 		return new LaunchAction( src, dest, population );

@@ -111,7 +111,7 @@ public class IterativeRefinementSearch<S, A extends UndoableAction<S, A>>
 //					new DurativeNegamaxVisitor<S, A>( visitor_, policy_epoch ), depth );
 			final NegamaxSearch<S, DurativeAction<S, A>> search
 				= new NegamaxSearch<S, DurativeAction<S, A>>(
-					durative_sim, depth * sim_.getNumAgents(), durative_gen.create(),
+					durative_sim, depth * sim_.nagents(), durative_gen.create(),
 					durative_visitor );
 			final long start = System.currentTimeMillis();
 			search.run();

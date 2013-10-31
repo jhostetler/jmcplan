@@ -30,11 +30,11 @@ public class VoyagerStateToken extends FactoredRepresentation<VoyagerState>
 					attributes_.add( new Attribute( "p" + i + "o" + j ) );
 				}
 				// Population
-				for( int j = 0; j < EntityType.values().length; ++j ) {
+				for( int j = 0; j < Unit.values().length; ++j ) {
 					attributes_.add( new Attribute( "p" + i + "pop" + j ) );
 				}
 				// Stored production
-				for( int j = 0; j < EntityType.values().length; ++j ) {
+				for( int j = 0; j < Unit.values().length; ++j ) {
 					attributes_.add( new Attribute( "p" + i + "prod" + j ) );
 				}
 			}
@@ -43,7 +43,7 @@ public class VoyagerStateToken extends FactoredRepresentation<VoyagerState>
 			for( int p = 0; p < Nplanets; ++p ) {
 				for( int y = 0; y < Player.competitors; ++y ) {
 					for( int t = 0; t <= max_eta; ++t ) {
-						for( int u = 0; u < EntityType.values().length; ++u ) {
+						for( int u = 0; u < Unit.values().length; ++u ) {
 							attributes_.add( new Attribute( "p" + p + "y" + y + "t" + t + "u" + u ) );
 						}
 					}

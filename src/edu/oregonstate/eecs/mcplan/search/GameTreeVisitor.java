@@ -5,6 +5,7 @@ package edu.oregonstate.eecs.mcplan.search;
 
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
+
 /**
  * A visitor for game trees. Uses the "double dispatch" pattern to determine
  * the type of each node polymorphically.

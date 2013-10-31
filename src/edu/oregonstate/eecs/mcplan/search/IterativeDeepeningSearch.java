@@ -59,7 +59,7 @@ public class IterativeDeepeningSearch<S, A extends UndoableAction<S, A>> impleme
 				break;
 			}
 			final NegamaxSearch<S, A> search = new NegamaxSearch<S, A>(
-				sim_, depth * sim_.getNumAgents(), local_gen, visitor_ );
+				sim_, depth * sim_.nagents(), local_gen, visitor_ );
 			final long start = System.currentTimeMillis();
 			search.run();
 			final long stop = System.currentTimeMillis();

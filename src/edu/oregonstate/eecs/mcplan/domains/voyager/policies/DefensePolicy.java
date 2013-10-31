@@ -10,17 +10,17 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
 import edu.oregonstate.eecs.mcplan.Pair;
-import edu.oregonstate.eecs.mcplan.UndoableAction;
-import edu.oregonstate.eecs.mcplan.domains.voyager.EntityType;
 import edu.oregonstate.eecs.mcplan.domains.voyager.LaunchAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.NothingAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Planet;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Player;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Spaceship;
+import edu.oregonstate.eecs.mcplan.domains.voyager.Unit;
 import edu.oregonstate.eecs.mcplan.domains.voyager.Voyager;
+import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerAction;
 import edu.oregonstate.eecs.mcplan.domains.voyager.VoyagerState;
 
-public class DefensePolicy extends AnytimePolicy<VoyagerState, UndoableAction<VoyagerState>>
+public class DefensePolicy extends AnytimePolicy<VoyagerState, VoyagerAction>
 {
 	private final Player self_;
 	
@@ -58,7 +58,7 @@ public class DefensePolicy extends AnytimePolicy<VoyagerState, UndoableAction<Vo
 	}
 
 	@Override
-	public UndoableAction<VoyagerState> getAction()
+	public VoyagerAction getAction()
 	{
 		final ArrayList<Planet> friendly = Voyager.playerPlanets( s_, self_ );
 		final NavigableMap<Planet, ArrayList<Spaceship>> incoming
@@ -102,10 +102,10 @@ public class DefensePolicy extends AnytimePolicy<VoyagerState, UndoableAction<Vo
 				// TODO: Need to account for ship speed
 				if( Voyager.distance( src, e.second ) < e.first ) {
 					// TODO: Garrison 1 should be parameter
-					final int spare_soldiers = src.population( EntityType.Soldier ) - 1;
+					final int spare_soldiers = src.population( Unit.Soldier ) - 1;
 					if( spare_soldiers > 0 ) {
-						final int[] pop = new int[EntityType.values().length];
-						pop[EntityType.Soldier.ordinal()] = spare_soldiers;
+						final int[] pop = new int[Unit.values().length];
+						pop[Unit.Soldier.ordinal()] = spare_soldiers;
 						return new LaunchAction( src, e.second, pop );
 					}
 				}
@@ -149,7 +149,7 @@ public class DefensePolicy extends AnytimePolicy<VoyagerState, UndoableAction<Vo
 	}
 
 	@Override
-	public UndoableAction<VoyagerState> getAction( final long control )
+	public VoyagerAction getAction( final long control )
 	{
 		return getAction();
 	}

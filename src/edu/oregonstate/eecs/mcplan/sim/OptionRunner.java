@@ -36,7 +36,7 @@ public class OptionRunner<S, A extends UndoableAction<S>>
 		sim_ = sim;
 		policies_ = policies;
 		T_ = T;
-		active_ = new ArrayList<Option<S, A>>( sim_.getNumAgents() );
+		active_ = new ArrayList<Option<S, A>>( sim_.nagents() );
 		Collections.fill( active_, null );
 	}
 	

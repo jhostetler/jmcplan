@@ -87,7 +87,7 @@ public class IterativeRefinementHeuristicPolicy<S, A extends UndoableAction<S, A
 		final IterativeRefinementHeuristic<S, A> heuristic
 			= new IterativeRefinementHeuristic<S, A>( bv, max_depth_, max_horizon_, sim_, action_gen_.create() );
 		final NegamaxSearch<S, A> search = new NegamaxSearch<S, A>(
-			sim_, sim_.getNumAgents() /* One level */, action_gen_, heuristic );
+			sim_, sim_.nagents() /* One level */, action_gen_, heuristic );
 		System.out.println( "*** Running root search" );
 		search.run();
 		System.out.println( "*** Root search done" );

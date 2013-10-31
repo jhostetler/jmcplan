@@ -3,17 +3,19 @@
  */
 package edu.oregonstate.eecs.mcplan.search;
 
+import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
 /**
  * @author jhostetler
  *
  */
-public class MaxStateNode<S, A extends VirtualConstructor<A>> extends StateNode<S, A>
+public class MaxStateNode<S, X extends Representation<S>, A extends VirtualConstructor<A>>
+	extends MutableStateNode<S, X, A>
 {
 	private final int player_;
 	
-	public MaxStateNode( final int player, final S token, final int nagents, final int turn )
+	public MaxStateNode( final int player, final X token, final int nagents, final int turn )
 	{
 		super( token, nagents, turn );
 		player_ = player;
@@ -22,7 +24,7 @@ public class MaxStateNode<S, A extends VirtualConstructor<A>> extends StateNode<
 	@Override
 	public double[] v()
 	{
-		return BackupRules.MaxQ( this, player_ );
+		return BackupRules.MarginalMaxQ( this, player_ );
 	}
 
 }

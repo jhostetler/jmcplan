@@ -42,7 +42,7 @@ public class DurativeActionGenerator<S, A>
 	}
 
 	@Override
-	public void setState( final S s, final long t, final int turn )
+	public void setState( final S s, final long t, final int[] turn )
 	{
 		base_.setState( s, t, turn );
 	}

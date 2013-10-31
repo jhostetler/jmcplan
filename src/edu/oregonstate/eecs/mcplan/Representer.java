@@ -9,5 +9,6 @@ package edu.oregonstate.eecs.mcplan;
  */
 public interface Representer<S, X extends Representation<S>>
 {
+	public abstract Representer<S, X> create();
 	public abstract X encode( final S s );
 }

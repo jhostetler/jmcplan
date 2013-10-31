@@ -6,13 +6,16 @@ package edu.oregonstate.eecs.mcplan.ml;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 
 import weka.core.Attribute;
 import weka.core.DenseInstance;
+import weka.core.Instance;
 import weka.core.Instances;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
@@ -124,18 +127,21 @@ public abstract class GameTreeStateSimilarityDataset<S extends FactoredRepresent
 		}
 		tx.put( null, depth_1 );
 		
+		final Comparator<Instance> weight_comp = new Comparator<Instance>() {
+			@Override
+			public int compare( final Instance a, final Instance b )
+			{ return (int) Math.signum( a.weight() - b.weight() ); }
+		};
+		final int max_cap = max_instances_ + 1;
+		final PriorityQueue<Instance> positive = new PriorityQueue<Instance>( max_cap, weight_comp );
+		final PriorityQueue<Instance> negative = new PriorityQueue<Instance>( max_cap, weight_comp );
 		System.out.println( "*** Building Instances" );
 		for( final Map.Entry<List<ActionNode<S, A>>, List<StateNode<S, A>>> e : tx.entrySet() ) {
 			System.out.println( "***** key = " + e.getKey() + ", value.size() = " + e.getValue().size() );
 			
 			final String name = (e.getKey() != null ? e.getKey().toString() : "null");
-			final Instances x = new Instances( name, attributes_, 0 );
-			x.setClassIndex( label_index );
 			final List<StateNode<S, A>> values = e.getValue();
-			final int[] max_labeled_instances = new int[] { max_instances_ / 2, max_instances_ / 2 };
 			final int[] num_instances = { 0, 0 };
-			final double[] lowest_weight = { Double.MAX_VALUE, Double.MAX_VALUE };
-			final int[] lowest_weight_idx = { -1, -1 };
 			int count = 0;
 			for( int i = 0; i < values.size(); ++i ) {
 				for( int j = i + 1; j < values.size(); ++j ) {
@@ -152,6 +158,11 @@ public abstract class GameTreeStateSimilarityDataset<S extends FactoredRepresent
 					final double[] phi_i = s_i.token.phi();
 					final double[] phi_j = s_j.token.phi();
 					assert( phi_i.length == phi_j.length );
+					if( phi_i.length != attributes_.size() - 1 ) {
+						System.out.println( "! phi_i.length = " + phi_i.length );
+						System.out.println( "! attributes_.size() = " + attributes_.size() );
+					}
+					assert( phi_i.length == attributes_.size() - 1 );
 					// Feature vector is absolute difference of the two state
 					// feature vectors.
 					final double[] phi_labeled = new double[phi_i.length + 1];
@@ -166,18 +177,26 @@ public abstract class GameTreeStateSimilarityDataset<S extends FactoredRepresent
 					
 					num_instances[label] += 1;
 					
-					x.add( new DenseInstance( weight, phi_labeled ) );
-					
-//					if( true || num_instances[label] < max_labeled_instances[label] ) {
-//						x.add( new DenseInstance( weight, phi_labeled ) );
-//
-//					}
-//					else {
-//
-//					}
+					final Instance instance = new DenseInstance( weight, phi_labeled );
+					if( label == 0 ) {
+						negative.add( instance );
+						if( negative.size() >= max_cap ) {
+							negative.poll();
+						}
+					}
+					else {
+						positive.add( instance );
+						if( positive.size() >= max_cap ) {
+							positive.poll();
+						}
+					}
 				} // for j
 			} // for i
 			System.out.println( "num_instances = " + Arrays.toString( num_instances ) );
+			final Instances x = new Instances( name, attributes_, negative.size() + positive.size() );
+			x.setClassIndex( label_index );
+			x.addAll( negative );
+			x.addAll( positive );
 			xs_.put( e.getKey(), x );
 		}
 	}

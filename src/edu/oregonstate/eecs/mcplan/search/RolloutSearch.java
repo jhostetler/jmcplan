@@ -54,9 +54,9 @@ public class RolloutSearch<S extends Tokenizable<T>, T, A extends VirtualConstru
 		max_time_ = max_time;
 		rollout_policies_ = rollout_policies;
 		visitor_ = visitor;
-		assert( sim.getNumAgents() == rollout_policies_.size() );
+		assert( sim.nagents() == rollout_policies_.size() );
 		
-		action_gen_.setState( sim_.state(), sim_.depth(), sim_.getTurn() );
+		action_gen_.setState( sim_.state(), sim_.depth(), sim_.turn() );
 		q_ = new MeanVarianceAccumulator[action_gen_.size()];
 		for( int i = 0; i < q_.length; ++i ) {
 			q_[i] = new MeanVarianceAccumulator();
@@ -69,7 +69,7 @@ public class RolloutSearch<S extends Tokenizable<T>, T, A extends VirtualConstru
 		A best_action = null;
 		int best_idx = 0;
 		double best_score = -Double.MAX_VALUE;
-		action_gen_.setState( sim_.state(), sim_.depth(), sim_.getTurn() );
+		action_gen_.setState( sim_.state(), sim_.depth(), sim_.turn() );
 		int idx = 0;
 		while( action_gen_.hasNext() ) {
 			final A a = action_gen_.next();
@@ -96,14 +96,14 @@ public class RolloutSearch<S extends Tokenizable<T>, T, A extends VirtualConstru
 	{
 		int depth = 0;
 		final CircularListIterator<Policy<S, A>> pitr =
-			new CircularListIterator<Policy<S, A>>( rollout_policies_, sim_.getTurn() );
+			new CircularListIterator<Policy<S, A>>( rollout_policies_, sim_.turn() );
 		while( t_ >= tstart_ && t_ < tend_
 			   && !sim_.isTerminalState( ) && !visitor_.isTerminal( sim_.state() ) ) {
 			final Policy<S, A> pi = pitr.next();
 			pi.setState( sim_.state(), sim_.depth() );
 			final A a = pi.getAction();
 			sim_.takeAction( a );
-			pi.actionResult( sim_.state(), sim_.getReward() );
+			pi.actionResult( sim_.state(), sim_.reward() );
 			visitor_.defaultAction( a, sim_.state() );
 			++depth;
 			t_ = System.currentTimeMillis();
@@ -137,7 +137,7 @@ public class RolloutSearch<S extends Tokenizable<T>, T, A extends VirtualConstru
 		}
 		
 		System.out.println( "[RolloutSearch] done with rollouts" );
-		action_gen_.setState( sim_.state(), sim_.depth(), sim_.getTurn() );
+		action_gen_.setState( sim_.state(), sim_.depth(), sim_.turn() );
 		A best_action = null;
 		int best_count = 0;
 		int idx = 0;
