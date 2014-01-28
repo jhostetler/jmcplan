@@ -49,20 +49,20 @@ public class Episode<S, A extends VirtualConstructor<A>> implements Runnable
 			// appears to work.
 			// TODO: The visitors passed to policies like UctPolicy will still
 			// be called for the fake searches. What are the consequences?
-			System.out.println( "[Episode] Burn-in" );
+//			System.out.println( "[Episode] Burn-in" );
 			final int t0 = 0;
 			pi_.setState( sim_.state(), t0 );
 			final JointAction<A> a = pi_.getAction();
 		}
 				
 		for( int t = 0; t < T_; ++t ) {
-			System.out.println( "[Episode] Action selection" );
+//			System.out.println( "[Episode] Action selection" );
 			pi_.setState( sim_.state(), t );
 			firePreGetAction();
 			final JointAction<A> a = pi_.getAction();
 			firePostGetAction( a );
-			System.out.println( "!!! [t = " + t + "] a = " + a.toString() );
-			System.out.println( "[Episode] Execution" );
+//			System.out.println( "!!! [t = " + t + "] a = " + a.toString() );
+//			System.out.println( "[Episode] Execution" );
 			sim_.takeAction( a );
 			pi_.actionResult( sim_.state(), sim_.reward() );
 			fireActionsTaken( sim_.state() );

@@ -42,7 +42,7 @@ public class RandomPolicy<S, A> extends AnytimePolicy<S, A>
 	@Override
 	public void setState( final S s, final long t )
 	{
-		action_gen_.setState( s, t, turn_ );
+		action_gen_.setState( s, t, new int[] { turn_ } );
 	}
 
 	@Override

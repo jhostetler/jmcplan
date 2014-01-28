@@ -32,7 +32,7 @@ public class MutableActionNode<S, X extends Representation<S>, A extends Virtual
 	
 	public MutableActionNode( final JointAction<A> a, final int nagents, final Representer<S, X> repr )
 	{
-		super( a );
+		super( a, nagents );
 		repr_ = repr;
 		qv_ = new MeanVarianceAccumulator[nagents];
 		rv_ = new MeanVarianceAccumulator[nagents];

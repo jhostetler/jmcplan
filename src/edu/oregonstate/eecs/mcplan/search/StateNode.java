@@ -18,12 +18,15 @@ public abstract class StateNode<S, A extends VirtualConstructor<A>>
 	public final int nagents;
 	public final int[] turn;
 	
+	protected final double[] vhat_;
+	
 	public StateNode( final S token, final int nagents, final int[] turn )
 	{
 		//assert( nagents == 2 ); // TODO:
 		this.token = token;
 		this.nagents = nagents;
 		this.turn = turn;
+		vhat_ = new double[nagents];
 	}
 	
 	public abstract int n();

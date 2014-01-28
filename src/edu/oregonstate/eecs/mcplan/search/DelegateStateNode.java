@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.search;
 
+import java.util.Arrays;
+
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
@@ -14,16 +16,28 @@ public class DelegateStateNode<S, X extends Representation<S>, A extends Virtual
 	extends MutableStateNode<S, X, A>
 {
 	private final BackupRule<X, A> backup_;
+	private final double[] default_value_;
 	
-	public DelegateStateNode( final BackupRule<X, A> backup, final X token, final int nagents, final int[] turn )
+	// FIXME: Is the default_value mechanism a good way of handling this?
+	public DelegateStateNode( final BackupRule<X, A> backup, final double[] default_value,
+							  final X token, final int nagents, final int[] turn )
 	{
 		super( token, nagents, turn );
 		backup_ = backup;
+		default_value_ = default_value;
 	}
 
 	@Override
 	public double[] v()
 	{
-		return backup_.apply( this );
+		// FIXME: This is a hack to avoid NP exception when backing up
+		// un-expanded state nodes.
+		if( successors().hasNext() ) {
+			return backup_.apply( this );
+		}
+		else {
+//			return Arrays.copyOf( default_value_, default_value_.length );
+			return Arrays.copyOf( vhat_, nagents );
+		}
 	}
 }

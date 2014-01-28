@@ -93,6 +93,10 @@ public class BackupRules
 		double max_q = -Double.MAX_VALUE;
 		while( aitr.hasNext() ) {
 			final ActionNode<S, A> an = aitr.next();
+			// FIXME: This is a hack
+//			if( an.a() == null ) {
+//				continue;
+//			}
 			final double[] q = an.q();
 			if( q[0] > max_q ) {
 				max_q = q[0];

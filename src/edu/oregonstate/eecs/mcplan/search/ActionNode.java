@@ -28,6 +28,13 @@ public abstract class ActionNode<S, A extends VirtualConstructor<A>>
 		nagents = a_.size();
 	}
 	
+	// FIXME: THis is a temporary fix
+	protected ActionNode( final JointAction<A> a, final int nagents )
+	{
+		a_ = a;
+		this.nagents = nagents;
+	}
+	
 	public final A a( final int i )
 	{ return a_.get( i ); }
 	

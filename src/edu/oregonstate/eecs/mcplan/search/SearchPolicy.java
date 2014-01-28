@@ -88,14 +88,14 @@ public abstract class SearchPolicy<S, X extends Representation<S>, A extends Vir
 	@Override
 	public JointAction<A> getAction( final long control )
 	{
-		log.info( "getAction( {} )", control );
+//		log.info( "getAction( {} )", control );
 		final MctsVisitor<S, X, A> time_limit
 			= new TimeLimitMctsVisitor<S, X, A>( visitor_, new Countdown( control ) );
 		final GameTree<X, A> search = factory_.create( time_limit );
 		final long start = System.currentTimeMillis();
 		search.run();
 		final long stop = System.currentTimeMillis();
-		System.out.println( "*** Tree search finished in " + (stop - start) + " ms" );
+//		System.out.println( "*** Tree search finished in " + (stop - start) + " ms" );
 		
 		if( log_stream_ != null ) {
 			log_stream_.println( "[t = " + t_ + "]" );

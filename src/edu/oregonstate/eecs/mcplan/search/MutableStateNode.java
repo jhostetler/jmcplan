@@ -9,6 +9,7 @@ import java.util.Map;
 import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 import edu.oregonstate.eecs.mcplan.util.Generator;
 
 /**
@@ -26,6 +27,11 @@ public abstract class MutableStateNode<S, X extends Representation<S>, A extends
 	{
 		super( token, nagents, turn );
 		// TODO Auto-generated constructor stub
+	}
+	
+	public void setVhat( final double[] vhat )
+	{
+		Fn.memcpy( vhat_, vhat, nagents );
 	}
 	
 	public void visit()
