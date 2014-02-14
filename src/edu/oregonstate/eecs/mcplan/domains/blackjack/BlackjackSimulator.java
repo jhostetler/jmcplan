@@ -26,10 +26,13 @@ public class BlackjackSimulator implements UndoSimulator<BlackjackState, Blackja
 	private final Deque<JointAction<BlackjackAction>> action_history_
 		= new ArrayDeque<JointAction<BlackjackAction>>();
 	
-	public BlackjackSimulator( final Deck deck, final int nplayers )
+	private final BlackjackParameters params_;
+	
+	public BlackjackSimulator( final Deck deck, final int nplayers, final BlackjackParameters params )
 	{
-		s_ = new BlackjackState( deck, nplayers );
+		s_ = new BlackjackState( deck, nplayers, params );
 		r_ = new double[nplayers];
+		params_ = params;
 	}
 	
 	@Override
@@ -102,9 +105,9 @@ public class BlackjackSimulator implements UndoSimulator<BlackjackState, Blackja
 				hand.add( s_.deck().deal() );
 			}
 			else {
-				dv = Blackjack.handValue( hand );
+				dv = params_.handValue( hand );
 				// Dealer stands on soft 17
-				if( dv[0] <= 16 ) { //|| (dv[1] > 0 && dv[0] <= 17) ) {
+				if( dv[0] <= params_.dealer_threshold ) { //|| (dv[1] > 0 && dv[0] <= 17) ) {
 					hand.add( s_.deck().deal() );
 				}
 				else {
@@ -114,11 +117,11 @@ public class BlackjackSimulator implements UndoSimulator<BlackjackState, Blackja
 		}
 		
 		for( int i = 0; i < s_.nplayers(); ++i ) {
-			final int[] pv = Blackjack.handValue( s_.hand( i ) );
-			if( pv[0] > 21 ) {
+			final int[] pv = params_.handValue( s_.hand( i ) );
+			if( pv[0] > params_.max_score ) {
 				r_[i] = -1;
 			}
-			else if( dv[0] > 21 || pv[0] > dv[0] ) {
+			else if( dv[0] > params_.max_score || pv[0] > dv[0] ) {
 				r_[i] = 1;
 			}
 			else if( pv[0] < dv[0] ) {
@@ -172,9 +175,10 @@ public class BlackjackSimulator implements UndoSimulator<BlackjackState, Blackja
 	
 	public static void main( final String[] argv ) throws IOException
 	{
+		final BlackjackParameters params = new BlackjackParameters();
 		while( true ) {
 			final Deck deck = new InfiniteDeck();
-			final BlackjackSimulator sim = new BlackjackSimulator( deck, 1 );
+			final BlackjackSimulator sim = new BlackjackSimulator( deck, 1, params );
 			
 			System.out.print( "Dealer showing: " );
 			System.out.println( sim.state().dealerUpcard() );
@@ -184,7 +188,7 @@ public class BlackjackSimulator implements UndoSimulator<BlackjackState, Blackja
 				System.out.print( "Hand: " );
 				System.out.print( sim.state().hand( 0 ) );
 				System.out.print( " (" );
-				System.out.print( Blackjack.handValue( sim.state().hand( 0 ) )[0] );
+				System.out.print( params.handValue( sim.state().hand( 0 ) )[0] );
 				System.out.println( ")" );
 				
 				final String cmd = reader.readLine();
@@ -199,7 +203,7 @@ public class BlackjackSimulator implements UndoSimulator<BlackjackState, Blackja
 			System.out.print( "Hand: " );
 			System.out.print( sim.state().hand( 0 ) );
 			System.out.print( " (" );
-			System.out.print( Blackjack.handValue( sim.state().hand( 0 ) )[0] );
+			System.out.print( params.handValue( sim.state().hand( 0 ) )[0] );
 			System.out.println( ")" );
 			
 			System.out.print( "Reward: " );
@@ -207,7 +211,7 @@ public class BlackjackSimulator implements UndoSimulator<BlackjackState, Blackja
 			System.out.print( "Dealer hand: " );
 			System.out.print( sim.state().dealerHand().toString() );
 			System.out.print( " (" );
-			System.out.print( Blackjack.handValue( sim.state().dealerHand() )[0] );
+			System.out.print( params.handValue( sim.state().dealerHand() )[0] );
 			System.out.println( ")" );
 			System.out.println( "----------------------------------------" );
 		}

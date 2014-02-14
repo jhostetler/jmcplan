@@ -6,9 +6,11 @@ package edu.oregonstate.eecs.mcplan.domains.blackjack;
 import edu.oregonstate.eecs.mcplan.Representer;
 
 /**
+ * @deprecated
  * @author jhostetler
  *
  */
+@Deprecated
 public class AStarAggregator implements Representer<BlackjackState, AStarAbstraction>
 {
 	// Optimal strategy computed with value iteration
@@ -48,27 +50,34 @@ public class AStarAggregator implements Representer<BlackjackState, AStarAbstrac
 //		hard_actions_ = hard_actions;
 //		soft_actions_ = soft_actions;
 //	}
+	
+	private final BlackjackParameters params_;
+	
+	public AStarAggregator( final BlackjackParameters params )
+	{
+		params_ = params;
+	}
 
 	@Override
 	public Representer<BlackjackState, AStarAbstraction> create()
 	{
-		return new AStarAggregator();
+		return new AStarAggregator( params_ );
 	}
 
 	@Override
 	public AStarAbstraction encode( final BlackjackState s )
 	{
-		final int[] pv = Blackjack.handValue( s.hand( 0 ) );
+		final int[] pv = params_.handValue( s.hand( 0 ) );
 		final int dv = s.dealerUpcard().BlackjackValue();
 //		System.out.println( s.hand( 0 ).toString() );
 //		System.out.println( "pv: " + pv[0] + ", dv: " + dv );
 		final String as;
 		if( !s.passed( 0 ) ) {
 			if( pv[1] == 0 ) {
-				as = hard_actions_[pv[0] - 4][dv - 2];
+				as = hard_actions_[pv[0] - params_.hard_hand_min][dv - params_.dealer_showing_min];
 			}
 			else { // pv[1] > 0
-				as = soft_actions_[pv[0] - 12][dv - 2];
+				as = soft_actions_[pv[0] - params_.soft_hand_min][dv - params_.dealer_showing_min];
 			}
 		}
 		else {
@@ -84,5 +93,11 @@ public class AStarAggregator implements Representer<BlackjackState, AStarAbstrac
 		else {
 			return new AStarAbstraction( null, dv, pv[0], s.token() );
 		}
+	}
+	
+	@Override
+	public String toString()
+	{
+		return "chi-inf";
 	}
 }

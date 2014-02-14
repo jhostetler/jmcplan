@@ -17,6 +17,8 @@ public class HandValueAbstraction extends Representation<BlackjackState>
 	public final int[] player_values;
 	public final boolean[] player_aces;
 	
+	private final BlackjackParameters params_;
+	
 	private final int hash_code_;
 	private final String repr_;
 	
@@ -25,8 +27,9 @@ public class HandValueAbstraction extends Representation<BlackjackState>
 		dealer_value = s.dealerUpcard().BlackjackValue();
 		player_values = new int[s.nplayers()];
 		player_aces = new boolean[s.nplayers()];
+		params_ = s.parameters();
 		for( int i = 0; i < s.nplayers(); ++i ) {
-			final int[] v = Blackjack.handValue( s.hand( i ) );
+			final int[] v = params_.handValue( s.hand( i ) );
 			player_values[i] = v[0];
 			player_aces[i] = v[1] > 0;
 		}
@@ -41,11 +44,13 @@ public class HandValueAbstraction extends Representation<BlackjackState>
 		repr_ = sb.toString();
 	}
 	
-	public HandValueAbstraction( final int dealer_value, final int[] player_values, final boolean[] player_aces )
+	public HandValueAbstraction( final int dealer_value, final int[] player_values,
+								 final boolean[] player_aces, final BlackjackParameters params )
 	{
 		this.dealer_value = dealer_value;
 		this.player_values = player_values;
 		this.player_aces = player_aces;
+		params_ = params;
 		final HashCodeBuilder hb = newHashCodeBuilder();
 		final StringBuilder sb = new StringBuilder();
 		makeRepr( hb, sb );
@@ -60,12 +65,12 @@ public class HandValueAbstraction extends Representation<BlackjackState>
 	
 	private void makeRepr( final HashCodeBuilder hb, final StringBuilder sb )
 	{
-		hb.append( (dealer_value > 21 ? 22 : dealer_value) );
+		hb.append( (dealer_value > params_.max_score ? params_.busted_score : dealer_value) );
 		sb.append( "d:" ).append( dealer_value );
 		for( int i = 0; i < player_values.length; ++i ) {
 			final int v = player_values[i];
-			if( v > 21 ) {
-				hb.append( 22 );
+			if( v > params_.max_score ) {
+				hb.append( params_.busted_score );
 				hb.append( false );
 			}
 			else {
@@ -82,6 +87,7 @@ public class HandValueAbstraction extends Representation<BlackjackState>
 		dealer_value = that.dealer_value;
 		player_values = that.player_values;
 		player_aces = that.player_aces;
+		params_ = that.params_;
 		hash_code_ = that.hash_code_;
 		repr_ = that.repr_;
 	}
@@ -99,17 +105,19 @@ public class HandValueAbstraction extends Representation<BlackjackState>
 			return false;
 		}
 		final HandValueAbstraction that = (HandValueAbstraction) obj;
-		if( dealer_value != that.dealer_value && dealer_value <= 21 && that.dealer_value <= 21 ) {
+		if( dealer_value != that.dealer_value
+				&& dealer_value <= params_.max_score
+				&& that.dealer_value <= params_.max_score ) {
 			return false;
 		}
 		for( int i = 0; i < player_values.length; ++i ) {
-			if( player_values[i] > 21 ) {
-				if( that.player_values[i] <= 21 ) {
+			if( player_values[i] > params_.max_score ) {
+				if( that.player_values[i] <= params_.max_score ) {
 					return false;
 				}
 			}
-			else if( that.player_values[i] > 21 ) {
-				if( player_values[i] <= 21 ) {
+			else if( that.player_values[i] > params_.max_score ) {
+				if( player_values[i] <= params_.max_score ) {
 					return false;
 				}
 			}

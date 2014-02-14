@@ -20,19 +20,23 @@ public class BlackjackActionSpace extends ActionSpace<BlackjackMdpState, Blackja
 	private BlackjackMdpState s_ = null;
 	private ArrayList<BlackjackAction> actions_ = null;
 	
-	public BlackjackActionSpace()
+	private final BlackjackParameters params_;
+	
+	public BlackjackActionSpace( final BlackjackParameters params )
 	{
 		pass_hit_.add( new HitAction( 0 ) );
 		pass_hit_.add( new PassAction( 0 ) );
 		
 		pass_only_.add( new PassAction( 0 ) );
+		
+		params_ = params;
 	}
 	
 	@Override
 	public void setState( final BlackjackMdpState s )
 	{
 		s_ = s;
-		if( s_.dealer_value > 21 || s_.player_value > 21 || s_.player_passed
+		if( s_.dealer_value > params_.max_score || s_.player_value > params_.max_score || s_.player_passed
 			|| s_ == BlackjackMdpState.TheAbsorbingState ) {
 			actions_ = pass_only_;
 		}

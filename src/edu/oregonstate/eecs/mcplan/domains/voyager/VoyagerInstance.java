@@ -192,9 +192,9 @@ public class VoyagerInstance extends Instance<VoyagerInstance, VoyagerState, Voy
 	}
 	
 	@Override
-	public long nextSeed()
+	public int nextSeed()
 	{
-		return rng_.nextLong();
+		return rng_.nextInt();
 	}
 
 	@Override

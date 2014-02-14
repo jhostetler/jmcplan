@@ -24,4 +24,9 @@ public class BlackjackAggregator implements Representer<BlackjackState, HandValu
 		return new HandValueAbstraction( s );
 	}
 
+	@Override
+	public String toString()
+	{
+		return "value";
+	}
 }

@@ -23,10 +23,13 @@ public class BlackjackState implements State<BlackjackState, BlackjackStateToken
 	
 	private final ArrayList<ArrayList<Card>> hands_;
 	
-	public BlackjackState( final Deck deck, final int nplayers )
+	private final BlackjackParameters params_;
+	
+	public BlackjackState( final Deck deck, final int nplayers, final BlackjackParameters params )
 	{
 		deck_ = deck;
 		nplayers_ = nplayers;
+		params_ = params;
 		dealer_hand_.add( deck_.deal() ); // Upcard
 		passed_ = new boolean[nplayers_];
 		hands_ = new ArrayList<ArrayList<Card>>( nplayers_ );
@@ -36,6 +39,11 @@ public class BlackjackState implements State<BlackjackState, BlackjackStateToken
 			h.add( deck_.deal() );
 			hands_.add( h );
 		}
+	}
+	
+	public BlackjackParameters parameters()
+	{
+		return params_;
 	}
 	
 	public Deck deck()

@@ -38,7 +38,7 @@ public class HitAction extends BlackjackAction
 		assert( !done_ );
 		c_ = s.deck().deal();
 		s.hand( player ).add( c_ );
-		if( Blackjack.handValue( s.hand( player ) )[0] > 21 ) {
+		if( s.parameters().handValue( s.hand( player ) )[0] > s.parameters().max_score ) {
 			s.setPassed( player, true );
 		}
 		done_ = true;

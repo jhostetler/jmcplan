@@ -18,7 +18,7 @@ public class ValueIterationSolver<S, A> implements Runnable
 	private final double[] v_;
 	
 	private final double gamma_;
-	private final double convergence_threshold_ = 0.0001;
+	private final double convergence_threshold_ = 0.00001;
 	
 	public ValueIterationSolver( final MarkovDecisionProblem<S, A> m )
 	{

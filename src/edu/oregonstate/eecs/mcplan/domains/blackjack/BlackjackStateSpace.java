@@ -16,7 +16,7 @@ public class BlackjackStateSpace extends StateSpace<BlackjackMdpState>
 {
 	private final ArrayList<BlackjackMdpState> states_ = new ArrayList<BlackjackMdpState>();
 	
-	public BlackjackStateSpace()
+	public BlackjackStateSpace( final BlackjackParameters params )
 	{
 //		for( int dv = 2; dv <= 11; ++dv ) {
 //			// Dealer hasn't acted yet
@@ -45,39 +45,64 @@ public class BlackjackStateSpace extends StateSpace<BlackjackMdpState>
 //			}
 //		}
 		
-		for( int dv = 2; dv <= 22; ++dv ) {
+//		for( int dv = params.dealer_showing_min; dv <= params.busted_score; ++dv ) {
+//			// Dealer doesn't have high ace
+//			for( int pv = params.hard_hand_min; pv <= params.busted_score; ++pv ) {
+//				if( pv <= params.max_score && dv <= 11 ) {
+//					states_.add( new BlackjackMdpState( dv, 0, pv, 0, false ) );
+//				}
+//				states_.add( new BlackjackMdpState( dv, 0, pv, 0, true ) );
+//				if( pv >= params.soft_hand_min && pv <= params.max_score ) {
+//					// Player can have high ace, but it's impossible to bust
+//					// with a high ace
+//					if( dv <= 11 ) {
+//						states_.add( new BlackjackMdpState( dv, 0, pv, 1, false ) );
+//					}
+//					states_.add( new BlackjackMdpState( dv, 0, pv, 1, true ) );
+//				}
+//			}
+//			if( dv >= 11 && dv <= params.max_score ) {
+//				// Dealer can have high ace, but will never bust with high ace
+//				for( int pv = params.hard_hand_min; pv <= params.busted_score; ++pv ) {
+//					if( pv <= params.max_score && dv <= 11 ) {
+//						states_.add( new BlackjackMdpState( dv, 1, pv, 0, false ) );
+//					}
+//					states_.add( new BlackjackMdpState( dv, 1, pv, 0, true ) );
+//					if( pv >= params.soft_hand_min && pv <= params.max_score ) {
+//						// Player can have high ace, but it's impossible to bust
+//						// with a high ace
+//						if( dv <= 11 ) {
+//							states_.add( new BlackjackMdpState( dv, 1, pv, 1, false ) );
+//						}
+//						states_.add( new BlackjackMdpState( dv, 1, pv, 1, true ) );
+//					}
+//				}
+//			}
+//		}
+		
+		for( int dv = params.dealer_showing_min; dv <= params.busted_score; ++dv ) {
 			// Dealer doesn't have high ace
-			for( int pv = 4; pv <= 22; ++pv ) {
-				if( pv <= 21 && dv <= 11 ) {
-					states_.add( new BlackjackMdpState( dv, 0, pv, 0, false ) );
-				}
-				states_.add( new BlackjackMdpState( dv, 0, pv, 0, true ) );
-				if( pv >= 12 && pv <= 21 ) {
-					// Player can have high ace, but it's impossible to bust
-					// with a high ace
-					if( dv <= 11 ) {
-						states_.add( new BlackjackMdpState( dv, 0, pv, 1, false ) );
+			for( int pv = params.hard_hand_min; pv <= params.busted_score; ++pv ) {
+				final int da = dv / 11;
+				for( int nda = 0; nda <= da; ++nda ) {
+					if( pv <= params.max_score && dv <= 11 ) {
+						states_.add( new BlackjackMdpState( dv, nda, pv, 0, false ) );
 					}
-					states_.add( new BlackjackMdpState( dv, 0, pv, 1, true ) );
-				}
-			}
-			if( dv >= 11 && dv <= 21 ) {
-				// Dealer can have high ace, but will never bust with high ace
-				for( int pv = 4; pv <= 22; ++pv ) {
-					if( pv <= 21 && dv <= 11 ) {
-						states_.add( new BlackjackMdpState( dv, 1, pv, 0, false ) );
-					}
-					states_.add( new BlackjackMdpState( dv, 1, pv, 0, true ) );
-					if( pv >= 12 && pv <= 21 ) {
-						// Player can have high ace, but it's impossible to bust
-						// with a high ace
-						if( dv <= 11 ) {
-							states_.add( new BlackjackMdpState( dv, 1, pv, 1, false ) );
+					states_.add( new BlackjackMdpState( dv, nda, pv, 0, true ) );
+					if( pv >= params.soft_hand_min && pv <= params.max_score ) {
+						final int pa = pv / 11; // Max # high aces player could have
+						for( int na = 0; na <= pa; ++na ) {
+							// Player can have high ace, but it's impossible to bust
+							// with a high ace
+							if( dv <= 11 ) {
+								states_.add( new BlackjackMdpState( dv, nda, pv, na, false ) );
+							}
+							states_.add( new BlackjackMdpState( dv, nda, pv, na, true ) );
 						}
-						states_.add( new BlackjackMdpState( dv, 1, pv, 1, true ) );
 					}
 				}
 			}
+			
 		}
 		
 		// Absorbing state
