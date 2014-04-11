@@ -158,7 +158,7 @@ public final class JointAction<A extends VirtualConstructor<A>>
 	public final int nagents;
 	
 	private final List<A> actions_;
-	private final String repr_;
+//	private final String repr_;
 	
 	public JointAction( final A... actions )
 	{
@@ -169,10 +169,6 @@ public final class JointAction<A extends VirtualConstructor<A>>
 	{
 		actions_ = actions;
 		nagents = actions_.size();
-		final StringBuilder sb = new StringBuilder();
-		sb.append( "JointAction" );
-		sb.append( actions ); // List.toString() adds surrounding []
-		repr_ = sb.toString();
 	}
 	
 	public A get( final int i )
@@ -259,6 +255,10 @@ public final class JointAction<A extends VirtualConstructor<A>>
 	@Override
 	public String toString()
 	{
-		return repr_;
+		final StringBuilder sb = new StringBuilder();
+		sb.append( "JointAction" );
+		sb.append( actions_ ); // List.toString() adds surrounding []
+		return sb.toString();
+//		return repr_;
 	}
 }

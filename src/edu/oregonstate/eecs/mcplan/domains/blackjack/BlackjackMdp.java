@@ -25,17 +25,32 @@ public class BlackjackMdp extends MarkovDecisionProblem<BlackjackMdpState, Black
 //	private final int[] marginal_counts = new int[9];
 	
 	private final BlackjackParameters params_;
+	private final BlackjackStateSpace ss_;
+	private final BlackjackActionSpace as_;
 	
 	public BlackjackMdp( final BlackjackParameters params )
 	{
-		super( new BlackjackStateSpace( params ), new BlackjackActionSpace( params ) );
 		params_ = params;
+		ss_ = new BlackjackStateSpace( params );
+		as_ = new BlackjackActionSpace( params );
 		
 //		marginal_counts[0] = 4; // 4x2
 //		for( int i = 1; i < 8; ++i ) {
 //			marginal_counts[i] = marginal_counts[i - 1] + 4;
 //		}
 //		marginal_counts[8] = marginal_counts[7] + 16; // 16xT
+	}
+	
+	@Override
+	public BlackjackStateSpace S()
+	{
+		return ss_;
+	}
+
+	@Override
+	public BlackjackActionSpace A()
+	{
+		return as_;
 	}
 
 	@Override

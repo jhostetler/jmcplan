@@ -37,9 +37,10 @@ public class JointPolicy<S, A extends VirtualConstructor<A>> extends Policy<S, J
 		}
 	}
 	
-	public JointPolicy( final ArrayList<Policy<S, A>> Pi )
+	public JointPolicy( final ArrayList<? extends Policy<S, A>> Pi )
 	{
-		Pi_ = Pi;
+		Pi_ = new ArrayList<Policy<S, A>>( Pi.size() );
+		Pi_.addAll( Pi );
 	}
 	
 	@Override

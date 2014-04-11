@@ -3,103 +3,91 @@
  */
 package edu.oregonstate.eecs.mcplan.search;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-
-import edu.oregonstate.eecs.mcplan.Agent;
-import edu.oregonstate.eecs.mcplan.Simulator;
-import edu.oregonstate.eecs.mcplan.OldState;
-import edu.oregonstate.eecs.mcplan.agents.galcon.ExpandPolicy;
-import edu.oregonstate.eecs.mcplan.domains.galcon.GalconAction;
-import edu.oregonstate.eecs.mcplan.domains.galcon.GalconSimulator;
-import edu.oregonstate.eecs.mcplan.domains.galcon.GalconState;
-import edu.oregonstate.eecs.mcplan.util.CircularListIterator;
+import edu.oregonstate.eecs.mcplan.JointAction;
+import edu.oregonstate.eecs.mcplan.Policy;
+import edu.oregonstate.eecs.mcplan.State;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
+import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * Evaluates a joint policy by simulating it repeatedly.
  * 
  * @author jhostetler
  */
-public final class RolloutEvaluator<S extends OldState, A> implements Runnable
+public final class RolloutEvaluator<S extends State, A extends VirtualConstructor<A>>
+	implements EvaluationFunction<S, A>
 {
-	final Simulator<S, A> simulator_;
-	final List<Agent> policies_;
-	final int episodes_;
-	final int max_depth_;
+	public static <S extends State, A extends VirtualConstructor<A>>
+	RolloutEvaluator<S, A> create( final Policy<S, JointAction<A>> policy, final double discount,
+								   final int width, final int depth )
+   {
+		return new RolloutEvaluator<S, A>( policy, discount, width, depth );
+   }
 	
-	final Map<Integer, Double> rewards_ = new TreeMap<Integer, Double>();
+	public final Policy<S, JointAction<A>> policy;
+	public final double discount;
+	public final int width;
+	public final int depth;
 	
-	/**
-	 * Constructor.
-	 * @param simulator The base simulator. Simulators for each rollout are
-	 * obtained by calling Simulator.copy().
-	 * @param policies The joint policy. Policies take their turns in the order
-	 * specified.
-	 * @param episodes The number of complete simulations.
-	 * @param max_depth Maximum rollout depth. Specify -1 to simulate to the
-	 * end of the game.
-	 */
-	public RolloutEvaluator( final Simulator<S, A> simulator, final List<Agent> policies,
-							 final int episodes, final int max_depth )
+	public RolloutEvaluator( final Policy<S, JointAction<A>> policy, final double discount,
+							 final int width, final int depth )
 	{
-		simulator_ = simulator;
-		policies_ = policies;
-		episodes_ = episodes;
-		max_depth_ = max_depth;
-		for( int i = 0; i < simulator_.getNumberOfAgents(); ++i ) {
-			rewards_.put( i, 0.0 );
-		}
+		this.policy = policy;
+		this.discount = discount;
+		this.width = width;
+		this.depth = depth;
 	}
-
+	
 	@Override
-	public void run()
+	public double[] evaluate( final UndoSimulator<S, A> sim )
 	{
-		for( int s = 0; s < episodes_; ++s ) {
-			final Simulator<S, A> sim = simulator_.copy();
-			final CircularListIterator<Agent> policy_itr = new CircularListIterator<Agent>( policies_ );
-			int depth = max_depth_;
-			while( !sim.isTerminalState() ) {
-				if( depth-- == 0 ) {
-					System.out.println( "Max depth reached" );
+		final int nagents = sim.nagents();
+		final double[] qbar = Fn.repeat( 0.0, nagents );
+		for( int w = 0; w < width; ++w ) {
+			int count = 0;
+			final double[] q = Fn.repeat( 0.0, nagents );
+			double running_discount = 1.0;
+			while( true ) {
+				running_discount *= discount;
+				if( sim.isTerminalState() ) {
+					final double[] r = sim.reward();
+					Fn.scalar_multiply_inplace( r, running_discount );
+					Fn.vplus_inplace( q, r );
 					break;
 				}
-				final Agent policy = policy_itr.next();
-				final A action = policy.selectAction( sim.getState(), sim );
-				final int agent_id = sim.getState().getAgentTurn();
-				sim.takeAction( action );
-				final double cumulative_reward = rewards_.get( agent_id );
-				final double instantaneous_reward = sim.getReward( agent_id );
-				System.out.println( "[Agent " + agent_id + "]: instantaneous reward = " + instantaneous_reward );
-				rewards_.put( agent_id, cumulative_reward + instantaneous_reward );
+				else if( count == depth ) {
+					// TODO: We should have a way of giving e.g. an "optimistic"
+					// reward (Vmax) here. Like a 'getDefaultReward( double r )' method.
+					final double[] r = sim.reward();
+					Fn.scalar_multiply_inplace( r, running_discount );
+					Fn.vplus_inplace( q, r );
+					break;
+				}
+				else {
+					// TODO: Should rollout_policy be a policy over X's? Current
+					// approach (Policy<S, A>) is more flexible since the policy
+					// can use a different representation internally.
+					final double[] r = sim.reward();
+					policy.setState( sim.state(), sim.t() );
+					final JointAction<A> a = policy.getAction();
+					sim.takeAction( a );
+					count += 1;
+					final S sprime = sim.state();
+					policy.actionResult( sprime, r );
+					Fn.scalar_multiply_inplace( r, running_discount );
+					Fn.vplus_inplace( q, r );
+				}
 			}
+//			System.out.println( "\tterminated at depth " + count );
+			for( int i = 0; i < count; ++i ) {
+				sim.untakeLastAction();
+			}
+			Fn.vplus_inplace( qbar, q );
 		}
+		
+		Fn.scalar_multiply_inplace( qbar, 1.0 / width );
+		return qbar;
 	}
 	
-	public int episodes()
-	{
-		return episodes_;
-	}
-	
-	public double reward( final int agent )
-	{
-		return rewards_.get( agent );
-	}
-	
-	// -----------------------------------------------------------------------
-	
-	public static void main( final String[] args )
-	{
-		final int Nplanets = 10;
-		final GalconSimulator sim = new GalconSimulator( 5000, 10, false, false, 641, Nplanets, 0.1, 10 );
-		final List<Agent> policies = new ArrayList<Agent>();
-		policies.add( new ExpandPolicy( "true 1.0 0.1 1.0 10000 0.1 2.0".split( " " ) ) );
-		policies.add( new ExpandPolicy( "true 1.0 0.1 1.0 100000 0.1 2.0".split( " " ) ) );
-		final RolloutEvaluator<GalconState, GalconAction> eval =
-			new RolloutEvaluator<GalconState, GalconAction>( sim, policies, 1, -1 );
-		eval.run();
-		System.out.println( eval.reward( 0 ) );
-		System.out.println( eval.reward( 1 ) );
-	}
 }

@@ -460,7 +460,7 @@ public class VoyagerExperiments
 				> factory
 					= new UctSearch.Factory<VoyagerState, IdentityRepresenter,
 											JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>(
-						joint_sim, new IdentityRepresenter( params.Nplanets * player.competitors, params.max_eta ),
+						joint_sim, new IdentityRepresenter( params.Nplanets, params.max_eta ),
 						pgen, c_, new MersenneTwister( instance.nextSeed() ), default_policy, backup );
 				policy = new SearchPolicy<VoyagerState, IdentityRepresenter,
 										  JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>>(
@@ -655,8 +655,8 @@ public class VoyagerExperiments
 		final int Nworlds = Integer.parseInt( instance_args[idx++] );
 //		final int Nanytime = Integer.parseInt( instance_args[idx++] );
 		final int master_seed = Integer.parseInt( instance_args[idx++] );
-		final int[] max_time = new int[Player.competitors];
-		for( int p = 0; p < Player.competitors; ++p ) {
+		final int[] max_time = new int[Player.Ncompetitors];
+		for( int p = 0; p < Player.Ncompetitors; ++p ) {
 			max_time[p] = Integer.parseInt( instance_args[idx++] );
 		}
 		

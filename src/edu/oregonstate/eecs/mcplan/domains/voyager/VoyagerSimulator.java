@@ -4,9 +4,6 @@
 package edu.oregonstate.eecs.mcplan.domains.voyager;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
 
 import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
@@ -103,7 +100,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 		{
 //			log.debug( "do {}", toString() );
 			assert( !done_ );
-			planet_.incrementPopulation( type_ );
+			planet_.incrementPopulation( planet_.owner(), type_ );
 			planet_.setStoredProduction( type_, 0 );
 			done_ = true;
 		}
@@ -113,7 +110,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 		{
 //			log.debug( "undo {}", toString() );
 			assert( done_ );
-			planet_.decrementPopulation( type_ );
+			planet_.decrementPopulation( planet_.owner(), type_ );
 			planet_.setStoredProduction( type_, type_.cost() );
 			done_ = false;
 		}
@@ -226,21 +223,22 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 	}
 	
 	/**
-	 * Represents the arrival of forces to a Planet owned by the owner of the
-	 * arriving forces.
+	 * Represents the arrival of new forces at a planet.
 	 */
 	private static class ReinforceEvent extends VoyagerAction
 	{
 		public final Planet planet;
+		public final Player player;
 		public final int[] population_change;
 		private boolean done_ = false;
 		private final String repr_;
 		
-		public ReinforceEvent( final Planet planet, final int[] population_change )
+		public ReinforceEvent( final Planet planet, final Player player, final int[] population_change )
 		{
 			this.planet = planet;
+			this.player = player;
 			this.population_change = population_change;
-			repr_ = "ReinforceEvent(planet = " + planet.id
+			repr_ = "ReinforceEvent(p = " + planet.id + ", y = " + player.id
 				    + ", population_change = " + Arrays.toString( population_change ) + ")";
 		}
 
@@ -250,7 +248,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 //			log.debug( "undo {}", toString() );
 			assert( done_ );
 			for( int i = 0; i < Unit.values().length; ++i ) {
-				planet.decrementPopulation( Unit.values()[i], population_change[i] );
+				planet.decrementPopulation( player, Unit.values()[i], population_change[i] );
 			}
 			done_ = false;
 		}
@@ -261,7 +259,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 //			log.debug( "do {}", toString() );
 			assert( !done_ );
 			for( int i = 0; i < Unit.values().length; ++i ) {
-				planet.incrementPopulation( Unit.values()[i], population_change[i] );
+				planet.incrementPopulation( player, Unit.values()[i], population_change[i] );
 			}
 			done_ = true;
 		}
@@ -272,42 +270,78 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 
 		@Override
 		public ReinforceEvent create()
-		{ return new ReinforceEvent( planet, population_change ); }
+		{ return new ReinforceEvent( planet, player, population_change ); }
 		
 		@Override
 		public String toString()
 		{ return repr_; }
 	}
 	
+	private static class OwnerChangeEvent extends VoyagerAction
+	{
+		public final Planet planet;
+		public final Player new_owner;
+		
+		private Player old_owner_ = null;
+		
+		public OwnerChangeEvent( final Planet p, final Player y )
+		{
+			planet = p;
+			new_owner = y;
+		}
+
+		@Override
+		public void doAction( final VoyagerState s )
+		{
+			assert( old_owner_ == null );
+			old_owner_ = planet.owner();
+			planet.setOwner( new_owner );
+		}
+
+		@Override
+		public void undoAction( final VoyagerState s )
+		{
+			assert( old_owner_ != null );
+			planet.setOwner( old_owner_ );
+			old_owner_ = null;
+		}
+		
+		@Override
+		public OwnerChangeEvent create()
+		{ return new OwnerChangeEvent( planet, new_owner ); }
+
+		@Override
+		public boolean isDone()
+		{ return old_owner_ != null; }
+		
+		@Override
+		public String toString()
+		{
+			return "ChangeOwnerEvent(p = " + planet.id + ", y = " + new_owner.id + ")";
+		}
+	}
+	
 	/**
-	 * Represents the arrival of forces to a Planet owned by an enemy of the
-	 * owner of the forces.
+	 * Represents a battle.
 	 */
 	private static class BattleEvent extends VoyagerAction
 	{
 		public final Planet planet;
-		public final Player attacker;
-		public final int[] population_change;
-		public final int total_change;
 		private final RandomGenerator rng_;
 		private final String repr_;
 		
 		private boolean done_ = false;
 		private Player old_owner_ = null;
-		private int[] old_pop_ = null;
+		private final int[][] old_pop_ = new int[Player.Ncompetitors][Unit.values().length];
+		private final int[] old_carry_ = new int[Player.Ncompetitors];
 		private Unit old_production_ = null;
-		private int[] old_stored_ = null;
+		private final int[] old_stored_ = new int[Unit.values().length];
 		
-		public BattleEvent( final Planet planet, final Player attacker,
-							final int[] population_change, final RandomGenerator rng )
+		public BattleEvent( final Planet planet, final RandomGenerator rng )
 		{
 			this.planet = planet;
-			this.attacker = attacker;
-			this.population_change = population_change;
-			total_change = Fn.sum( population_change );
 			rng_ = rng;
-			repr_ = "BattleEvent(planet = " + planet.id
-					+ ", population_change = " + Arrays.toString( population_change ) + ")";
+			repr_ = "BattleEvent(planet = " + planet.id + ")";
 		}
 		
 		@Override
@@ -316,7 +350,10 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 //			log.debug( "undo {}", toString() );
 			assert( done_ );
 			planet.setOwner( old_owner_ );
-			planet.setPopulation( old_pop_ );
+			for( final Player y : Player.competitors ) {
+				planet.setPopulation( y, old_pop_[y.id] );
+				planet.setCarryDamage( y, old_carry_[y.id] );
+			}
 			planet.setProduction( old_production_ );
 			planet.setStoredProduction( old_stored_ );
 			done_ = false;
@@ -328,50 +365,44 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 //			log.debug( "do {}", toString() );
 			assert( !done_ );
 			old_owner_ = planet.owner();
-			old_pop_ = Arrays.copyOf( planet.population(), planet.population().length );
+			for( final Player player : Player.values() ) {
+				Fn.memcpy( old_pop_[player.id], planet.population( player ), planet.population().length );
+				old_carry_[player.id] = planet.carryDamage( player );
+			}
 			old_production_ = planet.nextProduced();
-			old_stored_ = Arrays.copyOf( planet.storedProduction(), planet.storedProduction().length );
+			Fn.memcpy( old_stored_, planet.storedProduction(), planet.storedProduction().length );
 			
-			final int[] attack_force = Arrays.copyOf( population_change, population_change.length );
-			final int attack_strength = Voyager.attack_strength( attack_force );
-			final int defense_strength = Voyager.defense_strength( planet.population() );
-			int total = total_change;
-			while( total > 0 && planet.totalPopulation() > 0 ) {
-				final Pair<Unit, Unit> matchup
-					= Voyager.minimaxMatchup( attack_force, planet.population() );
-				final double sample = rng_.nextDouble();
-				final double p = Voyager.winProbability( attack_strength, defense_strength );
-//				log.info( "a = {}, d = {}, p = {}", attack_strength, defense_strength, p );
-				if( sample < p ) {
-					planet.decrementPopulation( matchup.second );
-//					defense_strength -= matchup.second.defense();
+			final Pair<Integer, Integer> damage = Voyager.damage( planet );
+			final int dmin = damage.first + planet.carryDamage( Player.Max );
+			final int dmax = damage.second + planet.carryDamage( Player.Min );
+			final Pair<int[], Integer> smin = Voyager.survivors( planet.population( Player.Min ), dmax, rng_ );
+			final Pair<int[], Integer> smax = Voyager.survivors( planet.population( Player.Max ), dmin, rng_ );
+			
+			planet.setPopulation( Player.Min, smin.first );
+			planet.setPopulation( Player.Max, smax.first );
+			
+			final boolean rmin = planet.totalPopulation( Player.Min ) > 0;
+			final boolean rmax = planet.totalPopulation( Player.Max ) > 0;
+			if( rmin && rmax ) {
+				planet.setCarryDamage( Player.Min, smin.second );
+				planet.setCarryDamage( Player.Max, smax.second );
+			}
+			else {
+				// Owner change
+				if( rmin ) {
+					planet.setOwner( Player.Min );
+				}
+				else if( rmax ) {
+					planet.setOwner( Player.Max );
 				}
 				else {
-					attack_force[matchup.first.ordinal()] -= 1;
-//					attack_strength -= matchup.first.attack();
-					total -= 1;
+					planet.setOwner( Player.Neutral );
 				}
-			}
-			
-			if( total > 0 ) {
-				// Attacker won
-				planet.setOwner( attacker );
-				planet.setPopulation( attack_force );
-				planet.setStoredProduction( Fn.repeat( 0, Unit.values().length ) );
-				// TODO: We're setting production to Worker by default. We
-				// need to set it to *something*, but how do we give the
-				// agent a choice?
-				planet.setProduction( Unit.defaultProduction() );
-			}
-			else if( planet.totalPopulation() == 0 ) {
-				// A draw
-				planet.setOwner( Player.Neutral );
-				planet.setPopulation( new int[Unit.values().length] );
 				planet.setStoredProduction( Fn.repeat( 0, Unit.values().length ) );
 				planet.setProduction( Unit.defaultProduction() );
+				planet.clearCarryDamage();
 			}
 			
-			assert( planet.totalPopulation() >= 0 );
 			done_ = true;
 		}
 
@@ -381,7 +412,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 
 		@Override
 		public BattleEvent create()
-		{ return new BattleEvent( planet, attacker, population_change, rng_ ); }
+		{ return new BattleEvent( planet, rng_ ); }
 		
 		@Override
 		public String toString()
@@ -393,98 +424,98 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 	 * Neutral Planet. There is no defender advantage in this situation,
 	 * hence "jump ball".
 	 */
-	private static class JumpBallEvent extends VoyagerAction
-	{
-		public final Planet planet;
-		final int[][] jump;
-		private final RandomGenerator rng_;
-		private final String repr_;
-		
-		private boolean done_ = false;
-		
-		public JumpBallEvent( final Planet planet, final int[][] jump, final RandomGenerator rng )
-		{
-			this.planet = planet;
-			this.jump = jump;
-			rng_ = rng;
-			final StringBuilder sb = new StringBuilder( "JumpBallEvent(planet = " );
-			sb.append( planet.id ).append( ", [" )
-			  .append( Arrays.toString( jump[Player.Min.ordinal()] ) ).append( ", " )
-			  .append( Arrays.toString( jump[Player.Max.ordinal()] ) ).append( "]" );
-			repr_ = sb.toString();
-		}
-		
-		@Override
-		public void undoAction( final VoyagerState s )
-		{
-//			log.debug( "undo {}", toString() );
-			assert( done_ );
-			planet.setOwner( Player.Neutral );
-			planet.setPopulation( Fn.repeat( 0, Unit.values().length ) );
-			planet.setProduction( Unit.defaultProduction() );
-			planet.setStoredProduction( Fn.repeat( 0, Unit.values().length ) );
-			done_ = false;
-		}
-
-		@Override
-		public void doAction( final VoyagerState s )
-		{
-//			log.info( "do {}", toString() );
-			assert( !done_ );
-			assert( planet.owner() == Player.Neutral );
-			
-			final int[] totals = new int[Player.competitors];
-			final int[][] jump_cp = new int[Player.competitors][];
-			for( int i = 0; i < Player.competitors; ++i ) {
-				totals[i] = Fn.sum( jump[i] );
-				jump_cp[i] = Arrays.copyOf( jump[i], Unit.values().length );
-			}
-			
-			final int min_strength = Voyager.attack_strength( jump_cp[Player.Min.ordinal()] );
-			final int max_strength = Voyager.attack_strength( jump_cp[Player.Max.ordinal()] );
-			final double p = Voyager.jumpProbability( min_strength, max_strength );
-			log.debug( "a = {}, d = {}, p = {}", min_strength, max_strength, p );
-			
-			while( totals[Player.Min.ordinal()] > 0 && totals[Player.Max.ordinal()] > 0 ) {
-				final Pair<Unit, Unit> matchup
-					= Voyager.minimaxMatchup( jump_cp[Player.Min.ordinal()], jump_cp[Player.Max.ordinal()] );
-				final double sample = rng_.nextDouble();
-				if( sample < p ) {
-					jump_cp[Player.Max.ordinal()][matchup.second.ordinal()] -= 1;
-					totals[Player.Max.ordinal()] -= matchup.second.attack();
-				}
-				else {
-					jump_cp[Player.Min.ordinal()][matchup.first.ordinal()] -= 1;
-					totals[Player.Min.ordinal()] -= matchup.first.attack();
-				}
-			}
-			
-			for( int i = 0; i < Player.competitors; ++i ) {
-				if( totals[i] != 0 ) {
-					planet.setOwner( Player.values()[i] );
-					planet.setPopulation( jump_cp[i] );
-					assert( Fn.sum( planet.storedProduction() ) == 0 );
-					assert( planet.nextProduced() == Unit.defaultProduction() );
-					break;
-				}
-			}
-			// If it was a draw, the conditional in the loop will never trigger.
-			assert( planet.totalPopulation() >= 0 );
-			done_ = true;
-		}
-
-		@Override
-		public boolean isDone()
-		{ return done_; }
-
-		@Override
-		public JumpBallEvent create()
-		{ return new JumpBallEvent( planet, jump, rng_ ); }
-		
-		@Override
-		public String toString()
-		{ return repr_; }
-	}
+//	private static class JumpBallEvent extends VoyagerAction
+//	{
+//		public final Planet planet;
+//		final int[][] jump;
+//		private final RandomGenerator rng_;
+//		private final String repr_;
+//
+//		private boolean done_ = false;
+//
+//		public JumpBallEvent( final Planet planet, final int[][] jump, final RandomGenerator rng )
+//		{
+//			this.planet = planet;
+//			this.jump = jump;
+//			rng_ = rng;
+//			final StringBuilder sb = new StringBuilder( "JumpBallEvent(planet = " );
+//			sb.append( planet.id ).append( ", [" )
+//			  .append( Arrays.toString( jump[Player.Min.ordinal()] ) ).append( ", " )
+//			  .append( Arrays.toString( jump[Player.Max.ordinal()] ) ).append( "]" );
+//			repr_ = sb.toString();
+//		}
+//
+//		@Override
+//		public void undoAction( final VoyagerState s )
+//		{
+////			log.debug( "undo {}", toString() );
+//			assert( done_ );
+//			planet.setOwner( Player.Neutral );
+//			planet.setPopulation( Fn.repeat( 0, Unit.values().length ) );
+//			planet.setProduction( Unit.defaultProduction() );
+//			planet.setStoredProduction( Fn.repeat( 0, Unit.values().length ) );
+//			done_ = false;
+//		}
+//
+//		@Override
+//		public void doAction( final VoyagerState s )
+//		{
+////			log.info( "do {}", toString() );
+//			assert( !done_ );
+//			assert( planet.owner() == Player.Neutral );
+//
+//			final int[] totals = new int[Player.Ncompetitors];
+//			final int[][] jump_cp = new int[Player.Ncompetitors][];
+//			for( int i = 0; i < Player.Ncompetitors; ++i ) {
+//				totals[i] = Fn.sum( jump[i] );
+//				jump_cp[i] = Arrays.copyOf( jump[i], Unit.values().length );
+//			}
+//
+//			final int min_strength = Voyager.attack_strength( jump_cp[Player.Min.ordinal()] );
+//			final int max_strength = Voyager.attack_strength( jump_cp[Player.Max.ordinal()] );
+//			final double p = Voyager.jumpProbability( min_strength, max_strength );
+//			log.debug( "a = {}, d = {}, p = {}", min_strength, max_strength, p );
+//
+//			while( totals[Player.Min.ordinal()] > 0 && totals[Player.Max.ordinal()] > 0 ) {
+//				final Pair<Unit, Unit> matchup
+//					= Voyager.minimaxMatchup( jump_cp[Player.Min.ordinal()], jump_cp[Player.Max.ordinal()] );
+//				final double sample = rng_.nextDouble();
+//				if( sample < p ) {
+//					jump_cp[Player.Max.ordinal()][matchup.second.ordinal()] -= 1;
+//					totals[Player.Max.ordinal()] -= matchup.second.attack();
+//				}
+//				else {
+//					jump_cp[Player.Min.ordinal()][matchup.first.ordinal()] -= 1;
+//					totals[Player.Min.ordinal()] -= matchup.first.attack();
+//				}
+//			}
+//
+//			for( int i = 0; i < Player.Ncompetitors; ++i ) {
+//				if( totals[i] != 0 ) {
+//					planet.setOwner( Player.values()[i] );
+//					planet.setPopulation( jump_cp[i] );
+//					assert( Fn.sum( planet.storedProduction() ) == 0 );
+//					assert( planet.nextProduced() == Unit.defaultProduction() );
+//					break;
+//				}
+//			}
+//			// If it was a draw, the conditional in the loop will never trigger.
+//			assert( planet.totalPopulation() >= 0 );
+//			done_ = true;
+//		}
+//
+//		@Override
+//		public boolean isDone()
+//		{ return done_; }
+//
+//		@Override
+//		public JumpBallEvent create()
+//		{ return new JumpBallEvent( planet, jump, rng_ ); }
+//
+//		@Override
+//		public String toString()
+//		{ return repr_; }
+//	}
 	
 	/**
 	 * Changes the seed of the random number generator used by the simulator.
@@ -598,7 +629,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 	
 	private void applyProduction( final Planet p )
 	{
-		int production = Math.min( p.population( Unit.Worker ), p.capacity );
+		int production = Math.min( p.population( p.owner(), Unit.Worker ), p.capacity );
 		while( production > 0 ) {
 			final Unit next = p.nextProduced();
 			final int rem = next.cost() - p.storedProduction()[next.ordinal()];
@@ -632,10 +663,9 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 			// Event ordering:
 			// 1. Growth
 			// 2. Spaceships move
-			// 3. Spaceships arrive
-			// 4. Reinforcements added
-			// 5. Attackers fight
-			// 6. If not stochastic, change Rng seed.
+			// 3. Spaceships arrive / Reinforcements added
+			// 4. Battles
+			// 5. If not stochastic, change Rng seed.
 			for( int i = 0; i < s_.planets.length; ++i ) {
 				final Planet p = s_.planets[i];
 				if( p.owner() != Player.Neutral ) {
@@ -646,61 +676,45 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 				final SpaceshipForwardEvent e = new SpaceshipForwardEvent( spaceship );
 				applyEvent( e );
 			}
-			final Map<Planet, int[]> reinforcements = new TreeMap<Planet, int[]>();
-			final Map<Player, Map<Planet, int[]>> attackers = new TreeMap<Player, Map<Planet, int[]>>();
-			final Map<Planet, int[][]> jump_balls = new HashMap<Planet, int[][]>();
-			for( final Player player : Player.values() ) {
-				attackers.put( player, new TreeMap<Planet, int[]>() );
-			}
+//			final Map<Planet, int[]> reinforcements = new TreeMap<Planet, int[]>();
+//			final Map<Player, Map<Planet, int[]>> attackers = new TreeMap<Player, Map<Planet, int[]>>();
+//			final Map<Planet, int[][]> jump_balls = new HashMap<Planet, int[][]>();
+//			for( final Player player : Player.values() ) {
+//				attackers.put( player, new TreeMap<Planet, int[]>() );
+//			}
 			while( !s_.spaceships.isEmpty() && s_.spaceships.peek().arrival_time == 0 ) {
 				final Spaceship ship = s_.spaceships.poll();
 				final SpaceshipArrivalEvent arrival = new SpaceshipArrivalEvent( ship );
 				applyEvent( arrival );
-				if( ship.dest.owner() == ship.owner ) {
-					int[] current = reinforcements.get( ship.dest );
-					if( current == null ) {
-						current = new int[Unit.values().length];
-						reinforcements.put( ship.dest, current );
-					}
-					for( int i = 0; i < current.length; ++i ) {
-						current[i] += ship.population[i];
-					}
-				}
-				else if( ship.dest.owner() == Player.Neutral ) {
-					int[][] jump = jump_balls.get( ship.dest );
-					if( jump == null ) {
-						jump = new int[Player.competitors][];
-						jump_balls.put( ship.dest, jump );
-					}
-					int[] player_jump = jump[ship.owner.ordinal()];
-					if( player_jump == null ) {
-						for( int i = 0; i < Player.competitors; ++i ) {
-							jump[i] = new int[Unit.values().length];
-						}
-						player_jump = jump[ship.owner.ordinal()];
-					}
-					Fn.vplus_inplace( player_jump, ship.population );
-				}
-				else {
-					int[] current = attackers.get( arrival.spaceship_.owner ).get( arrival.spaceship_.dest );
-					if( current == null ) {
-						current = new int[Unit.values().length];
-						attackers.get( arrival.spaceship_.owner ).put( arrival.spaceship_.dest, current );
-					}
-					for( int i = 0; i < current.length; ++i ) {
-						current[i] += arrival.spaceship_.population[i];
-					}
-				}
+				applyEvent( new ReinforceEvent( ship.dest, ship.owner, ship.population ) );
+//				int[] current = reinforcements.get( ship.dest );
+//				if( current == null ) {
+//					current = new int[Unit.values().length];
+//					reinforcements.put( ship.dest, current );
+//				}
+//				for( int i = 0; i < current.length; ++i ) {
+//					current[i] += ship.population[i];
+//				}
 			}
-			for( final Map.Entry<Planet, int[]> e : reinforcements.entrySet() ) {
-				applyEvent( new ReinforceEvent( e.getKey(), e.getValue() ) );
-			}
-			for( final Map.Entry<Planet, int[][]> e : jump_balls.entrySet() ) {
-				applyEvent( new JumpBallEvent( e.getKey(), e.getValue(), rng_ ) );
-			}
-			for( final Player player : Player.values() ) {
-				for( final Map.Entry<Planet, int[]> e : attackers.get( player ).entrySet() ) {
-					applyEvent( new BattleEvent( e.getKey(), player, e.getValue(), rng_ ) );
+//			for( final Map.Entry<Planet, int[]> e : reinforcements.entrySet() ) {
+//				applyEvent( new ReinforceEvent( e.getKey(), e.getValue() ) );
+//			}
+//			for( final Map.Entry<Planet, int[][]> e : jump_balls.entrySet() ) {
+//				applyEvent( new JumpBallEvent( e.getKey(), e.getValue(), rng_ ) );
+//			}
+			for( final Planet p : s_.planets ) {
+				final boolean min_present = p.totalPopulation( Player.Min ) > 0;
+				final boolean max_present = p.totalPopulation( Player.Max ) > 0;
+				if( min_present && max_present ) {
+					applyEvent( new BattleEvent( p, rng_ ) );
+				}
+				else if( p.owner() == Player.Neutral ) {
+					if( min_present ) {
+						applyEvent( new OwnerChangeEvent( p, Player.Min ) );
+					}
+					else if( max_present ) {
+						applyEvent( new OwnerChangeEvent( p, Player.Max ) );
+					}
 				}
 			}
 		}

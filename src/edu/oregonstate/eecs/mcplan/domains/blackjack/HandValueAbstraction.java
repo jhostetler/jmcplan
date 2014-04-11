@@ -3,19 +3,25 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.blackjack;
 
+import java.util.ArrayList;
+
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
+import weka.core.Attribute;
+import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.Representation;
 
 /**
  * @author jhostetler
  *
  */
-public class HandValueAbstraction extends Representation<BlackjackState>
+public class HandValueAbstraction extends FactoredRepresentation<BlackjackState>
 {
 	public final int dealer_value;
 	public final int[] player_values;
 	public final boolean[] player_aces;
+	
+	private final double[] phi_;
 	
 	private final BlackjackParameters params_;
 	
@@ -24,6 +30,7 @@ public class HandValueAbstraction extends Representation<BlackjackState>
 	
 	public HandValueAbstraction( final BlackjackState s )
 	{
+		assert( s.nplayers() == 1 );
 		dealer_value = s.dealerUpcard().BlackjackValue();
 		player_values = new int[s.nplayers()];
 		player_aces = new boolean[s.nplayers()];
@@ -33,6 +40,8 @@ public class HandValueAbstraction extends Representation<BlackjackState>
 			player_values[i] = v[0];
 			player_aces[i] = v[1] > 0;
 		}
+		
+		phi_ = makePhi( params_, player_values[0], player_aces[0] ? 1 : 0, dealer_value );
 		
 		final HashCodeBuilder hb = newHashCodeBuilder();
 		final StringBuilder sb = new StringBuilder();
@@ -47,9 +56,11 @@ public class HandValueAbstraction extends Representation<BlackjackState>
 	public HandValueAbstraction( final int dealer_value, final int[] player_values,
 								 final boolean[] player_aces, final BlackjackParameters params )
 	{
+		assert( player_values.length == 1 );
 		this.dealer_value = dealer_value;
 		this.player_values = player_values;
 		this.player_aces = player_aces;
+		phi_ = makePhi( params, player_values[0], player_aces[0] ? 1 : 0, dealer_value );
 		params_ = params;
 		final HashCodeBuilder hb = newHashCodeBuilder();
 		final StringBuilder sb = new StringBuilder();
@@ -58,9 +69,34 @@ public class HandValueAbstraction extends Representation<BlackjackState>
 		repr_ = sb.toString();
 	}
 	
+	public static double[] makePhi( final BlackjackParameters params,
+									final int player_value, final int player_aces, final int dealer_value )
+	{
+		final double[] phi = new double[3];
+		phi[0] = (player_value <= params.max_score ? player_value : params.busted_score);
+		phi[1] = player_aces;
+		phi[2] = (dealer_value <= params.max_score ? dealer_value : params.busted_score);
+		return phi;
+	}
+	
+	public static ArrayList<Attribute> makeAttributes( final BlackjackParameters params )
+	{
+		final ArrayList<Attribute> attributes = new ArrayList<Attribute>();
+		attributes.add( new Attribute( "pv" ) );
+		attributes.add( new Attribute( "pa" ) );
+		attributes.add( new Attribute( "dv" ) );
+		return attributes;
+	}
+	
 	private HashCodeBuilder newHashCodeBuilder()
 	{
 		return new HashCodeBuilder( 37, 41 );
+	}
+	
+	@Override
+	public double[] phi()
+	{
+		return phi_;
 	}
 	
 	private void makeRepr( final HashCodeBuilder hb, final StringBuilder sb )
@@ -90,6 +126,7 @@ public class HandValueAbstraction extends Representation<BlackjackState>
 		params_ = that.params_;
 		hash_code_ = that.hash_code_;
 		repr_ = that.repr_;
+		phi_ = that.phi_;
 	}
 
 	@Override

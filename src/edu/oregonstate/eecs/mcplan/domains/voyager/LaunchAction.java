@@ -20,11 +20,13 @@ public class LaunchAction extends VoyagerAction
 {
 	public static final Logger log = LoggerFactory.getLogger( LaunchAction.class );
 	
+	public final Player player;
 	public final Planet src;
 	public final Planet dest;
 	public final int[] population;
 	
 	private Player old_owner_ = null;
+	private int[] old_carry_damage_ = null;
 	private Unit old_production_ = null;
 	private int[] old_stored_production_ = null;
 	private Spaceship spaceship_ = null;
@@ -34,8 +36,9 @@ public class LaunchAction extends VoyagerAction
 	/**
 	 * 
 	 */
-	public LaunchAction( final Planet src, final Planet dest, final int[] population )
+	public LaunchAction( final Player player, final Planet src, final Planet dest, final int[] population )
 	{
+		this.player = player;
 		this.src = src;
 		this.dest = dest;
 		this.population = population;
@@ -43,9 +46,9 @@ public class LaunchAction extends VoyagerAction
 		assert( Fn.sum( population ) > 0 );
 		assert( Fn.all( Fn.Pred.GreaterEq( 0 ), population ) );
 		for( int i = 0; i < population.length; ++i ) {
-			assert( src.population()[i] >= population[i] );
+			assert( src.population( player )[i] >= population[i] );
 		}
-		repr_ = "LaunchAction[src = " + src + ", dest = " + dest + ", population = " + Arrays.toString( population ) + "]";
+		repr_ = "LaunchAction[y = " + player.id + ", src = " + src + ", dest = " + dest + ", pop = " + Arrays.toString( population ) + "]";
 	}
 
 	/* (non-Javadoc)
@@ -65,9 +68,12 @@ public class LaunchAction extends VoyagerAction
 			}
 		}
 		for( int i = 0; i < population.length; ++i ) {
-			src.incrementPopulation( Unit.values()[i], population[i] );
+			src.incrementPopulation( player, Unit.values()[i], population[i] );
 		}
 		src.setOwner( old_owner_ );
+		for( final Player y : Player.competitors ) {
+			src.setCarryDamage( y, old_carry_damage_[y.id] );
+		}
 		src.setProduction( old_production_ );
 		src.setStoredProduction( old_stored_production_ );
 		done_ = false;
@@ -82,18 +88,20 @@ public class LaunchAction extends VoyagerAction
 		assert( !done_ );
 		log.debug( "do {}", toString() );
 		old_owner_ = src.owner();
+		old_carry_damage_ = Arrays.copyOf( src.carryDamage(), src.carryDamage().length );
 		old_production_ = src.nextProduced();
 		old_stored_production_ = Arrays.copyOf( src.storedProduction(), src.storedProduction().length );
 		for( int i = 0; i < population.length; ++i ) {
-			src.decrementPopulation( Unit.values()[i], population[i] );
+			src.decrementPopulation( player, Unit.values()[i], population[i] );
 		}
-		assert( src.totalPopulation() >= 0 );
+		assert( src.totalPopulation( player ) >= 0 );
 		spaceship_ = new Spaceship.Builder()
 			.owner( src.owner() ).src( src ).x( src.x ).y( src.y )
 			.dest( dest ).population( population )
 			.hash( s.hash )
 			.finish( s.spaceship_factory );
-		if( src.totalPopulation() == 0 ) {
+		if( src.totalPopulation( player ) == 0 ) {
+			// TODO: clearCarryDamage() here?
 			src.setOwner( Player.Neutral );
 			src.setProduction( Unit.defaultProduction() );
 			src.setStoredProduction( Fn.repeat( 0, Unit.values().length ) );
@@ -118,7 +126,7 @@ public class LaunchAction extends VoyagerAction
 	public LaunchAction create()
 	{
 //		throw new AssertionError();
-		return new LaunchAction( src, dest, population );
+		return new LaunchAction( player, src, dest, population );
 	}
 	
 	@Override

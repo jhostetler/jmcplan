@@ -11,7 +11,7 @@ import edu.oregonstate.eecs.mcplan.State;
  * @author jhostetler
  *
  */
-public class BlackjackState implements State<BlackjackState, BlackjackStateToken>
+public class BlackjackState implements State
 {
 	private final Deck deck_;
 	
@@ -81,15 +81,26 @@ public class BlackjackState implements State<BlackjackState, BlackjackStateToken
 		return dealer_hand_;
 	}
 
-	@Override
-	public BlackjackStateToken token()
-	{
-		return new BlackjackStateToken( this );
-	}
+//	@Override
+//	public BlackjackStateToken token()
+//	{
+//		return new BlackjackStateToken( this );
+//	}
 	
 	@Override
 	public String toString()
 	{
-		return token().toString();
+		return "STRING NOT IMPLEMENTED!"; //token().toString();
+	}
+
+	@Override
+	public boolean isTerminal()
+	{
+		for( final boolean b : passed_ ) {
+			if( !b ) {
+				return false;
+			}
+		}
+		return true;
 	}
 }

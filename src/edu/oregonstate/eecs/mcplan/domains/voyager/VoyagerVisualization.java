@@ -12,20 +12,17 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferStrategy;
 import java.util.ArrayList;
-import java.util.List;
 
 import javax.swing.JFrame;
 
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
 import edu.oregonstate.eecs.mcplan.JointAction;
+import edu.oregonstate.eecs.mcplan.JointPolicy;
 import edu.oregonstate.eecs.mcplan.Policy;
-import edu.oregonstate.eecs.mcplan.UndoableAction;
+import edu.oregonstate.eecs.mcplan.RandomPolicy;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
-import edu.oregonstate.eecs.mcplan.domains.voyager.policies.BalancedPolicy;
-import edu.oregonstate.eecs.mcplan.search.RolloutPolicy;
 import edu.oregonstate.eecs.mcplan.sim.Episode;
 import edu.oregonstate.eecs.mcplan.sim.EpisodeListener;
-import edu.oregonstate.eecs.mcplan.sim.SimultaneousMoveRunner;
 
 /**
  * @author jhostetler
@@ -41,14 +38,18 @@ public class VoyagerVisualization<A extends VirtualConstructor<A>> extends JFram
 		private final float planet_border_thickness_ = 2.0f;
 		
 		private VoyagerState s_ = null;
-		private final VoyagerParameters params_;
 		private final BufferStrategy buffer_strategy_;
 		
-		public final int map_side;
+		private final VoyagerParameters params_;
+		private final int logical_half_width_;
+		private final int logical_half_height_;
 		
-		public VoyagerCanvas( final JFrame host, final VoyagerParameters params )
+		public VoyagerCanvas( final JFrame host, final VoyagerParameters params,
+							  final int logical_width, final int logical_height )
 		{
 			params_ = params;
+			logical_half_width_ = logical_width / 2;
+			logical_half_height_ = logical_height / 2;
 			
 			setIgnoreRepaint( true );
 			setBackground( Color.black );
@@ -57,8 +58,6 @@ public class VoyagerVisualization<A extends VirtualConstructor<A>> extends JFram
 			final int two_buffers = 2;
 			createBufferStrategy( two_buffers );
 			buffer_strategy_ = getBufferStrategy();
-			
-			map_side = params.Nsites * scale;
 		}
 		
 		private Color playerColor( final Player p )
@@ -104,33 +103,34 @@ public class VoyagerVisualization<A extends VirtualConstructor<A>> extends JFram
 			return sb.toString();
 		}
 		
-		private void drawPopulation( final Graphics2D g, final Planet p, final Unit type,
+		private void drawPopulation( final Graphics2D g, final Planet p, final Player player, final Unit type,
 									 final int x, final int y, final int uh, final int sep )
 		{
+			final int reflect = (player == Player.Min ? -1 : 1);
 			final int w25 = 10;
 			final int w5 = 4;
 			final int w1 = 2;
-			int pop = p.population( type );
+			int pop = p.population( player, type );
 			final int twentyfives = pop / 25;
 			pop -= twentyfives * 25;
 			final int fives = pop / 5;
 			pop -= fives * 5;
 			final int ones = pop;
 			g.setColor( entityColor( type ) );
-			int xi = x;
+			int xoff = 0;
 			for( int i = 0; i < twentyfives; ++i ) {
-				g.fillRect( xi, y, w25, uh );
-				xi += w25 + sep;
+				g.fillRect( x + reflect*xoff, y, w25, uh );
+				xoff += w25 + sep;
 			}
 			for( int i = 0; i < fives; ++i ) {
-				g.fillRect( xi, y, w5, uh );
-				xi += w5 + sep;
+				g.fillRect( x + reflect*xoff, y, w5, uh );
+				xoff += w5 + sep;
 			}
 			for( int i = fives; i < fives + ones; ++i ) {
 //				g.fillPolygon( new int[] { x, x + uw - sep, x },
 //						   	   new int[] { y, y, y + uh }, 3 );
-				g.fillRect( xi, y, w1, uh );
-				xi += w1 + sep;
+				g.fillRect( x + reflect*xoff, y, w1, uh );
+				xoff += w1 + sep;
 			}
 		}
 		
@@ -148,8 +148,8 @@ public class VoyagerVisualization<A extends VirtualConstructor<A>> extends JFram
 				final int r = planetRadius( p );
 				final int d = 2*r;
 				// Need to add Nsites here so that x,y are not negative.
-				final int cx = scale * (p.x + params_.Nsites);
-				final int cy = scale * (p.y + params_.Nsites);
+				final int cx = scale * (1 + p.x + logical_half_width_);
+				final int cy = scale * (1 + p.y + logical_half_height_);
 				final int x = cx - r;
 				final int y = cy - r;
 				// Production progress
@@ -174,15 +174,16 @@ public class VoyagerVisualization<A extends VirtualConstructor<A>> extends JFram
 				final int sep = 2;
 				int yi = y + d + sep;
 				for( final Unit type : Unit.values() ) {
-					drawPopulation( g, p, type, x, yi, uh, sep );
+					drawPopulation( g, p, Player.Min, type, cx, yi, uh, sep );
+					drawPopulation( g, p, Player.Max, type, cx, yi, uh, sep );
 					yi += uh + sep;
 				}
 			}
 			
 			for( final Spaceship ship : sprime.spaceships ) {
 				g.setColor( playerColor( ship.owner ) );
-				final int x = (int) (scale * (ship.x + params_.Nsites) - 2);
-				final int y = (int) (scale * (ship.y + params_.Nsites) - 2);
+				final int x = (int) (scale * (1 + ship.x + logical_half_width_) - 2);
+				final int y = (int) (scale * (1 + ship.y + logical_half_height_) - 2);
 				g.fillOval( x, y, 4, 4 );
 				g.setFont( g.getFont().deriveFont( 10.0f ) );
 				g.drawString( makeShipString( ship ), x - 4, y + 5 + 8 );
@@ -238,7 +239,9 @@ public class VoyagerVisualization<A extends VirtualConstructor<A>> extends JFram
 	private final VoyagerCanvas canvas_;
 	private final int sleep_;
 	
-	public VoyagerVisualization( final VoyagerParameters params, final Dimension dim, final int sleep )
+	// FIXME: Should derive 'dim' from map information.
+	public VoyagerVisualization( final VoyagerParameters params, final Dimension dim,
+								 final int width, final int height, final int sleep )
 	{
 		super( "Voyager" );
 		
@@ -253,7 +256,7 @@ public class VoyagerVisualization<A extends VirtualConstructor<A>> extends JFram
 		setResizable( false );
 		setVisible( true );
 
-		canvas_ = new VoyagerCanvas( this, params );
+		canvas_ = new VoyagerCanvas( this, params, width, height );
 		canvas_.setBounds( 0, 0, dim.width, dim.height );
 	}
 	
@@ -269,31 +272,43 @@ public class VoyagerVisualization<A extends VirtualConstructor<A>> extends JFram
 	
 	public static void main( final String[] args )
 	{
-		final VoyagerParameters params = new VoyagerParameters.Builder().master_seed( 641 ).Nplanets( 3 ).finish();
-		final VoyagerVisualization vis = new VoyagerVisualization( params, new Dimension( 720, 720 ), 100 );
-		final VoyagerInstance instance = new VoyagerInstance( params );
+		final VoyagerParameters params = new VoyagerParameters.Builder().master_seed( 641 ).finish();
+		final VoyagerState s0 = Maps.Generic9( params );
+		final VoyagerInstance instance = new VoyagerInstance( params, s0 );
+		final VoyagerVisualization<VoyagerAction> vis
+			= new VoyagerVisualization<VoyagerAction>( params, new Dimension( 720, 720 ), s0.width, s0.height, 0 );
 		
-		final ArrayList<AnytimePolicy<VoyagerState, ? extends UndoableAction<VoyagerState>>> policies
-			= new ArrayList<AnytimePolicy<VoyagerState, ? extends UndoableAction<VoyagerState>>>();
-		policies.add( new BalancedPolicy( Player.Min, instance.nextSeed(), 0.8, 2.0, 0.1 ) );
+		final ArrayList<AnytimePolicy<VoyagerState, VoyagerAction>> policies
+			= new ArrayList<AnytimePolicy<VoyagerState, VoyagerAction>>();
+//		policies.add( new BalancedPolicy( Player.Min, instance.nextSeed(), 0.8, 2.0, 0.1 ) );
+//		policies.add( new BalancedPolicy( Player.Max, instance.nextSeed(), 0.7, 1.5, 0 ) );
 		final VoyagerActionGenerator action_gen = new VoyagerActionGenerator();
-		@SuppressWarnings( "unchecked" )
-		final List<Policy<VoyagerState, ? extends UndoableAction<VoyagerState>>> rollout_policies;
-		rollout_policies.add( new BalancedPolicy( Player.Min, instance.nextSeed(), 0.8, 2.0, 0.1 ) );
-		rollout_policies.add( new BalancedPolicy( Player.Max, instance.nextSeed(), 0.8, 2.0, 0.1 ) );
-		policies.add( new RolloutPolicy<VoyagerState, VoyagerStateToken>(
-			instance.simulator(), action_gen, 1.0, rollout_policies,
-			new ControlMctsVisitor( Player.Max ) ) );
-//		policies.add( new RandomPolicy<VoyagerState, VoyagerEvent>(
-//			Player.Max.ordinal(), master_rng.nextInt(), action_gen ) );
+		policies.add( new RandomPolicy<VoyagerState, VoyagerAction>(
+			Player.Min.ordinal(), instance.nextSeed(), action_gen.create() ) );
+		policies.add( new RandomPolicy<VoyagerState, VoyagerAction>(
+			Player.Max.ordinal(), instance.nextSeed(), action_gen.create() ) );
+		
+//		@SuppressWarnings( "unchecked" )
+//		final List<Policy<VoyagerState, ? extends UndoableAction<VoyagerState>>> rollout_policies;
+//		rollout_policies.add( new BalancedPolicy( Player.Min, instance.nextSeed(), 0.8, 2.0, 0.1 ) );
+//		rollout_policies.add( new BalancedPolicy( Player.Max, instance.nextSeed(), 0.8, 2.0, 0.1 ) );
+//		policies.add( new RolloutPolicy<VoyagerState, VoyagerStateToken>(
+//			instance.simulator(), action_gen, 1.0, rollout_policies,
+//			new ControlMctsVisitor( Player.Max ) ) );
+		
 //		policies.add( new BalancedPolicy( Player.Max, new MersenneTwister( master_rng.nextInt() ),
 //										  0.5, 0.6, 0.1 ) );
 //		policies.add( new RandomPolicy<VoyagerState, VoyagerEvent>( 1, 44, new VoyagerActions() ) );
-		final SimultaneousMoveRunner<VoyagerState, VoyagerEvent> runner
-			= new SimultaneousMoveRunner<VoyagerState, VoyagerEvent>( instance.simulator(), policies, 512, 2000 );
-		vis.attach( runner );
-		runner.run();
 		
+		final JointPolicy<VoyagerState, VoyagerAction> joint_policy
+			= new JointPolicy<VoyagerState, VoyagerAction>( policies );
+		
+		final Episode<VoyagerState, VoyagerAction> episode
+			= new Episode<VoyagerState, VoyagerAction>( instance.simulator(), joint_policy );
+		if( vis != null ) {
+			vis.attach( episode );
+		}
+		episode.run();
 		System.exit( 0 );
 	}
 }

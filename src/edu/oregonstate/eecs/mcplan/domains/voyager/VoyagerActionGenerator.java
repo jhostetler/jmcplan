@@ -39,22 +39,21 @@ public class VoyagerActionGenerator extends ActionGenerator<VoyagerState, Voyage
 	
 	private void addPlanetActions( final VoyagerState state, final Planet p )
 	{
-		for( int w = 0; w <= p.population( Unit.Worker ); ++w ) {
-			for( int s = 0; s <= p.population( Unit.Soldier ); ++s ) {
+		for( int w = 0; w <= p.population( player_, Unit.Worker ); ++w ) {
+			for( int s = 0; s <= p.population( player_, Unit.Soldier ); ++s ) {
 				if( w + s > 0 ) {
 					for( final Planet dest : state.planets ) {
-						if( !dest.equals( p ) ) {
-							actions_.add( new LaunchAction( p, dest, new int[] { w, s } ) );
+						if( !dest.equals( p ) && state.adjacent( p, dest ) ) {
+							actions_.add( new LaunchAction( player_, p, dest, new int[] { w, s } ) );
 						}
 					}
 				}
 			}
 		}
-		if( p.nextProduced() == Unit.Worker ) {
-			actions_.add( new SetProductionAction( p, Unit.Soldier ) );
-		}
-		else {
-			actions_.add( new SetProductionAction( p, Unit.Worker ) );
+		for( final Unit u : Unit.values() ) {
+			if( p.nextProduced() != u ) {
+				actions_.add( new SetProductionAction( p, u ) );
+			}
 		}
 	}
 

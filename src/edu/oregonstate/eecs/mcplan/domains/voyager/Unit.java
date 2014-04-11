@@ -2,44 +2,15 @@ package edu.oregonstate.eecs.mcplan.domains.voyager;
 
 public enum Unit
 {
-	Worker( 20, 1, 1 ),
-	Soldier( 20, 8, 8 );
+	Worker( 20, 1, 6 ),
+	Soldier( 20, 2, 6 );
+	// Add types here. Don't forget to update 'max_hp' below!
+	
+	// TODO: Must keep this synchronized! No way to derive it due to Java
+	// rules about static members in enums.
+	public static final int max_hp = 6;
 	
 	// -----------------------------------------------------------------------
-	
-	public static final double[][] matchups = new double[values().length][values().length];
-	static {
-		int i = 0;
-		for( final Unit a : values() ) {
-			int j = 0;
-			for( final Unit d : values() ) {
-				matchups[i][j++] = matchup( a, d );
-			}
-			++i;
-		}
-	};
-	
-	public static final double[][] attack_matchups = new double[values().length][values().length];
-	static {
-		int i = 0;
-		for( final Unit a : values() ) {
-			int j = 0;
-			for( final Unit d : values() ) {
-				attack_matchups[i][j++] = attack_matchup( a, d );
-			}
-			++i;
-		}
-	};
-	
-	public static double matchup( final Unit a, final Unit d )
-	{
-		return ((double) a.attack()) / (a.attack() + d.defense());
-	}
-	
-	public static double attack_matchup( final Unit a, final Unit b )
-	{
-		return ((double) a.attack()) / (a.attack() + b.attack());
-	}
 	
 	public static Unit defaultProduction()
 	{
@@ -50,13 +21,13 @@ public enum Unit
 	
 	private final int cost_;
 	private final int attack_;
-	private final int defense_;
+	private final int hp_;
 	
-	private Unit( final int cost, final int attack, final int defense )
+	private Unit( final int cost, final int attack, final int hp )
 	{
 		cost_ = cost;
 		attack_ = attack;
-		defense_ = defense;
+		hp_ = hp;
 	}
 	
 	public int cost()
@@ -64,13 +35,14 @@ public enum Unit
 		return cost_;
 	}
 	
-	public int attack()
+	public int attack( final Unit u )
 	{
+		// NOTE: No differential matchups currently
 		return attack_;
 	}
 	
-	public int defense()
+	public int hp()
 	{
-		return defense_;
+		return hp_;
 	}
 }

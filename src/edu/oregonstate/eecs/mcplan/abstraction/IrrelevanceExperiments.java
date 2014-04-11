@@ -367,7 +367,7 @@ public class IrrelevanceExperiments
 						throw new RuntimeException( ex );
 					}
 					final Representer<Irrelevance.State, AggregateState<Irrelevance.State>> repr
-						= new Aggregator<Irrelevance.State, Irrelevance.IdentityRepresentation>( base_repr, attributes, c );
+						= new PairwiseClassifierRepresenter<Irrelevance.State, Irrelevance.IdentityRepresentation>( base_repr, attributes, c );
 					
 					final Policy<Irrelevance.State, JointAction<Irrelevance.Action>>
 						rollout_policy = new RandomPolicy<Irrelevance.State, JointAction<Irrelevance.Action>>(
@@ -480,8 +480,8 @@ public class IrrelevanceExperiments
 		int idx = 0;
 		final int Nworlds = Integer.parseInt( instance_args[idx++] );
 		final int master_seed = Integer.parseInt( instance_args[idx++] );
-		final int[] max_time = new int[Player.competitors];
-		for( int p = 0; p < Player.competitors; ++p ) {
+		final int[] max_time = new int[Player.Ncompetitors];
+		for( int p = 0; p < Player.Ncompetitors; ++p ) {
 			max_time[p] = Integer.parseInt( instance_args[idx++] );
 		}
 		

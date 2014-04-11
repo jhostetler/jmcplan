@@ -7,6 +7,7 @@ import java.util.ArrayList;
 
 import weka.core.Attribute;
 
+
 /**
  * Generates FactoredRepresentations.
  */
@@ -19,6 +20,5 @@ public interface FactoredRepresenter<S, X extends FactoredRepresentation<S>>
 	@Override
 	public abstract X encode( final S s );
 	
-	// FIXME: Remove Weka dependency
 	public abstract ArrayList<Attribute> attributes();
 }

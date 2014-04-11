@@ -52,11 +52,13 @@ public class BlackjackMdpState
 			return false;
 		}
 		final BlackjackMdpState that = (BlackjackMdpState) obj;
-		return dealer_value == that.dealer_value
+		final boolean eq = dealer_value == that.dealer_value
 			   && dealer_high_aces == that.dealer_high_aces
 			   && player_value == that.player_value
 			   && player_high_aces == that.player_high_aces
 			   && player_passed == that.player_passed;
+//		assert( (id == that.id) == eq );
+		return eq;
 	}
 	
 	@Override

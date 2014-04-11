@@ -111,7 +111,7 @@ public class BalancedPolicy extends AnytimePolicy<VoyagerState, VoyagerAction>
 	{
 		int capture_strength = 0;
 		for( final Unit type : Unit.values() ) {
-			capture_strength += population[type.ordinal()] * type.defense();
+			capture_strength += population[type.ordinal()] * type.hp();
 		}
 		return capture_strength;
 	}
@@ -138,7 +138,7 @@ public class BalancedPolicy extends AnytimePolicy<VoyagerState, VoyagerAction>
 			if( p.owner() == player_ ) {
 				friendly_planets.add( p );
 				for( final Unit type : Unit.values() ) {
-					friendly_strength += p.population( type ) * type.defense();
+					friendly_strength += p.population( type ) * type.hp();
 					friendly_pop[type.ordinal()] += p.population( type );
 				}
 				worker_balance += p.population( Unit.Worker );

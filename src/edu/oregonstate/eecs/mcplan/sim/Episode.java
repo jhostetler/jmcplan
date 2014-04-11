@@ -57,6 +57,7 @@ public class Episode<S, A extends VirtualConstructor<A>> implements Runnable
 				
 		for( int t = 0; t < T_; ++t ) {
 //			System.out.println( "[Episode] Action selection" );
+//			System.out.println( sim_.state() );
 			pi_.setState( sim_.state(), t );
 			firePreGetAction();
 			final JointAction<A> a = pi_.getAction();
@@ -67,6 +68,7 @@ public class Episode<S, A extends VirtualConstructor<A>> implements Runnable
 			pi_.actionResult( sim_.state(), sim_.reward() );
 			fireActionsTaken( sim_.state() );
 			if( sim_.isTerminalState( ) ) {
+//				System.out.println( "[Episode] Terminal state" );
 				break;
 			}
 		}

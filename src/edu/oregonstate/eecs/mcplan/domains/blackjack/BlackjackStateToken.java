@@ -5,26 +5,34 @@ package edu.oregonstate.eecs.mcplan.domains.blackjack;
 
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
-import edu.oregonstate.eecs.mcplan.Representation;
+import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 
 /**
  * @author jhostetler
  *
  */
-public class BlackjackStateToken extends Representation<BlackjackState>
+public class BlackjackStateToken extends FactoredRepresentation<BlackjackState>
 {
 	private final int hash_code_;
 	private final String repr_;
+	
+	private final double[] phi_;
 
 	public BlackjackStateToken( final BlackjackState s )
 	{
+		assert( s.nplayers() == 1 );
 		final HashCodeBuilder h = new HashCodeBuilder();
 		final StringBuilder sb = new StringBuilder();
 		h.append( s.dealerHand() );
+		phi_ = new double[52 + 52];
+		phi_[52 + s.dealerHand().get( 0 ).rank.ordinal() - 1] = 1;
 		sb.append( "d:" ).append( s.dealerHand().toString() );
 		for( int i = 0; i < s.nplayers(); ++i ) {
 			sb.append( ", " ).append( i ).append( ":" );
 			h.append( s.hand( i ) );
+			for( final Card c : s.hand( i ) ) {
+				phi_[c.rank.ordinal() - 1] += 1;
+			}
 			sb.append( s.hand( i ).toString() );
 			h.append( s.passed( i ) );
 			if( s.passed( i ) ) {
@@ -39,6 +47,7 @@ public class BlackjackStateToken extends Representation<BlackjackState>
 	{
 		hash_code_ = that.hash_code_;
 		repr_ = that.repr_;
+		phi_ = that.phi_;
 	}
 
 	@Override
@@ -67,5 +76,11 @@ public class BlackjackStateToken extends Representation<BlackjackState>
 	public BlackjackStateToken copy()
 	{
 		return new BlackjackStateToken( this );
+	}
+
+	@Override
+	public double[] phi()
+	{
+		return phi_;
 	}
 }

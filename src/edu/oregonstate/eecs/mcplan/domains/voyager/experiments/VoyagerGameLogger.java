@@ -50,7 +50,7 @@ public class VoyagerGameLogger implements EpisodeListener<VoyagerState, Undoable
 			game_log_.print( "," );
 			game_log_.print( type );
 		}
-		for( int i = 0; i < Player.competitors; ++i ) {
+		for( int i = 0; i < Player.Ncompetitors; ++i ) {
 			game_log_.print( ",a" );
 			game_log_.print( i );
 		}

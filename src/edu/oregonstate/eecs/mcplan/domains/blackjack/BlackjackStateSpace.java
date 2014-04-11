@@ -3,16 +3,18 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.blackjack;
 
-import java.util.ArrayList;
-
-import edu.oregonstate.eecs.mcplan.StateSpace;
+import edu.oregonstate.eecs.mcplan.IndexedStateSpace;
 import edu.oregonstate.eecs.mcplan.util.Generator;
+import gnu.trove.map.TObjectIntMap;
+import gnu.trove.map.hash.TObjectIntHashMap;
+
+import java.util.ArrayList;
 
 /**
  * @author jhostetler
  *
  */
-public class BlackjackStateSpace extends StateSpace<BlackjackMdpState>
+public class BlackjackStateSpace extends IndexedStateSpace<BlackjackMdpState>
 {
 	private final ArrayList<BlackjackMdpState> states_ = new ArrayList<BlackjackMdpState>();
 	
@@ -107,6 +109,19 @@ public class BlackjackStateSpace extends StateSpace<BlackjackMdpState>
 		
 		// Absorbing state
 		states_.add( BlackjackMdpState.TheAbsorbingState );
+		
+		int id = 0;
+		for( final BlackjackMdpState s : states_ ) {
+			id_map_.put( s, id++ );
+		}
+	}
+	
+	private final TObjectIntMap<BlackjackMdpState> id_map_ = new TObjectIntHashMap<BlackjackMdpState>();
+	
+	@Override
+	public int id( final BlackjackMdpState s )
+	{
+		return id_map_.get( s );
 	}
 	
 	@Override

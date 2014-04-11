@@ -4,7 +4,10 @@
 package edu.oregonstate.eecs.mcplan.domains.voyager;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+
+import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.Pair;
 import edu.oregonstate.eecs.mcplan.util.Fn;
@@ -96,6 +99,53 @@ public final class Voyager
 		return dadv * p;
 	}
 	
+	public static Pair<Integer, Integer> damage( final Planet p )
+	{
+		final double[] pn = Fn.vcopy_as_double( p.population( Player.Min ) );
+		Fn.normalize_inplace( pn );
+		final double[] pm = Fn.vcopy_as_double( p.population( Player.Max ) );
+		Fn.normalize_inplace( pm );
+		
+		double sn = 0;
+		double sm = 0;
+		for( final Unit u : Unit.values() ) {
+			for( final Unit v : Unit.values() ) {
+				final double dmg = u.attack( v );
+				sn += pn[u.ordinal()] * pm[v.ordinal()] * dmg;
+				sm += pm[u.ordinal()] * pn[v.ordinal()] * dmg;
+			}
+		}
+		
+		return Pair.makePair( (int) sn, (int) sm );
+	}
+	
+	public static Pair<int[], Integer> survivors( final int[] pop, final int damage, final RandomGenerator rng )
+	{
+		final int[] r = Arrays.copyOf( pop, pop.length );
+		int dmg = damage;
+		int tpop = Fn.sum( r );
+	outer:
+		while( dmg > 0 && tpop > 0 ) {
+			int i = rng.nextInt( tpop );
+			for( int u = 0; u < r.length; ++u ) {
+				i -= r[u];
+				if( i < 0 ) {
+					if( dmg >= Unit.values()[u].hp() ) {
+						r[u] -= 1;
+						tpop -= 1;
+						dmg -= Unit.values()[i].hp();
+						break;
+					}
+					else {
+						break outer;
+					}
+				}
+			}
+		}
+		assert( dmg >= 0 );
+		return Pair.makePair( r, dmg );
+	}
+	
 	public static ArrayList<Planet> playerPlanets( final VoyagerState s, final Player p )
 	{
 		final ArrayList<Planet> planets = new ArrayList<Planet>();
@@ -125,12 +175,10 @@ public final class Voyager
 	
 	public static int[] playerTotalPops( final VoyagerState s )
 	{
-		final int[] result = new int[Player.competitors];
+		final int[] result = new int[Player.Ncompetitors];
 		for( final Planet p : s.planets ) {
-			if( p.owner() != Player.Neutral ) {
-				for( final Unit type : Unit.values() ) {
-					result[p.owner().ordinal()] += p.population( type );
-				}
+			for( final Player y : Player.competitors ) {
+				result[y.id] += p.totalPopulation( y );
 			}
 		}
 		for( final Spaceship ship : s.spaceships ) {
@@ -154,7 +202,7 @@ public final class Voyager
 		assert( force.length == Unit.values().length );
 		int s = 0;
 		for( final Unit type : Unit.values() ) {
-			s += type.defense() * force[type.ordinal()];
+			s += type.hp() * force[type.ordinal()];
 		}
 		return s;
 	}

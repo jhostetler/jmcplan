@@ -7,6 +7,7 @@ import java.util.Comparator;
 
 import edu.oregonstate.eecs.mcplan.SortedList;
 import edu.oregonstate.eecs.mcplan.State;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 import gnu.trove.list.TDoubleList;
 import gnu.trove.list.array.TDoubleArrayList;
 
@@ -56,6 +57,7 @@ public class VoyagerState implements State<VoyagerState, VoyagerStateToken>
 	public static int NumPlayers = 2;
 	
 	public final Planet[] planets;
+	private final boolean[][] adjacent_;
 	public final Player[] players;
 	/**
 	 * Think of this as a priority queue in order of arrival time. We don't
@@ -78,6 +80,16 @@ public class VoyagerState implements State<VoyagerState, VoyagerStateToken>
 		this.width = width;
 		this.height = height;
 		this.hash = hash;
+		
+		adjacent_ = new boolean[planets.length][];
+		for( int i = 0; i < planets.length; ++i ) {
+			adjacent_[i] = Fn.repeat( true, planets.length );
+		}
+	}
+	
+	public boolean adjacent( final Planet p, final Planet q )
+	{
+		return adjacent_[p.id][q.id];
 	}
 
 	@Override
@@ -98,8 +110,8 @@ public class VoyagerState implements State<VoyagerState, VoyagerStateToken>
 		// Ship features
 		final int ship_offset = fv.size();
 		final int Nplayer_ships = (hash.max_eta + 1) * Unit.values().length;
-		fv.addAll( new double[hash.Nplanets * Player.competitors * Nplayer_ships] );
-		final int planet_numbers = Player.competitors * Nplayer_ships;
+		fv.addAll( new double[hash.Nplanets * Player.Ncompetitors * Nplayer_ships] );
+		final int planet_numbers = Player.Ncompetitors * Nplayer_ships;
 		// Format:
 		// for each planet -> for each player -> for each eta -> for each type
 		for( final Spaceship ship : spaceships ) {
@@ -125,8 +137,11 @@ public class VoyagerState implements State<VoyagerState, VoyagerStateToken>
 				fv.add( 0.0 );
 			}
 		}
-		for( final Unit type : Unit.values() ) {
-			fv.add( p.population( type ) );
+		
+		for( final Player player : Player.competitors ) {
+			for( final Unit type : Unit.values() ) {
+				fv.add( p.population( player, type ) );
+			}
 		}
 		for( final Unit type : Unit.values() ) {
 			fv.add( p.storedProduction( type ) );

@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 /**
  * Fn for "functional".
  * 
@@ -564,6 +566,16 @@ public final class Fn
 		return true;
 	}
 	
+	public static boolean all( final boolean[] xs )
+	{
+		for( final boolean b : xs ) {
+			if( !b ) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
 	// -----------------------------------------------------------------------
 	// any
 	// -----------------------------------------------------------------------
@@ -592,6 +604,27 @@ public final class Fn
 			}
 		}
 		return false;
+	}
+	
+	// -----------------------------------------------------------------------
+	// any
+	// -----------------------------------------------------------------------
+	
+	/**
+	 * True if any element of the list satisfies the predicate.
+	 * @param p
+	 * @param xs
+	 * @return
+	 */
+	public static int min( final int[] x )
+	{
+		int m = Integer.MAX_VALUE;
+		for( final int xi : x ) {
+			if( xi < m ) {
+				m = xi;
+			}
+		}
+		return m;
 	}
 	
 	// -----------------------------------------------------------------------
@@ -656,6 +689,20 @@ public final class Fn
 					}
 				}
 			}, xs );
+	}
+	
+	// -----------------------------------------------------------------------
+	// range
+	// -----------------------------------------------------------------------
+	
+	public static int[] range( final int start, final int end )
+	{
+		assert( end >= start );
+		final int[] r = new int[end - start];
+		for( int i = start; i < end; ++i ) {
+			r[i - start] = i;
+		}
+		return r;
 	}
 	
 	// -----------------------------------------------------------------------
@@ -733,6 +780,72 @@ public final class Fn
 	public static <T> Iterable<T> reverse( final List<T> xs )
 	{
 		return new Reversed<T>( xs );
+	}
+	
+	// -----------------------------------------------------------------------
+	// shuffle
+	// -----------------------------------------------------------------------
+	
+	/**
+	 * Fisher-Yates shuffle.
+	 * @param rng
+	 * @param a
+	 */
+	public static void shuffle( final RandomGenerator rng, final int[] a )
+	{
+		shuffle( rng, a, a.length );
+	}
+	
+	/**
+	 * Fisher-Yates shuffle. This version does only 'n' swaps, so the first
+	 * 'n' elements of the array will be randomly selected from among the
+	 * entire array.
+	 * @param rng
+	 * @param a
+	 */
+	public static void shuffle( final RandomGenerator rng, final int[] a, final int n )
+	{
+//		for( int i = a.length - 1; i > 0; --i )
+//	    {
+//	        final int j = rng.nextInt( i + 1 );
+//	        final int temp = a[j];
+//	        a[j] = a[i];
+//	        a[i] = temp;
+//	    }
+		
+		for( int i = 0; i < n; ++i ) {
+			final int j = i + rng.nextInt( n - i );
+			final int temp = a[j];
+			a[j] = a[i];
+			a[i] = temp;
+		}
+	}
+	
+	/**
+	 * Fisher-Yates shuffle.
+	 * @param rng
+	 * @param a
+	 */
+	public static <T> void shuffle( final RandomGenerator rng, final ArrayList<T> a )
+	{
+		shuffle( rng, a, a.size() );
+	}
+	
+	/**
+	 * Fisher-Yates shuffle. This version does only 'n' swaps, so the first
+	 * 'n' elements of the array will be randomly selected from among the
+	 * entire array.
+	 * @param rng
+	 * @param a
+	 */
+	public static <T> void shuffle( final RandomGenerator rng, final ArrayList<T> a, final int n )
+	{
+		for( int i = 0; i < n; ++i ) {
+			final int j = i + rng.nextInt( n - i );
+			final T temp = a.get( j );
+			a.set( j,  a.get( i ) );
+			a.set( i, temp );
+		}
 	}
 	
 	// -----------------------------------------------------------------------
@@ -842,6 +955,45 @@ public final class Fn
 		return dest;
 	}
 	
+	public static double[] memcpy_as_double( final double[] dest, final int[] src, final int n )
+	{
+		assert( dest.length == src.length );
+		for( int i = 0; i < n; ++i ) {
+			dest[i] = src[i];
+		}
+		return dest;
+	}
+	
+	public static double[] vcopy_as_double( final int[] src )
+	{
+		final double[] r = new double[src.length];
+		memcpy_as_double( r, src, src.length );
+		return r;
+	}
+	
+	/**
+	 * Copies 'src' element-wise into 'dest' and returns 'dest'.
+	 * @param dest
+	 * @param src
+	 * @param n
+	 * @return
+	 */
+	public static int[] memcpy_as_int( final int[] dest, final double[] src, final int n )
+	{
+		assert( dest.length == src.length );
+		for( int i = 0; i < n; ++i ) {
+			dest[i] = (int) src[i];
+		}
+		return dest;
+	}
+	
+	public static int[] vcopy_as_int( final double[] src )
+	{
+		final int[] r = new int[src.length];
+		memcpy_as_int( r, src, src.length );
+		return r;
+	}
+	
 	/**
 	 * Copies 'src' element-wise into 'dest' and returns 'dest'.
 	 * @param dest
@@ -914,8 +1066,92 @@ public final class Fn
 	}
 	
 	// -----------------------------------------------------------------------
+	// power_set
+	// -----------------------------------------------------------------------
+	
+//	public static int[] power_set( final int n )
+//	{
+//		assert( n < 32 );
+//		final int N = 1 << n;
+//		final int[] p = new int[N];
+//		int idx = 0;
+//		for( int i = 0; i < N; ++i ) {
+//		    for( int j = 0; j < n; j++ ) {
+//		        if( ((i>>j) & 1) == 1 ) { // bit j is on
+//		            subset.add(numbers.get(j));
+//		        }
+//		    }
+//		    // print subset
+//		}
+//	}
+	
+	
+	public static class MultisetPowerSetGenerator extends Generator<int[]>
+	{
+		private final int[] M_;
+		private final int[] subset_;
+		private boolean changed_ = true;
+		
+		public MultisetPowerSetGenerator( final int[] M )
+		{
+			M_ = M;
+			subset_ = new int[M_.length];
+		}
+		
+		@Override
+		public boolean hasNext()
+		{
+			return changed_;
+		}
+
+		@Override
+		public int[] next()
+		{
+			changed_ = false;
+			final int[] r = Arrays.copyOf( subset_, subset_.length );
+			for( int i = 0; i < M_.length; ++i ) {
+				if( subset_[i] < M_[i] ) {
+					subset_[i] += 1;
+					changed_ = true;
+					break;
+		        }
+		        else {
+		        	subset_[i] = 0;
+		        }
+		    }
+			return r;
+		}
+		
+	}
+	
+	
+	// TODO: This is a faster power set algorithm for ordinary sets
+	// Add KeepAction for each subset of dice, *except* the entire set
+//	for( int i = 0; i < (1<<Hand.Ndice) - 1; ++i ) {
+//		final int[] keep_idx = Fn.linspace( 0, Hand.Ndice );
+//		final int[] keepers = new int[Hand.Nfaces];
+//		for( int j = 0; j < Hand.Nfaces; ++j ) {
+//			if( ((i>>j) & 1) == 1 ) {
+//				keepers[faces[keep_idx[j]]] += 1;
+//			}
+//		}
+//		actions_.add( new JointAction<YahtzeeAction>( new KeepAction( keepers ) ) );
+//	}
+	
+	// -----------------------------------------------------------------------
 	// misc
 	// -----------------------------------------------------------------------
+	
+	public static double distance_l2( final double[] x, final double[] y )
+	{
+		assert( x.length == y.length );
+		double d = 0.0;
+		for( int i = 0; i < x.length; ++i ) {
+			final double diff = x[i] - y[i];
+			d += diff*diff;
+		}
+		return d;
+	}
 	
 	/**
 	 * Returns a new vector containing a - b.
@@ -964,6 +1200,20 @@ public final class Fn
 	 * @return
 	 */
 	public static int[] vminus_inplace( final int[] a, final int[] b )
+	{
+		for( int i = 0; i < a.length; ++i ) {
+			a[i] -= b[i];
+		}
+		return a;
+	}
+	
+	/**
+	 * 'a' is modified in-place by subtracting 'b' element-wise.
+	 * @param a
+	 * @param b
+	 * @return
+	 */
+	public static double[] vminus_inplace( final double[] a, final double[] b )
 	{
 		for( int i = 0; i < a.length; ++i ) {
 			a[i] -= b[i];

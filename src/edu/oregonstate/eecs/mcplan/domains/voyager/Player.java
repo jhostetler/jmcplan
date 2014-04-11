@@ -13,16 +13,17 @@ public enum Player
 	
 	// -----------------------------------------------------------------------
 	
-	public static final int competitors;
+	public static final int Ncompetitors;
+	public static final Player[] competitors;
 	
 	static {
-		int n = 0;
-		for( final Player p : values() ) {
-			if( p != Neutral ) {
-				++n;
-			}
+		Ncompetitors = values().length - 1;
+		competitors = new Player[Ncompetitors];
+		for( int i = 0; i < Ncompetitors; ++i ) {
+			final Player p = values()[i];
+			assert( p != Neutral );
+			competitors[i] = p;
 		}
-		competitors = n;
 	}
 	
 	public final int id;

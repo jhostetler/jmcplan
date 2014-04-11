@@ -37,24 +37,26 @@ public class VoyagerHash
 	 * @param params
 	 * @param instance
 	 */
-	public VoyagerHash( final VoyagerParameters params )
+	public VoyagerHash( final VoyagerParameters params, final int Nplanets, final int max_eta )
 	{
+		this.max_eta = max_eta;
+		this.Nplanets = Nplanets;
 		final MersenneTwister rng = new MersenneTwister( params.master_seed );
 		
-		// FIXME: Hardcoded some values to test "designed instance"
-		Nplanets = 9; // FIXME: params.Nplanets * Player.competitors;
 		final int Nplayers = Player.values().length;
 		final int Nunit_types = Unit.values().length;
-		final int population = Nunit_types * params.max_population;
+		final int population = Nunit_types * (params.max_population + 1);
 		int type_costs = 0;
 		for( final Unit type : Unit.values() ) {
-			type_costs += type.cost();
+			type_costs += type.cost() + 1;
 		}
 		
 		// Planet stuff
-		planet_numbers = Nplanets * (Nplayers + Nunit_types + population + type_costs);
+		planet_numbers = Nplanets * (Nplayers + (Nunit_types + 1) + type_costs
+									 + (Player.Ncompetitors * (population + Unit.max_hp)));
 		planet_owner = new long[Nplanets][Nplayers];
-		planet_population = new long[Nplanets][Nunit_types][params.max_population + 1]; // Need one for zero
+		planet_population = new long[Nplanets][Player.Ncompetitors][Nunit_types][params.max_population + 1]; // Need +1 for zero
+		planet_carry_damage = new long[Nplanets][Player.Ncompetitors][Unit.max_hp];
 		planet_production = new long[Nplanets][Nunit_types + 1]; // Need one for 'null'
 		planet_stored_production = new long[Nplanets][Nunit_types][];
 		for( int p = 0; p < Nplanets; ++p ) {
@@ -66,12 +68,11 @@ public class VoyagerHash
 		}
 		
 		// Spaceship stuff
-		max_eta = params.max_eta; //(int) Math.ceil( Math.sqrt( 2 * 4*params.Nsites*params.Nsites ) / params.ship_speed );
 		planet_pair_numbers = Nplanets * Nplanets
-							* max_eta * Player.competitors * Nunit_types * params.max_population;
+							* (max_eta + 1) * Player.Ncompetitors * Nunit_types * params.max_population;
 		ships = new long[Nplanets][Nplanets]
-					    [max_eta]
-						[Player.competitors]
+					    [max_eta + 1]
+						[Player.Ncompetitors]
 						[Nunit_types]
 						[params.max_population];
 		
@@ -81,21 +82,30 @@ public class VoyagerHash
 		// Initialize Planet hash arrays
 		int total = 0;
 		for( int p = 0; p < Nplanets; ++p ) {
-			for( int o = 0; o < Player.values().length; ++o ) {
-				planet_owner[p][o] = rng.nextLong();
+			for( int y = 0; y < Player.values().length; ++y ) {
+				planet_owner[p][y] = rng.nextLong();
 				total += 1;
+			}
+			
+			for( int y = 0; y < Player.Ncompetitors; ++y ) {
+				for( int d = 0; d < Unit.max_hp; ++d ) {
+					planet_carry_damage[p][y][d] = rng.nextLong();
+					total += 1;
+				}
 			}
 			
 			for( int t = 0; t < Unit.values().length; ++t ) {
 				planet_production[p][t] = rng.nextLong();
 				total += 1;
 				
-				for( int pop = 0; pop < params.max_population; ++pop ) {
-					planet_population[p][t][pop] = rng.nextLong();
-					total += 1;
+				for( int y = 0; y < Player.Ncompetitors; ++y ) {
+					for( int pop = 0; pop <= params.max_population; ++pop ) {
+						planet_population[p][y][t][pop] = rng.nextLong();
+						total += 1;
+					}
 				}
 				
-				for( int prod = 0; prod < Unit.values()[t].cost(); ++prod ) {
+				for( int prod = 0; prod <= Unit.values()[t].cost(); ++prod ) {
 					planet_stored_production[p][t][prod] = rng.nextLong();
 					total += 1;
 				}
@@ -103,6 +113,7 @@ public class VoyagerHash
 			
 			// Need one extra for 'null'
 			planet_production[p][Unit.values().length] = rng.nextLong();
+			total += 1;
 		}
 		assert( total == planet_numbers );
 		
@@ -110,8 +121,8 @@ public class VoyagerHash
 		total = 0;
 		for( int p1 = 0; p1 < Nplanets; ++p1 ) {
 			for( int p2 = 0; p2 < Nplanets; ++p2 ) {
-				for( int eta = 0; eta < max_eta; ++eta ) {
-					for( int player = 0; player < Player.competitors; ++player ) {
+				for( int eta = 0; eta <= max_eta; ++eta ) {
+					for( int player = 0; player < Player.Ncompetitors; ++player ) {
 						for( int t = 0; t < Unit.values().length; ++t ) {
 							for( int pop = 0; pop < params.max_population; ++pop ) {
 								ships[p1][p2][eta][player][t][pop] = rng.nextLong();
@@ -127,7 +138,8 @@ public class VoyagerHash
 	
 	public final int max_eta;
 	private final long[][] planet_owner;
-	private final long[][][] planet_population;
+	private final long[][][][] planet_population;
+	private final long[][][] planet_carry_damage;
 	private final long[][] planet_production;
 	private final long[][][] planet_stored_production;
 	private final long[][][][][][] ships;
@@ -137,9 +149,14 @@ public class VoyagerHash
 		return planet_owner[p.id][owner.id];
 	}
 	
-	public long hashPopulation( final Planet p, final Unit type, final int population )
+	public long hashPopulation( final Planet p, final Player y, final Unit type, final int population )
 	{
-		return planet_population[p.id][type.ordinal()][population];
+		return planet_population[p.id][y.id][type.ordinal()][population];
+	}
+	
+	public long hashCarryDamage( final Planet p, final Player y, final int damage )
+	{
+		return planet_carry_damage[p.id][y.id][damage];
 	}
 	
 	public long hashProduction( final Planet p, final Unit type )
@@ -164,6 +181,9 @@ public class VoyagerHash
 	{
 //		System.out.println( src.id );
 //		System.out.println( dest.id );
+//		System.out.println( eta );
+//		System.out.println( type.ordinal() );
+//		System.out.println( population );
 		return ships[src.id][dest.id][eta][owner.id][type.ordinal()][population];
 	}
 }

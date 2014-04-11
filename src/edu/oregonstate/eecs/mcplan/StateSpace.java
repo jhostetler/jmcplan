@@ -15,5 +15,9 @@ public abstract class StateSpace<S>
 	public abstract boolean isFinite();
 	public abstract boolean isCountable();
 	
+	/**
+	 * Returns a generator for the state space
+	 * @return
+	 */
 	public abstract Generator<S> generator();
 }

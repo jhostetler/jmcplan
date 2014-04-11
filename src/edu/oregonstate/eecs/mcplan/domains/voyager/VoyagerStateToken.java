@@ -41,7 +41,7 @@ public class VoyagerStateToken extends FactoredRepresentation<VoyagerState>
 			
 			// Incoming spaceships
 			for( int p = 0; p < Nplanets; ++p ) {
-				for( int y = 0; y < Player.competitors; ++y ) {
+				for( int y = 0; y < Player.Ncompetitors; ++y ) {
 					for( int t = 0; t <= max_eta; ++t ) {
 						for( int u = 0; u < Unit.values().length; ++u ) {
 							attributes_.add( new Attribute( "p" + p + "y" + y + "t" + t + "u" + u ) );
