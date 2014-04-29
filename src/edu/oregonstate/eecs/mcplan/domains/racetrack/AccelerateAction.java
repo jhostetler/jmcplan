@@ -59,5 +59,28 @@ public class AccelerateAction extends RacetrackAction
 	{
 		return new AccelerateAction( ddx, ddy );
 	}
+	
+	@Override
+	public int hashCode()
+	{
+		final long bits = (41 + 37 * Double.doubleToLongBits( ddx )) * 43 + Double.doubleToLongBits( ddy );
+		return (int) (bits ^ (bits >>> 32));
+	}
+	
+	@Override
+	public boolean equals( final Object obj )
+	{
+		if( obj == null || !(obj instanceof AccelerateAction) ) {
+			return false;
+		}
+		final AccelerateAction that = (AccelerateAction) obj;
+		return ddx == that.ddx && ddy == that.ddy;
+	}
+	
+	@Override
+	public String toString()
+	{
+		return "Accelerate[" + ddx + ", " + ddy + "]";
+	}
 
 }

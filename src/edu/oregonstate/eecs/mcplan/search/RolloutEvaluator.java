@@ -7,7 +7,7 @@ import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
-import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
+import edu.oregonstate.eecs.mcplan.sim.Simulator;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
@@ -40,8 +40,9 @@ public final class RolloutEvaluator<S extends State, A extends VirtualConstructo
 	}
 	
 	@Override
-	public double[] evaluate( final UndoSimulator<S, A> sim )
+	public double[] evaluate( final Simulator<S, A> sim )
 	{
+//		System.out.println( "evaluate()" );
 		final int nagents = sim.nagents();
 		final double[] qbar = Fn.repeat( 0.0, nagents );
 		for( int w = 0; w < width; ++w ) {
@@ -80,9 +81,9 @@ public final class RolloutEvaluator<S extends State, A extends VirtualConstructo
 				}
 			}
 //			System.out.println( "\tterminated at depth " + count );
-			for( int i = 0; i < count; ++i ) {
-				sim.untakeLastAction();
-			}
+//			for( int i = 0; i < count; ++i ) {
+//				sim.untakeLastAction();
+//			}
 			Fn.vplus_inplace( qbar, q );
 		}
 		

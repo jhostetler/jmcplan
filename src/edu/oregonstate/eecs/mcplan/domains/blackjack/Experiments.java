@@ -19,9 +19,11 @@ import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.search.BackupRule;
 import edu.oregonstate.eecs.mcplan.search.BackupRules;
 import edu.oregonstate.eecs.mcplan.search.DefaultMctsVisitor;
+import edu.oregonstate.eecs.mcplan.search.EvaluationFunction;
 import edu.oregonstate.eecs.mcplan.search.GameTree;
 import edu.oregonstate.eecs.mcplan.search.GameTreeFactory;
 import edu.oregonstate.eecs.mcplan.search.MctsVisitor;
+import edu.oregonstate.eecs.mcplan.search.RolloutEvaluator;
 import edu.oregonstate.eecs.mcplan.search.SearchPolicy;
 import edu.oregonstate.eecs.mcplan.search.UctSearch;
 import edu.oregonstate.eecs.mcplan.sim.Episode;
@@ -45,7 +47,7 @@ public class Experiments
 		@Override
 		public BlackjackStateToken encode( final BlackjackState s )
 		{
-			return s.token();
+			return new BlackjackStateToken( s );
 		}
 		
 		@Override
@@ -55,7 +57,7 @@ public class Experiments
 		}
 	}
 	
-	private static final RandomGenerator rng = new MersenneTwister( 42 );
+	private static final RandomGenerator rng = new MersenneTwister( 43 );
 	
 	private static <X extends Representation<BlackjackState>, R extends Representer<BlackjackState, X>>
 	void runExperiment( final R repr, final BlackjackParameters params,
@@ -70,13 +72,11 @@ public class Experiments
 		
 		final ActionGenerator<BlackjackState, JointAction<BlackjackAction>> action_gen
 			= new BlackjackActionGenerator( 1 );
-		final Policy<BlackjackState, JointAction<BlackjackAction>>
-			rollout_policy = new RandomPolicy<BlackjackState, JointAction<BlackjackAction>>(
-				0 /*Player*/, rng.nextInt(), action_gen.create() );
 		
 		final double c = 1.0;
 		final int rollout_width = 1;
-		final int rollout_depth = 1;
+		final int rollout_depth = Integer.MAX_VALUE;
+		final double discount = 1.0;
 		// Optimistic default value
 		final double[] default_value = new double[] { 1.0 };
 		final BackupRule<X, BlackjackAction> backup
@@ -90,12 +90,18 @@ public class Experiments
 			final Deck deck = new InfiniteDeck();
 			final BlackjackSimulator sim = new BlackjackSimulator( deck, 1, params );
 			
+			final Policy<BlackjackState, JointAction<BlackjackAction>>
+				rollout_policy = new RandomPolicy<BlackjackState, JointAction<BlackjackAction>>(
+					0 /*Player*/, rng.nextInt(), action_gen.create() );
+			final EvaluationFunction<BlackjackState, BlackjackAction> rollout_evaluator
+				= RolloutEvaluator.create( rollout_policy, discount, rollout_width, rollout_depth );
+			
 			final GameTreeFactory<
 				BlackjackState, X, BlackjackAction
 			> factory
 				= new UctSearch.Factory<BlackjackState, X, BlackjackAction>(
 					sim, repr.create(), action_gen, c, Nepisodes, rng,
-					rollout_policy, rollout_width, rollout_depth, backup, default_value );
+					rollout_evaluator, backup, default_value );
 			
 			final SearchPolicy<BlackjackState, X, BlackjackAction>
 				search_policy = new SearchPolicy<BlackjackState, X, BlackjackAction>(
@@ -127,7 +133,7 @@ public class Experiments
 		System.out.println( "****************************************" );
 		System.out.println( "Average return: " + ret.mean() );
 		System.out.println( "Return variance: " + ret.variance() );
-		final double conf = 0.975 * ret.variance() / Math.sqrt( Ngames );
+		final double conf = 1.96 * Math.sqrt( ret.variance() ) / Math.sqrt( Ngames );
 		System.out.println( "Confidence: " + conf );
 		System.out.println();
 		data_out.print( repr );
@@ -147,7 +153,7 @@ public class Experiments
 	 */
 	public static void main( final String[] args ) throws FileNotFoundException
 	{
-		final PrintStream data_out = new PrintStream( "data.csv" );
+		final PrintStream data_out = new PrintStream( "data_r2.csv" );
 		data_out.println( "abstraction,game,Ngames,Nepisodes,p,mean,var,conf" );
 		final BlackjackParameters params = new BlackjackParameters();
 		final BlackjackMdp mdp = new BlackjackMdp( params );
@@ -169,14 +175,15 @@ public class Experiments
 //		}
 		
 		final int Ngames = 100000;
-		for( final int Nepisodes : new int[] { 16, 32, 64, 128, 256, 512, 1024 } ) {
-//			runExperiment( new IdentityRepresenter(), params, Nepisodes, 0.0, Ngames, data_out );
-//			runExperiment( new BlackjackAggregator(), params, Nepisodes, 0.0, Ngames, data_out );
-			
-			for( final double p : new double[] { 0.3 } ) {
+		for( final int Nepisodes : new int[] { 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192 } ) {
+//		for( final int Nepisodes : new int[] { 8192 } ) {
+			for( final double p : new double[] { 0, 0.3 } ) {
 				runExperiment( new NoisyAStarAggregator( rng, p, hard_actions, soft_actions, params ),
 							   params, Nepisodes, p, Ngames, data_out );
 			}
+			
+			runExperiment( new BlackjackAggregator(), params, Nepisodes, 0.0, Ngames, data_out );
+			runExperiment( new IdentityRepresenter(), params, Nepisodes, 0.0, Ngames, data_out );
 		}
 	}
 //		final RandomGenerator rng = new MersenneTwister();

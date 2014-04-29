@@ -70,7 +70,7 @@ public class KeepStraightAction extends YahtzeeAction
 	@Override
 	public boolean equals( final Object obj )
 	{
-		if( obj == null || !(obj instanceof KeepAllAction) ) {
+		if( obj == null || !(obj instanceof KeepStraightAction) ) {
 			return false;
 		}
 		return true;

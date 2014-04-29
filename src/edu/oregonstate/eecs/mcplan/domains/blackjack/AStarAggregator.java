@@ -85,13 +85,13 @@ public class AStarAggregator implements Representer<BlackjackState, AStarAbstrac
 		}
 		
 		if( "S".equals( as ) ) {
-			return new AStarAbstraction( new PassAction( 0 ), dv, pv[0], s.token() );
+			return new AStarAbstraction( new PassAction( 0 ), dv, pv[0] );
 		}
 		else if( "H".equals( as ) ) {
-			return new AStarAbstraction( new HitAction( 0 ), dv, pv[0], s.token() );
+			return new AStarAbstraction( new HitAction( 0 ), dv, pv[0] );
 		}
 		else {
-			return new AStarAbstraction( null, dv, pv[0], s.token() );
+			return new AStarAbstraction( null, dv, pv[0] );
 		}
 	}
 	

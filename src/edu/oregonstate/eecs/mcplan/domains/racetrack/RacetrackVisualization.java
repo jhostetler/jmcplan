@@ -13,6 +13,7 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.LayoutManager;
 import java.awt.event.ActionEvent;
+import java.util.Arrays;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
@@ -91,6 +92,10 @@ public class RacetrackVisualization
 		}
 		catch( final Exception ex ) {
 			throw new RuntimeException( ex );
+		}
+		
+		if( sim != null ) {
+			updateStateOnEDT( sim.state() );
 		}
 	}
 	
@@ -360,6 +365,10 @@ public class RacetrackVisualization
 			speed_.setText( "Speed: " + speed );
 			sector_.setText( "Sector: " + sector );
 			laps_to_go_.setText( "Laps to go: " + laps_to_go );
+			if( sim != null ) {
+				System.out.println( "Eval: " + Arrays.toString(
+					new SectorEvaluator( sim.terminal_velocity(), sim.tstep_ ).evaluate( sim ) ) );
+			}
 		}
 		
 		private JButton makeButton( final Action action )
@@ -382,23 +391,32 @@ public class RacetrackVisualization
 		public void paintComponent( final Graphics graphics )
 		{
 			final Graphics2D g = (Graphics2D) graphics.create();
-			g.setColor( OffTrackColor );
+			
+			// Invert y-axis
 			g.translate( 0, this.getHeight() );
 			g.scale( 1, -1 );
+			
+			// Outer boundary
+			g.setColor( OffTrackColor );
 			g.fillRect( 0, 0, this.getWidth(), this.getHeight() );
 			
+			// Display margins and scaling
 			g.translate( 10, 10 );
 			g.scale( scale, scale );
+			
+			// Track
 			Geometry geom = circuit.track.getExteriorRing();
 			g.setColor( TrackColor );
 			drawJtsPolygon( geom, g, true );
 	
+			// Off-track -- paints over non-track areas
 			g.setColor( OffTrackColor );
 			for( int i = 0; i < circuit.track.getNumInteriorRing(); ++i ) {
 				geom = circuit.track.getInteriorRingN( i );
 				drawJtsPolygon( geom, g, true );
 			}
 	
+			// Walls
 			g.setColor( WallColor );
 //			g.setStroke( new BasicStroke( 3 ) );
 			drawJtsLineString( circuit.wall.getExteriorRing(), g );
@@ -406,14 +424,31 @@ public class RacetrackVisualization
 				drawJtsLineString( circuit.wall.getInteriorRingN( i ), g );
 			}
 			
+			// Sector boundaries
 			g.setColor( Color.blue );
-			g.drawLine( (int) car_x, (int) car_y, (int) (car_x + car_dx * tstep_), (int) (car_y + car_dy * tstep_) );
-			
 			for( int i = 0; i < circuit.sectors.size(); ++i ) {
 				final Polygon sector = circuit.sectors.get( i );
 				drawJtsPolygon( sector, g, false );
 			}
 			
+			// Track segments
+			final Color[] colors = new Color[] { Color.lightGray, Color.darkGray };
+			for( int i = 0; i < circuit.segments().size(); ++i ) {
+				g.setColor( colors[i % 2] );
+				drawJtsPolygon( circuit.segments().get( i ), g, true );
+			}
+			final int current_segment = circuit.segment( car_x, car_y );
+			if( current_segment >= 0 ) {
+				g.setColor( Color.white );
+				final Polygon poly = circuit.segments().get( current_segment );
+				drawJtsPolygon( poly, g, true );
+			}
+			
+			// Car velocity vector
+			g.setColor( Color.blue );
+			g.drawLine( (int) car_x, (int) car_y, (int) (car_x + car_dx * tstep_), (int) (car_y + car_dy * tstep_) );
+			
+			// Car
 			g.translate( car_x, car_y );
 			g.rotate( car_theta );
 			g.setColor( Color.red );

@@ -36,7 +36,8 @@ public class KeepMostAction extends YahtzeeAction
 		
 		int most_n = -1;
 		int most_i = 0;
-		for( int i = 0; i < Hand.Nfaces; ++i ) {
+		// Loop from 6 down, to prefer higher-scoring multiples
+		for( int i = Hand.Nfaces - 1; i >= 0; --i ) {
 			final int n = old_hand_.dice[i];
 			if( n > most_n ) {
 				most_i = i;

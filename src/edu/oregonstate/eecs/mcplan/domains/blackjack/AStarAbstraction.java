@@ -16,20 +16,17 @@ public class AStarAbstraction extends Representation<BlackjackState>
 	private final int dv_;
 	private final int pv_;
 	
-	private final BlackjackStateToken t_;
-	
-	public AStarAbstraction( final BlackjackAction astar, final int dv, final int pv, final BlackjackStateToken t )
+	public AStarAbstraction( final BlackjackAction astar, final int dv, final int pv )
 	{
 		astar_ = astar;
 		dv_ = dv;
 		pv_ = pv;
-		t_ = t;
 	}
 	
 	@Override
 	public Representation<BlackjackState> copy()
 	{
-		return new AStarAbstraction( astar_.create(), dv_, pv_, t_ );
+		return new AStarAbstraction( astar_.create(), dv_, pv_ );
 	}
 
 	@Override
@@ -62,7 +59,7 @@ public class AStarAbstraction extends Representation<BlackjackState>
 	public String toString()
 	{
 		final String s = (astar_ == null ? "null" : astar_.toString());
-		return "AStarAbstraction[" + s + "] d:" + dv_ + ", p:" + pv_ + " " + t_;
+		return "AStarAbstraction[" + s + "] d:" + dv_ + ", p:" + pv_;
 	}
 
 }

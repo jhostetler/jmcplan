@@ -113,7 +113,7 @@ public class ScoreAction extends YahtzeeAction
 	@Override
 	public int hashCode()
 	{
-		return category.hashCode();
+		return 7 * category.hashCode();
 	}
 
 }

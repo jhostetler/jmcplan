@@ -78,11 +78,11 @@ public class Circuits
 			new Coordinate( 0, 0 )
 		} );
 		final int subdivisions = 16;
-		final int Nsegments = 2*subdivisions + 2 + 1;
+		final int Nsegments = 2*subdivisions + 2*2 + 1;
 		
 		final Coordinate[] outer_coords = new Coordinate[Nsegments];
 		int idx = 0;
-		outer_coords[idx++] = new Coordinate( radius, 0 );
+		outer_coords[idx++] = new Coordinate( length/2, 0 );
 		outer_coords[idx++] = new Coordinate( length - radius, 0 );
 		for( int i = 1; i < subdivisions; ++i ) {
 			final double theta = -Math.PI/2 + (Math.PI * i / subdivisions);
@@ -90,12 +90,14 @@ public class Circuits
 											      radius + radius * Math.sin( theta ) );
 		}
 		outer_coords[idx++] = new Coordinate( length - radius, width );
+		outer_coords[idx++] = new Coordinate( length/2, width );
 		outer_coords[idx++] = new Coordinate( radius, width );
 		for( int i = 1; i < subdivisions; ++i ) {
 			final double theta = Math.PI/2 + (Math.PI * i / subdivisions);
 			outer_coords[idx++] = new Coordinate( radius + radius * Math.cos( theta ),
 											      radius + radius * Math.sin( theta ) );
 		}
+		outer_coords[idx++] = new Coordinate( radius, 0 );
 		outer_coords[idx++] = new Coordinate( outer_coords[0] );
 		assert( idx == Nsegments );
 		final LinearRing outer = gfact.createLinearRing( outer_coords );
@@ -103,7 +105,7 @@ public class Circuits
 		final Coordinate[] inner_coords = new Coordinate[Nsegments];
 		final int track_width = 20;
 		idx = 0;
-		inner_coords[idx++] = new Coordinate( radius, track_width  );
+		inner_coords[idx++] = new Coordinate( length/2, track_width  );
 		inner_coords[idx++] = new Coordinate( length - radius, track_width );
 		for( int i = 1; i < subdivisions; ++i ) {
 			final double theta = -Math.PI/2 + (Math.PI * i / subdivisions);
@@ -111,12 +113,14 @@ public class Circuits
 											      radius + (radius - track_width) * Math.sin( theta ) );
 		}
 		inner_coords[idx++] = new Coordinate( length - radius, width - track_width );
+		inner_coords[idx++] = new Coordinate( length/2, width - track_width );
 		inner_coords[idx++] = new Coordinate( radius, width - track_width );
 		for( int i = 1; i < subdivisions; ++i ) {
 			final double theta = Math.PI/2 + (Math.PI * i / subdivisions);
 			inner_coords[idx++] = new Coordinate( radius + (radius - track_width) * Math.cos( theta ),
 											      radius + (radius - track_width) * Math.sin( theta ) );
 		}
+		inner_coords[idx++] = new Coordinate( radius, track_width );
 		inner_coords[idx++] = new Coordinate( inner_coords[0] );
 		assert( idx == Nsegments );
 		final LinearRing inner = gfact.createLinearRing( inner_coords );
@@ -124,7 +128,7 @@ public class Circuits
 		final Coordinate[] inner_wall = new Coordinate[Nsegments];
 		final int runoff = track_width + 20;
 		idx = 0;
-		inner_wall[idx++] = new Coordinate( radius, runoff  );
+		inner_wall[idx++] = new Coordinate( length/2, runoff );
 		inner_wall[idx++] = new Coordinate( length - radius, runoff );
 		for( int i = 1; i < subdivisions; ++i ) {
 			final double theta = -Math.PI/2 + (Math.PI * i / subdivisions);
@@ -132,12 +136,14 @@ public class Circuits
 											      radius + (radius - runoff) * Math.sin( theta ) );
 		}
 		inner_wall[idx++] = new Coordinate( length - radius, width - runoff );
+		inner_wall[idx++] = new Coordinate( length/2, width - runoff );
 		inner_wall[idx++] = new Coordinate( radius, width - runoff );
 		for( int i = 1; i < subdivisions; ++i ) {
 			final double theta = Math.PI/2 + (Math.PI * i / subdivisions);
 			inner_wall[idx++] = new Coordinate( radius + (radius - runoff) * Math.cos( theta ),
 											      radius + (radius - runoff) * Math.sin( theta ) );
 		}
+		inner_wall[idx++] = new Coordinate( radius, runoff  );
 		inner_wall[idx++] = new Coordinate( inner_wall[0] );
 		assert( idx == Nsegments );
 		final LinearRing middle = gfact.createLinearRing( inner_wall );
@@ -165,8 +171,7 @@ public class Circuits
 		return new Circuit( gfact, length, width,
 							gfact.createPolygon( outer, new LinearRing[] { inner } ),
 							gfact.createPolygon( wall, new LinearRing[] { middle } ),
-							sectors,
-							new Coordinate( radius, 10 ), 0 );
+							sectors, 0 );
 	}
 	
 	private static Polygon makeRectangle( final GeometryFactory gfact,

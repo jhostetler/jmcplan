@@ -82,7 +82,7 @@ public class KeepAction extends YahtzeeAction
 	@Override
 	public int hashCode()
 	{
-		return Arrays.hashCode( keepers );
+		return 5 * Arrays.hashCode( keepers );
 	}
 
 }

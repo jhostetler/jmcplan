@@ -15,6 +15,8 @@ import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
+import edu.oregonstate.eecs.mcplan.sim.ResetAdapter;
+import edu.oregonstate.eecs.mcplan.sim.ResetSimulator;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
@@ -23,7 +25,7 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  * UCT search for multiagent, general-reward domains.
  *
  * @param <S> State type
- * @param <F> State token type
+ * @param <X> State representation type
  * @param <A> Action type
  */
 public abstract class UctSearch<S extends State, X extends Representation<S>, A extends VirtualConstructor<A>>
@@ -66,7 +68,7 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 		@Override
 		public GameTree<X, A> create( final MctsVisitor<S, X, A> visitor )
 		{
-			return new UctSearch<S, X, A>( sim_, repr_, actions_, c_, episode_limit_,
+			return new UctSearch<S, X, A>( new ResetAdapter<S, A>( sim_ ), repr_, actions_, c_, episode_limit_,
 										   rng_, eval_, visitor )
 			{
 				@Override
@@ -160,7 +162,7 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 	
 	// -----------------------------------------------------------------------
 	
-	private final UndoSimulator<S, A> sim_;
+	private final ResetSimulator<S, A> sim_;
 	private final Representer<S, X> repr_;
 	private final ActionGenerator<S, JointAction<A>> actions_;
 	private final MctsVisitor<S, X, A> visitor_;
@@ -175,7 +177,7 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 	private boolean complete_ = false;
 	private MutableStateNode<S, X, A> root_ = null;
 	
-	public UctSearch( final UndoSimulator<S, A> sim,
+	public UctSearch( final ResetSimulator<S, A> sim,
 					  final Representer<S, X> repr,
 					  final ActionGenerator<S, JointAction<A>> actions,
 					  final double c, final int episode_limit,
@@ -211,6 +213,7 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 			// nodes get created.
 //			System.out.println( Arrays.toString( visit( null, Integer.MAX_VALUE, visitor_ ) ) );
 			visit( null, Integer.MAX_VALUE, visitor_ );
+			sim_.reset();
 		}
 		
 		complete_ = true;
@@ -231,6 +234,7 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 	private double[] visit(
 		final MutableActionNode<S, X, A> an, final int depth, final MctsVisitor<S, X, A> visitor )
 	{
+//		System.out.println( "visit()" );
 		final S s = sim_.state();
 		final int[] turn = sim_.turn();
 		final int nagents = sim_.nagents();
@@ -291,7 +295,7 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 				sa.updateQ( z );
 				Fn.scalar_multiply_inplace( z, discount_ );
 				Fn.vplus_inplace( r, z );
-				sim_.untakeLastAction();
+//				sim_.untakeLastAction();
 				return r;
 			}
 		}
@@ -395,7 +399,9 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 	{
 		MutableActionNode<S, X, A> an = sn.getActionNode( a );
 		if( an == null ) {
-			an = new MutableActionNode<S, X, A>( a, sim_.nagents(), repr_.create() );
+			// FIXME: I'm *not* spawning a new 'repr_' so that we can do
+			// proper experiments with random noise for the AAAI paper.
+			an = new MutableActionNode<S, X, A>( a, sim_.nagents(), repr_ ); //repr_.create() );
 			sn.attachSuccessor( a, an );
 		}
 		return an;

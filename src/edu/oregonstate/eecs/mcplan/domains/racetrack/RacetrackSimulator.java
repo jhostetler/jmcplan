@@ -198,7 +198,7 @@ public class RacetrackSimulator implements UndoSimulator<RacetrackState, Racetra
 	private final double frontal_area_ = 2.0; // m^2
 	private final double off_track_drag_multiplier_ = 30.0;
 	
-	private final double tstep_ = 0.2; // s -- Size of integration step
+	public final double tstep_ = 0.2; // s -- Size of integration step
 	
 	public RacetrackSimulator( final RandomGenerator rng,
 							   final RacetrackState s,
@@ -208,6 +208,11 @@ public class RacetrackSimulator implements UndoSimulator<RacetrackState, Racetra
 		s_ = s;
 		control_noise_ = new NormalDistribution(
 			rng_, 0, control_sigma, NormalDistribution.DEFAULT_INVERSE_ABSOLUTE_ACCURACY );
+	}
+	
+	public double terminal_velocity()
+	{
+		return Math.sqrt( 2*s_.car_mass*s_.adhesion_limit / air_density_*frontal_area_*drag_coefficient_ );
 	}
 	
 	@Override

@@ -1,7 +1,7 @@
 /**
  * 
  */
-package edu.oregonstate.eecs.mcplan.domains.yahtzee2;
+package edu.oregonstate.eecs.mcplan.abstraction;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -37,7 +37,6 @@ import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
-import edu.oregonstate.eecs.mcplan.abstraction.PairwiseClassifierRepresenter;
 import edu.oregonstate.eecs.mcplan.domains.racetrack.Circuit;
 import edu.oregonstate.eecs.mcplan.domains.racetrack.Circuits;
 import edu.oregonstate.eecs.mcplan.domains.racetrack.PrimitiveRacetrackRepresenter;
@@ -46,8 +45,17 @@ import edu.oregonstate.eecs.mcplan.domains.racetrack.RacetrackActionGenerator;
 import edu.oregonstate.eecs.mcplan.domains.racetrack.RacetrackSimulator;
 import edu.oregonstate.eecs.mcplan.domains.racetrack.RacetrackState;
 import edu.oregonstate.eecs.mcplan.domains.racetrack.RacetrackVisualization;
+import edu.oregonstate.eecs.mcplan.domains.racetrack.SectorEvaluator;
+import edu.oregonstate.eecs.mcplan.domains.yahtzee2.ClusterRepresenter;
+import edu.oregonstate.eecs.mcplan.domains.yahtzee2.PrimitiveYahtzeeRepresenter;
+import edu.oregonstate.eecs.mcplan.domains.yahtzee2.ReprWrapper;
+import edu.oregonstate.eecs.mcplan.domains.yahtzee2.YahtzeeAction;
+import edu.oregonstate.eecs.mcplan.domains.yahtzee2.YahtzeeActionGenerator;
+import edu.oregonstate.eecs.mcplan.domains.yahtzee2.YahtzeeSimulator;
+import edu.oregonstate.eecs.mcplan.domains.yahtzee2.YahtzeeState;
 import edu.oregonstate.eecs.mcplan.ml.InformationTheoreticMetricLearner;
 import edu.oregonstate.eecs.mcplan.ml.MetricConstrainedKMeans;
+import edu.oregonstate.eecs.mcplan.ml.VoronoiClassifier;
 import edu.oregonstate.eecs.mcplan.search.BackupRule;
 import edu.oregonstate.eecs.mcplan.search.BackupRules;
 import edu.oregonstate.eecs.mcplan.search.DefaultMctsVisitor;
@@ -125,13 +133,22 @@ public class Experiments
 		
 	}
 	
+	
+	/**
+	 * Gathers unlabeled states. States are taken from the level of the
+	 * tree directly below the root.
+	 *
+	 * @param <S>
+	 * @param <X>
+	 * @param <A>
+	 */
 	public static class UnlabeledStateAccumulator<S, X extends FactoredRepresentation<S>,
 												  A extends VirtualConstructor<A>>
 		extends DefaultMctsVisitor<S, Representation<S>, A>
 	{
 		public ArrayList<RealVector> Phi_ = new ArrayList<RealVector>();
 		private final Representer<S, X> repr_;
-		private RealVector s_ = null;
+		private boolean sample_ = false;
 		
 		public UnlabeledStateAccumulator( final Representer<S, X> repr )
 		{
@@ -139,16 +156,18 @@ public class Experiments
 		}
 		
 		@Override
+		public void startEpisode( final S s, final int nagents, final int[] turn )
+		{
+			sample_ = true;
+		}
+		
+		@Override
 		public void treeAction( final JointAction<A> a, final S sprime, final int[] next_turn )
 		{
-			// This has the effect of adding states only if an action was
-			// chosen within the tree for that state. It will *not* add the
-			// root state, since that is labeled and will be added by
-			// SolvedStateAccumulator
-			if( s_ != null ) {
-				Phi_.add( s_ );
+			if( sample_ ) {
+				sample_ = false;
+				Phi_.add( new ArrayRealVector( repr_.encode( sprime ).phi() ) );
 			}
-			s_ = new ArrayRealVector( repr_.encode( sprime ).phi() );
 		}
 	}
 	
@@ -224,7 +243,7 @@ public class Experiments
 			A = itml.A();
 		}
 		else {
-			A = MatrixUtils.createRealIdentityMatrix( d );
+			A = A0;
 		}
 		
 		final MetricConstrainedKMeans kmeans = new MetricConstrainedKMeans( K, d, X, A, M, C, rng );
@@ -366,8 +385,9 @@ public class Experiments
 	private static <S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, FactoredRepresentation<S>>>
 	void runExperiment( final RandomGenerator rng, final String algorithm,
-						final Factory<UndoSimulator<S, A>> sim_factory,
+						final Factory<? extends UndoSimulator<S, A>> sim_factory,
 						final R base_repr, final ActionGenerator<S, JointAction<A>> action_gen,
+						final double uct_c,
 						final EvaluationFunction<S, A> evaluator,
 						final int Niterations,
 						final int Ntrain_games, final int Ntrain_episodes,
@@ -375,6 +395,8 @@ public class Experiments
 						final File root,
 						final EpisodeListener<S, A> listener ) throws Exception
 	{
+		final int print_interval = 10000;
+		
 		System.out.println( "****************************************" );
 		System.out.println( "game = x ("
 							+ Ntrain_games + "(" + Ntrain_episodes + ")"
@@ -384,29 +406,30 @@ public class Experiments
 		data_out.cell( "abstraction" ).cell( "iteration" )
 				.cell( "Ntrain_games" ).cell( "Ntrain_episodes" ).cell( "Ntest_games" ).cell( "Ntest_episodes" )
 				.cell( "mean" ).cell( "var" ).cell( "conf" ).newline();
-		
-		final double c = 10000.0;
-		final int rollout_width = 1;
-		final int rollout_depth = 1;
+
 		// Optimistic default value
 		final double[] default_value = new double[] { 1.0 };
 		Representer<S, Representation<S>> Crepr = new ReprWrapper<S>( base_repr );
 		
 		for( int iter = 0; iter < Niterations; ++iter ) {
 			System.out.println( "Iteration " + iter );
-//			final UnlabeledStateAccumulator<S, FactoredRepresentation<S>, A> train_visitor
-//				= new UnlabeledStateAccumulator<S, FactoredRepresentation<S>, A>( base_repr.create() );
-			final MctsVisitor<S, Representation<S>, A> train_visitor
-				= new DefaultMctsVisitor<S, Representation<S>, A>();
+			
+			final MctsVisitor<S, Representation<S>, A> train_visitor;
+			if( "kmeans".equals( algorithm ) ) {
+				train_visitor = new UnlabeledStateAccumulator<S, FactoredRepresentation<S>, A>( base_repr.create() );
+			}
+			else {
+				train_visitor = new DefaultMctsVisitor<S, Representation<S>, A>();
+			}
 			final BackupRule<Representation<S>, A> train_backup
 				= BackupRule.<Representation<S>, A>MaxQ();
 			
 			// Gather training examples
 			System.out.println( "Gathering training examples..." );
-			final SolvedStateAccumulator<S, FactoredRepresentation<S>, A> acc
+			final SolvedStateAccumulator<S, FactoredRepresentation<S>, A> labeled
 				= new SolvedStateAccumulator<S, FactoredRepresentation<S>, A>( base_repr );
 			for( int i = 0; i < Ntrain_games; ++i ) {
-				if( i % 100000 == 0 ) {
+				if( i % print_interval == 0 ) {
 					System.out.println( "Episode " + i );
 				}
 				
@@ -416,7 +439,8 @@ public class Experiments
 					S, Representation<S>, A
 				> factory
 					= new UctSearch.Factory<S, Representation<S>, A>(
-						sim, Crepr.create(), action_gen.create(), c, Ntrain_episodes, rng,
+						sim, Crepr.create(), action_gen.create(),
+						uct_c, Ntrain_episodes, rng,
 						evaluator, train_backup, default_value );
 				
 				final SearchPolicy<S, Representation<S>, A>
@@ -436,9 +460,12 @@ public class Experiments
 				
 				final Episode<S, A> episode
 					= new Episode<S, A>( sim, search_policy );
-				episode.addListener( acc );
+				episode.addListener( labeled );
+				if( listener != null ) {
+					episode.addListener( listener );
+				}
 				episode.run();
-				System.out.println( "********** Game " + i + "**********" );
+				System.out.println( "********* Game " + i + " *********" );
 				System.out.println( sim.state() );
 			}
 			
@@ -450,25 +477,28 @@ public class Experiments
 			// whether we should be weighting them, e.g. by their reachability.
 			final boolean with_metric_learning = true;
 			if( "kmeans".equals( algorithm ) ) {
-//				final ArrayList<RealVector> Phi = train_visitor.Phi_;
-//				RealMatrix A0 = MatrixUtils.createRealIdentityMatrix( Phi.get( 0 ).getDimension() );
-//				final MetricConstrainedKMeans kmeans = makeClustering( rng, A0, acc.Phi_, acc.actions_, Phi,
-//																	   with_metric_learning );
-//				final VoronoiClassifier classifier = new VoronoiClassifier( kmeans.mu() ) {
-//					@Override
-//					protected double distance( final RealVector x1, final RealVector x2 )
-//					{
-//						return kmeans.distance( x1, x2 );
-//					}
-//				};
-//				// Update reference matrix. This has the effect of keeping some of
-//				// the information from previous training episodes.
-//				A0 = kmeans.metric.copy();
-//				writeClustering( kmeans, root, iter );
-//				Crepr = new ReprWrapper<S>( new ClusterRepresenter<S>( classifier, base_repr.create() ) );
+				@SuppressWarnings( "unchecked" )
+				final UnlabeledStateAccumulator<S, X, A> unlabeled
+					= (UnlabeledStateAccumulator<S, X, A>) train_visitor;
+				final ArrayList<RealVector> Phi = unlabeled.Phi_;
+				RealMatrix A0 = MatrixUtils.createRealIdentityMatrix( Phi.get( 0 ).getDimension() );
+				final MetricConstrainedKMeans kmeans = makeClustering( rng, A0, labeled.Phi_, labeled.actions_, Phi,
+																	   with_metric_learning );
+				final VoronoiClassifier classifier = new VoronoiClassifier( kmeans.mu() ) {
+					@Override
+					protected double distance( final RealVector x1, final RealVector x2 )
+					{
+						return kmeans.distance( x1, x2 );
+					}
+				};
+				// Update reference matrix. This has the effect of keeping some of
+				// the information from previous training episodes.
+				A0 = kmeans.metric.copy();
+				writeClustering( kmeans, root, iter );
+				Crepr = new ReprWrapper<S>( new ClusterRepresenter<S>( classifier, base_repr.create() ) );
 			}
 			else if( "rf".equals( algorithm ) ) {
-				final Instances train = makeTrainingSet( rng, acc, base_repr.attributes(), iter );
+				final Instances train = makeTrainingSet( rng, labeled, base_repr.attributes(), iter );
 				writeDataset( root, train );
 				final Classifier classifier = makeClassifier( train );
 				SerializationHelper.write( new File( root, "rf" + iter + ".model" ).getAbsolutePath(), classifier );
@@ -487,7 +517,7 @@ public class Experiments
 				= BackupRule.<Representation<S>, A>MaxQ();
 			final MeanVarianceAccumulator ret = new MeanVarianceAccumulator();
 			for( int i = 0; i < Ntest_games; ++i ) {
-				if( i % 10000 == 0 ) {
+				if( i % print_interval == 0 ) {
 					System.out.println( "Episode " + i );
 				}
 				
@@ -497,7 +527,8 @@ public class Experiments
 					S, Representation<S>, A
 				> factory
 					= new UctSearch.Factory<S, Representation<S>, A>(
-						sim, Crepr.create(), action_gen.create(), c, Ntest_episodes, rng,
+						sim, Crepr.create(), action_gen.create(),
+						uct_c, Ntest_episodes, rng,
 						evaluator, test_backup, default_value );
 				
 				final SearchPolicy<S, Representation<S>, A>
@@ -549,24 +580,25 @@ public class Experiments
 //		final int Ntest_games = 2;
 //		final int Ntrain_episodes = 2048;
 //		final int Ntest_episodes = 256;
-		final String algorithm = "rf";
+		final String algorithm = "none";
 		final String domain = "yahtzee";
 		final File root = new File( "discovery/sandbox", domain );
 		
 		final RandomGenerator rng = new MersenneTwister( seed );
 		
 		if( "yahtzee".equals( domain ) ) {
+			final double uct_c = 100.0;
 			final int Niterations = 1;
 			final int Ntrain_games = 128;
-			final int Ntest_games = 16;
-			final int Ntrain_episodes = 256;
+			final int Ntest_games = 0;
+			final int Ntrain_episodes = (int) Math.pow( 2, 8 ); //16384;
 			final int Ntest_episodes = 256;
 			final double discount = 1.0;
 			final int rollout_width = 1;
 			final int rollout_depth = Integer.MAX_VALUE;
 			final ActionGenerator<YahtzeeState, JointAction<YahtzeeAction>> action_gen
-//				= new YahtzeeActionGenerator();
-				= new SmartActionGenerator();
+				= new YahtzeeActionGenerator();
+//				= new SmartActionGenerator();
 			final Factory<UndoSimulator<YahtzeeState, YahtzeeAction>> sim_factory
 				= new Factory<UndoSimulator<YahtzeeState, YahtzeeAction>>() {
 	
@@ -582,26 +614,27 @@ public class Experiments
 					0 /*Player*/, rng.nextInt(), action_gen.create() );
 			final EvaluationFunction<YahtzeeState, YahtzeeAction> rollout_evaluator
 				= RolloutEvaluator.create( rollout_policy, discount, rollout_width, rollout_depth );
-			runExperiment( rng, algorithm, sim_factory, base_repr, action_gen, rollout_evaluator,
+			runExperiment( rng, algorithm, sim_factory, base_repr, action_gen, uct_c, rollout_evaluator,
 						   Niterations, Ntrain_games, Ntrain_episodes, Ntest_games, Ntest_episodes, root,
 						   null );
 		}
 		else if( "formula".equals( domain ) ) {
+			final double uct_c = 10.0;
 			final int Niterations = 1;
-			final int Ntrain_games = 0;
-			final int Ntest_games = 1;
-			final int Ntrain_episodes = 0;
-			final int Ntest_episodes = 128;
+			final int Ntrain_games = 1;
+			final int Ntest_games = 0;
+			final int Ntrain_episodes = (int) Math.pow( 2, 8 );
+			final int Ntest_episodes = 0;
 			final double discount = 1.0;
 			final int rollout_width = 1;
 			final int rollout_depth = 256;
 			final Circuit circuit = Circuits.PaperClip( 500, 200 );
 			final ActionGenerator<RacetrackState, JointAction<RacetrackAction>> action_gen
 				= new RacetrackActionGenerator();
-			final Factory<UndoSimulator<RacetrackState, RacetrackAction>> sim_factory
-				= new Factory<UndoSimulator<RacetrackState, RacetrackAction>>() {
+			final Factory<RacetrackSimulator> sim_factory
+				= new Factory<RacetrackSimulator>() {
 					@Override
-					public UndoSimulator<RacetrackState, RacetrackAction> create()
+					public RacetrackSimulator create()
 					{
 						final RacetrackState state = new RacetrackState( circuit );
 						final double control_noise = 0.1;
@@ -612,13 +645,19 @@ public class Experiments
 			final Policy<RacetrackState, JointAction<RacetrackAction>> rollout_policy
 				= new RandomPolicy<RacetrackState, JointAction<RacetrackAction>>(
 					0 /*Player*/, rng.nextInt(), action_gen.create() );
+			// TODO: Cleaner way of obtaining the terminal velocity.
+			final RacetrackSimulator dummy_sim = sim_factory.create();
 			final EvaluationFunction<RacetrackState, RacetrackAction> rollout_evaluator
-				= RolloutEvaluator.create( rollout_policy, discount, rollout_width, rollout_depth );
+				= new SectorEvaluator( dummy_sim.terminal_velocity(), dummy_sim.tstep_ );
+//				= RolloutEvaluator.create( rollout_policy, discount, rollout_width, rollout_depth );
 			final PrimitiveRacetrackRepresenter base_repr = new PrimitiveRacetrackRepresenter();
+			final double scale = 0.5;
+			final GridRepresenter<RacetrackState> grid = new GridRepresenter<RacetrackState>(
+				base_repr, new double[] { scale*1.0, scale*1.0, Math.PI / 8, 1.0 } );
 			final RacetrackVisualization vis = new RacetrackVisualization( circuit, null, 2 );
-			runExperiment( rng, algorithm, sim_factory, base_repr, action_gen, rollout_evaluator,
+			runExperiment( rng, algorithm, sim_factory, grid, action_gen, uct_c, rollout_evaluator,
 						   Niterations, Ntrain_games, Ntrain_episodes, Ntest_games, Ntest_episodes, root,
-						   vis.updater( 1000 ) );
+						   vis.updater( 0 ) );
 		}
 	}
 

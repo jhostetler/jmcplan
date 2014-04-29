@@ -8,6 +8,7 @@ import java.util.Iterator;
 
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.JointAction;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * @author jhostetler
@@ -43,6 +44,8 @@ public class SmartActionGenerator extends ActionGenerator<YahtzeeState, JointAct
 			
 			actions_.add( new JointAction<YahtzeeAction>( new KeepMostAction() ) );
 			actions_.add( new JointAction<YahtzeeAction>( new KeepStraightAction() ) );
+			// Reroll all action
+			actions_.add( new JointAction<YahtzeeAction>( new KeepAction( Fn.repeat( 0, Hand.Nfaces ) ) ) );
 		}
 		
 		// Add ScoreAction for each open category

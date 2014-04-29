@@ -18,8 +18,11 @@ public class NoisyAStarAggregator implements Representer<BlackjackState, AStarAb
 	private final String[][] hard_actions_;
 	private final String[][] soft_actions_;
 	
-//	private final RandomGenerator rng_;
-//	private final double p_;
+	private final String[][] clean_hard_;
+	private final String[][] clean_soft_;
+	
+	private final RandomGenerator rng_;
+	private final double p_;
 	
 	private final BlackjackParameters params_;
 	
@@ -27,8 +30,8 @@ public class NoisyAStarAggregator implements Representer<BlackjackState, AStarAb
 								 final String[][] hard_actions, final String[][] soft_actions,
 								 final BlackjackParameters params )
 	{
-//		rng_ = rng;
-//		p_ = p;
+		rng_ = rng;
+		p_ = p;
 		
 		params_ = params;
 		
@@ -64,21 +67,40 @@ public class NoisyAStarAggregator implements Representer<BlackjackState, AStarAb
 //			{"S", "S", "S", "S", "S", "S", "S", "S", "S", "S"},
 //			{"S", "S", "S", "S", "S", "S", "S", "S", "S", "S"}	};
 		
-		hard_actions_ = new String[params_.hard_hand_count][params_.dealer_showing_count];
-		soft_actions_ = new String[params_.soft_hand_count][params_.dealer_showing_count];
+		hard_actions_ 	= new String[params_.hard_hand_count][params_.dealer_showing_count];
+		clean_hard_ 	= new String[params_.hard_hand_count][params_.dealer_showing_count];
+		soft_actions_ 	= new String[params_.soft_hand_count][params_.dealer_showing_count];
+		clean_soft_ 	= new String[params_.soft_hand_count][params_.dealer_showing_count];
 		
+		for( int i = 0; i < params_.hard_hand_count; ++i ) {
+			for( int j = 0; j < params_.dealer_showing_count; ++j ) {
+				clean_hard_[i][j] = hard_actions[i][j];
+			}
+		}
+		
+		for( int i = 0; i < params_.soft_hand_count; ++i ) {
+			for( int j = 0; j < params_.dealer_showing_count; ++j ) {
+				clean_soft_[i][j] = soft_actions[i][j];
+			}
+		}
+		
+		makeNoisy();
+	}
+	
+	private void makeNoisy()
+	{
 		final boolean[] flip = new boolean[params_.hard_hand_count * params_.dealer_showing_count
 		                                   + params_.soft_hand_count * params_.dealer_showing_count];
-		for( int i = 0; i < flip.length * p; ++i ) {
+		for( int i = 0; i < flip.length * p_; ++i ) {
 			flip[i] = true;
 		}
-		final int[] perm = new RandomDataGenerator( rng ).nextPermutation( flip.length, flip.length );
+		final int[] perm = new RandomDataGenerator( rng_ ).nextPermutation( flip.length, flip.length );
 		int c = 0;
 		
 		for( int i = 0; i < params_.hard_hand_count; ++i ) {
 			for( int j = 0; j < params_.dealer_showing_count; ++j ) {
 				if( flip[perm[c++]] ) {
-					if( "S".equals( hard_actions[i][j] ) ) {
+					if( "S".equals( clean_hard_[i][j] ) ) {
 						hard_actions_[i][j] = "H";
 					}
 					else {
@@ -86,7 +108,7 @@ public class NoisyAStarAggregator implements Representer<BlackjackState, AStarAb
 					}
 				}
 				else {
-					hard_actions_[i][j] = hard_actions[i][j];
+					hard_actions_[i][j] = clean_hard_[i][j];
 				}
 			}
 		}
@@ -94,7 +116,7 @@ public class NoisyAStarAggregator implements Representer<BlackjackState, AStarAb
 		for( int i = 0; i < params_.soft_hand_count; ++i ) {
 			for( int j = 0; j < params_.dealer_showing_count; ++j ) {
 				if( flip[perm[c++]] ) {
-					if( "S".equals( soft_actions[i][j] ) ) {
+					if( "S".equals( clean_soft_[i][j] ) ) {
 						soft_actions_[i][j] = "H";
 					}
 					else {
@@ -102,7 +124,7 @@ public class NoisyAStarAggregator implements Representer<BlackjackState, AStarAb
 					}
 				}
 				else {
-					soft_actions_[i][j] = soft_actions[i][j];
+					soft_actions_[i][j] = clean_soft_[i][j];
 				}
 			}
 		}
@@ -113,8 +135,14 @@ public class NoisyAStarAggregator implements Representer<BlackjackState, AStarAb
 	private NoisyAStarAggregator( final NoisyAStarAggregator that )
 	{
 		params_ = that.params_;
-		hard_actions_ = that.hard_actions_;
-		soft_actions_ = that.soft_actions_;
+		rng_ = that.rng_;
+		p_ = that.p_;
+		hard_actions_ 	= new String[params_.hard_hand_count][params_.dealer_showing_count];
+		clean_hard_ 	= that.clean_hard_;
+		soft_actions_ 	= new String[params_.soft_hand_count][params_.dealer_showing_count];
+		clean_soft_ 	= that.clean_soft_;
+		
+		makeNoisy();
 	}
 
 	@Override
@@ -144,13 +172,13 @@ public class NoisyAStarAggregator implements Representer<BlackjackState, AStarAb
 		}
 		
 		if( "S".equals( as ) ) {
-			return new AStarAbstraction( new PassAction( 0 ), dv, pv[0], s.token() );
+			return new AStarAbstraction( new PassAction( 0 ), dv, pv[0] );
 		}
 		else if( "H".equals( as ) ) {
-			return new AStarAbstraction( new HitAction( 0 ), dv, pv[0], s.token() );
+			return new AStarAbstraction( new HitAction( 0 ), dv, pv[0] );
 		}
 		else {
-			return new AStarAbstraction( null, dv, pv[0], s.token() );
+			return new AStarAbstraction( null, dv, pv[0] );
 		}
 	}
 	
