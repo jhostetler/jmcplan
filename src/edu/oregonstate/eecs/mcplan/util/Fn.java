@@ -8,11 +8,13 @@ import gnu.trove.list.array.TDoubleArrayList;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
 
+import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
 /**
@@ -500,6 +502,15 @@ public final class Fn
 	// sum
 	// -----------------------------------------------------------------------
 	
+	public static int sum( final boolean[] v )
+	{
+		int s = 0;
+		for( final boolean b : v ) {
+			s += (b ? 1 : 0);
+		}
+		return s;
+	}
+	
 	public static int sum( final int[] v )
 	{
 		int s = 0;
@@ -616,7 +627,7 @@ public final class Fn
 	 * @param xs
 	 * @return
 	 */
-	public static int min( final int[] x )
+	public static int min( final int... x )
 	{
 		int m = Integer.MAX_VALUE;
 		for( final int xi : x ) {
@@ -654,6 +665,22 @@ public final class Fn
 	public static <T> Generator<T> keep( final Generator<T> xs, final int[] idx )
 	{
 		return Fn.removeImpl( xs, idx, true );
+	}
+	
+	public static double[] append( final double[] a, final double x )
+	{
+		final double[] aprime = new double[a.length + 1];
+		Fn.memcpy( aprime, a, a.length );
+		aprime[aprime.length - 1] = x;
+		return aprime;
+	}
+	
+	public static int[] append( final int[] a, final int i )
+	{
+		final int[] aprime = new int[a.length + 1];
+		Fn.memcpy( aprime, a, a.length );
+		aprime[aprime.length - 1] = i;
+		return aprime;
 	}
 	
 	/**
@@ -777,14 +804,49 @@ public final class Fn
 		{ return new ReverseListView<T>( list_ ); }
 	}
 	
-	public static <T> Iterable<T> reverse( final List<T> xs )
+	public static <T> Iterable<T> reversed( final List<T> xs )
 	{
 		return new Reversed<T>( xs );
+	}
+	
+	private static final class ReverseIntArrayView implements IntSlice
+	{
+		private final int[] a_;
+		private int i = 0;
+		public ReverseIntArrayView( final int[] a )
+		{
+			a_ = a;
+		}
+		@Override
+		public boolean hasNext()
+		{
+			return i < a_.length;
+		}
+		@Override
+		public int next()
+		{
+			return a_[i++];
+		}
+	}
+	
+	public static IntSlice reversed( final int[] a )
+	{
+		return new ReverseIntArrayView( a );
 	}
 	
 	// -----------------------------------------------------------------------
 	// shuffle
 	// -----------------------------------------------------------------------
+	
+	/**
+	 * Fisher-Yates shuffle.
+	 * @param rng
+	 * @param a
+	 */
+	public static void shuffle( final RandomGenerator rng, final boolean[] a )
+	{
+		shuffle( rng, a, a.length );
+	}
 	
 	/**
 	 * Fisher-Yates shuffle.
@@ -803,16 +865,25 @@ public final class Fn
 	 * @param rng
 	 * @param a
 	 */
+	public static void shuffle( final RandomGenerator rng, final boolean[] a, final int n )
+	{
+		for( int i = 0; i < n; ++i ) {
+			final int j = i + rng.nextInt( n - i );
+			final boolean temp = a[j];
+			a[j] = a[i];
+			a[i] = temp;
+		}
+	}
+	
+	/**
+	 * Fisher-Yates shuffle. This version does only 'n' swaps, so the first
+	 * 'n' elements of the array will be randomly selected from among the
+	 * entire array.
+	 * @param rng
+	 * @param a
+	 */
 	public static void shuffle( final RandomGenerator rng, final int[] a, final int n )
 	{
-//		for( int i = a.length - 1; i > 0; --i )
-//	    {
-//	        final int j = rng.nextInt( i + 1 );
-//	        final int temp = a[j];
-//	        a[j] = a[i];
-//	        a[i] = temp;
-//	    }
-		
 		for( int i = 0; i < n; ++i ) {
 			final int j = i + rng.nextInt( n - i );
 			final int temp = a[j];
@@ -848,6 +919,30 @@ public final class Fn
 		}
 	}
 	
+	/**
+	 * Choose an element uniformly at random from a stream of unknown length.
+	 * 
+	 * Uses the "reservoir sampling" algorithm:
+	 * https://en.wikipedia.org/wiki/Reservoir_sampling
+	 * 
+	 * @param rng
+	 * @param g
+	 * @return
+	 */
+	public static <T> T uniform_choice( final RandomGenerator rng, final Generator<T> g )
+	{
+		T choice = g.next();
+		int i = 1;
+		while( g.hasNext() ) {
+			++i;
+			final T t = g.next();
+			if( rng.nextInt( i ) == 0 ) {
+				choice = t;
+			}
+		}
+		return choice;
+	}
+	
 	// -----------------------------------------------------------------------
 	// take
 	// -----------------------------------------------------------------------
@@ -875,11 +970,21 @@ public final class Fn
 	 * @param n
 	 * @return
 	 */
-	public static <T> List<T> takeAll( final Generator<T> xs )
+	public static <T> ArrayList<T> takeAll( final Iterator<T> xs )
 	{
 		final ArrayList<T> result = new ArrayList<T>();
 		while( xs.hasNext() ) {
 			final T t = xs.next();
+			result.add( t );
+		}
+		return result;
+	}
+	
+	public static <T> ArrayList<T> takeAll( final Enumeration<T> xs )
+	{
+		final ArrayList<T> result = new ArrayList<T>();
+		while( xs.hasMoreElements() ) {
+			final T t = xs.nextElement();
 			result.add( t );
 		}
 		return result;
@@ -948,7 +1053,8 @@ public final class Fn
 	 */
 	public static double[] memcpy( final double[] dest, final double[] src, final int n )
 	{
-		assert( dest.length == src.length );
+		assert( dest.length >= n );
+		assert( src.length >= n );
 		for( int i = 0; i < n; ++i ) {
 			dest[i] = src[i];
 		}
@@ -957,7 +1063,8 @@ public final class Fn
 	
 	public static double[] memcpy_as_double( final double[] dest, final int[] src, final int n )
 	{
-		assert( dest.length == src.length );
+		assert( dest.length >= n );
+		assert( src.length >= n );
 		for( int i = 0; i < n; ++i ) {
 			dest[i] = src[i];
 		}
@@ -980,7 +1087,8 @@ public final class Fn
 	 */
 	public static int[] memcpy_as_int( final int[] dest, final double[] src, final int n )
 	{
-		assert( dest.length == src.length );
+		assert( dest.length >= n );
+		assert( src.length >= n );
 		for( int i = 0; i < n; ++i ) {
 			dest[i] = (int) src[i];
 		}
@@ -1003,7 +1111,8 @@ public final class Fn
 	 */
 	public static int[] memcpy( final int[] dest, final int[] src, final int n )
 	{
-		assert( dest.length == src.length );
+		assert( dest.length >= n );
+		assert( src.length >= n );
 		for( int i = 0; i < n; ++i ) {
 			dest[i] = src[i];
 		}
@@ -1066,7 +1175,7 @@ public final class Fn
 	}
 	
 	// -----------------------------------------------------------------------
-	// argmax
+	// min/max
 	// -----------------------------------------------------------------------
 	
 	public static int argmax( final double... v )
@@ -1081,6 +1190,41 @@ public final class Fn
 			}
 		}
 		return max_idx;
+	}
+	
+	public static int argmax( final int... v )
+	{
+		assert( v.length > 0 );
+		int max = -Integer.MAX_VALUE;
+		int max_idx = 0;
+		for( int i = 0; i < v.length; ++i ) {
+			if( v[i] > max ) {
+				max = v[i];
+				max_idx = i;
+			}
+		}
+		return max_idx;
+	}
+	
+	public static int argmax( final IntSlice v )
+	{
+		int max = -Integer.MAX_VALUE;
+		int max_idx = 0;
+		int idx = 0;
+		while( v.hasNext() ) {
+			final int i = v.next();
+			if( i > max ) {
+				max = i;
+				max_idx = idx;
+			}
+			idx += 1;
+		}
+		return max_idx;
+	}
+	
+	public static double max( final double... v )
+	{
+		return v[argmax( v )];
 	}
 	
 	// -----------------------------------------------------------------------
@@ -1254,6 +1398,21 @@ public final class Fn
 	}
 	
 	/**
+	 * 'v' is modified in-place by adding 'a*x' element-wise.
+	 * @param v
+	 * @param a
+	 * @param x
+	 * @return
+	 */
+	public static double[] vplus_ax_inplace( final double[] v, final double a, final double[] x  )
+	{
+		for( int i = 0; i < v.length; ++i ) {
+			v[i] += a*x[i];
+		}
+		return v;
+	}
+	
+	/**
 	 * 'a' is modified in-place by adding 'b' element-wise.
 	 * @param a
 	 * @param b
@@ -1299,16 +1458,26 @@ public final class Fn
 	
 	public static void main( final String[] args )
 	{
-		final List<Integer> xs = new ArrayList<Integer>();
-		for( int i = 0; i < 10; ++i ) { xs.add( i ); }
-		final int[] drop = new int[] { 1, 3, 5, 7, 9 };
-		System.out.println( xs );
-		for( final Integer i : Fn.takeAll( Fn.remove( new Fn.IteratorSlice<Integer>( xs ), drop ) ) ) {
-			System.out.print( " " + i );
+//		final List<Integer> xs = new ArrayList<Integer>();
+//		for( int i = 0; i < 10; ++i ) { xs.add( i ); }
+//		final int[] drop = new int[] { 1, 3, 5, 7, 9 };
+//		System.out.println( xs );
+//		for( final Integer i : Fn.takeAll( Fn.remove( new Fn.IteratorSlice<Integer>( xs ), drop ) ) ) {
+//			System.out.print( " " + i );
+//		}
+//		for( final Integer i : Fn.takeAll( Fn.keep( new Fn.IteratorSlice<Integer>( xs ), drop ) ) ) {
+//			System.out.print( " " + i );
+//		}
+		
+		final RandomGenerator rng = new MersenneTwister( 42 );
+		final List<Integer> test = Arrays.asList( 0, 1, 2, 3, 4 );
+		final int n = 100000;
+		final int[] counts = new int[test.size()];
+		for( int i = 0; i < n; ++i ) {
+			final int choice = Fn.uniform_choice( rng, new Fn.ListSlice<Integer>( test, 0, test.size() ) );
+			counts[choice] += 1;
 		}
-		for( final Integer i : Fn.takeAll( Fn.keep( new Fn.IteratorSlice<Integer>( xs ), drop ) ) ) {
-			System.out.print( " " + i );
-		}
+		System.out.println( Arrays.toString( counts ) );
 	}
 	
 }

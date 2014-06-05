@@ -14,12 +14,10 @@ import org.apache.commons.math3.random.RandomGenerator;
 import weka.core.Attribute;
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
+import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
 import edu.oregonstate.eecs.mcplan.JointAction;
-import edu.oregonstate.eecs.mcplan.Representation;
-import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
-import edu.oregonstate.eecs.mcplan.search.DefaultMctsVisitor;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 
 /**
@@ -30,10 +28,16 @@ import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
  */
 public class Irrelevance
 {
-	public static final int Ns = 10;
-	public static final double slip = 0.2;
+	public final int Ns;
+	public final double slip;
 	
-	public static class State
+	public Irrelevance( final int Ns, final double slip )
+	{
+		this.Ns = Ns;
+		this.slip = slip;
+	}
+	
+	public class State implements edu.oregonstate.eecs.mcplan.State
 	{
 		public String s = "";
 		public int i = 0;
@@ -43,6 +47,12 @@ public class Irrelevance
 		{
 			return "(" + s + ", " + i + ")";
 		}
+
+		@Override
+		public boolean isTerminal()
+		{
+			return s.length() == 2;
+		}
 	}
 	
 	public static abstract class Action implements UndoableAction<State>, VirtualConstructor<Action>
@@ -51,7 +61,7 @@ public class Irrelevance
 		public abstract Action create();
 	}
 	
-	public static class LeftAction extends Action
+	public class LeftAction extends Action
 	{
 		private final RandomGenerator rng_;
 		private boolean done_ = false;
@@ -108,7 +118,7 @@ public class Irrelevance
 		{ return "L"; }
 	}
 	
-	public static class RightAction extends Action
+	public class RightAction extends Action
 	{
 		private final RandomGenerator rng_;
 		private boolean done_ = false;
@@ -165,7 +175,7 @@ public class Irrelevance
 		{ return "R"; }
 	}
 	
-	public static class Simulator implements UndoSimulator<State, Action>
+	public class Simulator implements UndoSimulator<State, Action>
 	{
 		private final State s_ = new State();
 		private final Deque<Action> h_ = new ArrayDeque<Action>();
@@ -208,7 +218,7 @@ public class Irrelevance
 		@Override
 		public double[] reward()
 		{
-			if( "LL".equals( s_.s ) || "RL".equals( s_.s ) ) {
+			if( "LL".equals( s_.s ) || "RR".equals( s_.s ) ) {
 				return new double[] { 1.0 };
 			}
 			else {
@@ -218,7 +228,7 @@ public class Irrelevance
 
 		@Override
 		public boolean isTerminalState( )
-		{ return s_.s.length() == 2; }
+		{ return s_.isTerminal(); }
 
 		@Override
 		public long horizon()
@@ -275,7 +285,7 @@ public class Irrelevance
 			attr.add( new Attribute( "RL" ) );
 			attr.add( new Attribute( "RR" ) );
 			attr.add( new Attribute( "i" ) );
-			attr.add( new Attribute( "label" ) );
+//			attr.add( new Attribute( "label" ) );
 			return attr;
 		}
 		
@@ -316,7 +326,7 @@ public class Irrelevance
 		}
 	}
 	
-	public static class IdentityRepresenter implements Representer<State, IdentityRepresentation>
+	public static class IdentityRepresenter implements FactoredRepresenter<State, FactoredRepresentation<State>>
 	{
 		@Override
 		public IdentityRepresentation encode( final State s )
@@ -329,9 +339,19 @@ public class Irrelevance
 		{
 			return new IdentityRepresenter();
 		}
+
+		@Override
+		public ArrayList<Attribute> attributes()
+		{
+			return IdentityRepresentation.attributes();
+		}
+		
+		@Override
+		public String toString()
+		{ return "Irrelevance.IdentityRepresenter"; }
 	}
 	
-	public static class ActionGen extends ActionGenerator<State, JointAction<Action>>
+	public class ActionGen extends ActionGenerator<State, Action>
 	{
 		private final RandomGenerator rng_;
 		private final ArrayList<Action> as_ = new ArrayList<Action>();
@@ -347,8 +367,8 @@ public class Irrelevance
 		{ return itr_.hasNext(); }
 
 		@Override
-		public JointAction<Action> next()
-		{ return new JointAction<Action>( itr_.next() ); }
+		public Action next()
+		{ return itr_.next(); }
 
 		@Override
 		public ActionGen create()
@@ -366,21 +386,6 @@ public class Irrelevance
 		@Override
 		public int size()
 		{ return as_.size(); }
-	}
-	
-	public static class Visitor<X extends Representation<State>, A extends VirtualConstructor<A>>
-		extends DefaultMctsVisitor<State, X, A>
-	{
-		@Override
-		public double[] terminal( final State s, final int[] turn )
-		{
-			if( "LL".equals( s.s ) || "RR".equals( s.s ) ) {
-				return new double[] { 1.0 };
-			}
-			else {
-				return new double[] { 0.0 };
-			}
-		}
 	}
 	
 	/**

@@ -7,45 +7,29 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
-import edu.oregonstate.eecs.mcplan.JointAction;
 
 /**
  * @author jhostetler
  *
  */
-public class BlackjackActionGenerator extends ActionGenerator<BlackjackState, JointAction<BlackjackAction>>
+public class BlackjackActionGenerator extends ActionGenerator<BlackjackState, BlackjackAction>
 {
-	private final ArrayList<JointAction<BlackjackAction>> actions_
-		= new ArrayList<JointAction<BlackjackAction>>();
-	private Iterator<JointAction<BlackjackAction>> itr_ = null;
-	
-	private final int nagents_;
-	
-	public BlackjackActionGenerator( final int nagents )
-	{
-		nagents_ = nagents;
-	}
+	private final ArrayList<BlackjackAction> actions_
+		= new ArrayList<BlackjackAction>();
+	private Iterator<BlackjackAction> itr_ = null;
 	
 	@Override
-	public ActionGenerator<BlackjackState, JointAction<BlackjackAction>> create()
+	public ActionGenerator<BlackjackState, BlackjackAction> create()
 	{
-		return new BlackjackActionGenerator( nagents_ );
+		return new BlackjackActionGenerator();
 	}
 
 	@Override
 	public void setState( final BlackjackState s, final long t, final int[] turn )
 	{
 		actions_.clear();
-		JointAction.Builder<BlackjackAction> j = new JointAction.Builder<BlackjackAction>( nagents_ );
-		for( final int p : turn ) {
-			j.a( p, new HitAction( p ) );
-		}
-		actions_.add( j.finish() );
-		j = new JointAction.Builder<BlackjackAction>( nagents_ );
-		for( final int p : turn ) {
-			j.a( p, new PassAction( p ) );
-		}
-		actions_.add( j.finish() );
+		actions_.add( new HitAction( 0 ) );
+		actions_.add( new PassAction( 0 ) );
 		itr_ = actions_.iterator();
 	}
 
@@ -62,7 +46,7 @@ public class BlackjackActionGenerator extends ActionGenerator<BlackjackState, Jo
 	}
 
 	@Override
-	public JointAction<BlackjackAction> next()
+	public BlackjackAction next()
 	{
 		return itr_.next();
 	}

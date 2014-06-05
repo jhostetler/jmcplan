@@ -16,8 +16,8 @@ import org.apache.commons.math3.random.RandomGenerator;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
- * @author jhostetler
- *
+ * Implements the Information Theoretic Metric Learning algorithm of:
+ * 
  * @inproceedings{davis2007information,
  *   title={Information-theoretic metric learning},
  *   author={Davis, Jason V and Kulis, Brian and Jain, Prateek and Sra, Suvrit and Dhillon, Inderjit S},
@@ -25,14 +25,15 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  *   pages={209--216},
  *   year={2007}
  * }
+ * 
+ * @author jhostetler
  */
 public class InformationTheoreticMetricLearner implements Runnable
 {
-	private final ArrayList<RealVector> X_;
-	private final ArrayList<int[]> S_;
-	private final ArrayList<int[]> D_;
-	private final double u_;
-	private final double ell_;
+	private final ArrayList<double[]> S_;
+	private final ArrayList<double[]> D_;
+	public final double u;
+	public final double ell;
 	private final RealMatrix A0_;
 	private final double gamma_;
 	private final RandomGenerator rng_;
@@ -41,38 +42,56 @@ public class InformationTheoreticMetricLearner implements Runnable
 	private final double[] xi_;
 	private final double[] lambda_;
 	
-	private final double convergence_tolerance_ = 0.1;
-	private final int iteration_limit_ = 10000;
+	// FIXME: These should be parameters.
+	private final double convergence_tolerance_ = 0.01;
+	private final int iteration_limit_ = 2000;
 	
 	private RealMatrix A_ = null;
 	private final RealMatrix G_ = null;
 	
+	/**
+	 * @param S A list of differences between Similar pairs of points.
+	 * @param D A list of differences between Disimilar pairs of points.
+	 * @param u The Upper bound on separation of similar instances.
+	 * @param ell The Lower bound on separation of disimilar instances.
+	 * @param A0 Initial metric
+	 * @param gamma Relative weight of similarity constraints over log-det regularization
+	 * @param rng
+	 */
 	public InformationTheoreticMetricLearner(
-		final ArrayList<RealVector> X, final ArrayList<int[]> S, final ArrayList<int[]> D,
+		final ArrayList<double[]> S, final ArrayList<double[]> D,
 		final double u, final double ell, final RealMatrix A0,
 		final double gamma, final RandomGenerator rng )
 	{
-		X_ = X;
+//		X_ = X;
 		S_ = S;
 		D_ = D;
-		u_ = u;
-		ell_ = ell;
+		this.u = u;
+		this.ell = ell;
 		A0_ = A0;
 		gamma_ = gamma;
 		rng_ = rng;
 		
 		Nc_ = S_.size() + D_.size();
 		xi_ = new double[Nc_];
-		Arrays.fill( xi_, 0, S_.size(), u_ );
-		Arrays.fill( xi_, S_.size(), Nc_, ell_ );
+		Arrays.fill( xi_, 0, S_.size(), u );
+		Arrays.fill( xi_, S_.size(), Nc_, ell );
 		lambda_ = new double[Nc_];
 	}
 	
+	/**
+	 * Returns the learned metric. Valid only after 'run()' has returned.
+	 * @return
+	 */
 	public RealMatrix A()
 	{
 		return A_;
 	}
 	
+	/**
+	 * Execute the algorithm.
+	 * @see java.lang.Runnable#run()
+	 */
 	@Override
 	public void run()
 	{
@@ -82,7 +101,7 @@ public class InformationTheoreticMetricLearner implements Runnable
 		final int[] idx = Fn.range( 0, Nc_ );
 
 		int iter_count = 0;
-		final int logging_interval = 1000;
+		final int logging_interval = 1;
 		double cumulative_update = 0.0;
 		while( iter_count++ < iteration_limit_ ) {
 			if( iter_count % logging_interval == 0 ) {
@@ -92,24 +111,32 @@ public class InformationTheoreticMetricLearner implements Runnable
 			double update_magnitude = 0.0;
 			for( int c = 0; c < Nc_; ++c ) {
 				final int[] constraint;
+				final RealVector xdiff;
 				final int delta;
 				if( c < S_.size() ) {
-					constraint = S_.get( c );
+//					constraint = S_.get( c );
+					xdiff = new ArrayRealVector( S_.get( c ) );
 					delta = 1;
 				} else {
-					constraint = D_.get( c - S_.size() );
+//					constraint = D_.get( c - S_.size() );
+					xdiff = new ArrayRealVector( D_.get( c - S_.size() ) );
 					delta = -1;
 				}
-				final int i = constraint[0];
-				final int j = constraint[1];
-				final RealVector xdiff = X_.get( i ).subtract( X_.get( j ) );
-				final double p = xdiff.dotProduct( A.operate( xdiff ) );
+				
+//				final int i = constraint[0];
+//				final int j = constraint[1];
+//				final RealVector xdiff = X_.get( i ).subtract( X_.get( j ) );
+//				final double p = xdiff.dotProduct( A.operate( xdiff ) );
+				
 //				if( p == 0.0 ) {
 //					System.out.println( "! p == 0.0" );
 //				}
 //				if( xi_[c] == 0.0 ) {
 //					System.out.println( "! xi_[c] == 0.0" );
 //				}
+				
+				final double p = HilbertSpace.inner_prod( xdiff, A, xdiff );
+				
 				final double alpha;
 				if( p == 0.0 ) {
 					alpha = lambda_[c];
@@ -148,8 +175,17 @@ public class InformationTheoreticMetricLearner implements Runnable
 		}
 
 		A_ = A;
-		System.out.println( "Metric:" );
-		System.out.println( A_ );
+//		A_ = MatrixAlgorithms.makePositiveDefinite( A, 1e-4 );
+		
+//		System.out.println( "Metric:" );
+//		for( int i = 0; i < A_.getRowDimension(); ++i ) {
+//			System.out.println( A_.getRowVector( i ) );
+//		}
+		
+		// Check for positive-definiteness
+//		final EigenDecomposition eig = new EigenDecomposition( A_ );
+//		final double det = eig.getDeterminant();
+//		assert( det > 0.0 );
 	}
 	
 	// -----------------------------------------------------------------------
@@ -168,7 +204,7 @@ public class InformationTheoreticMetricLearner implements Runnable
 		final RealMatrix A0 = MatrixUtils.createRealIdentityMatrix( d );
 		
 		for( final int w : new int[] { 0, 5 } ) {
-			for( final int h : new int[] { 0, 5 } ) {
+			for( final int h : new int[] { 0, 50 } ) {
 				for( int x = -1; x <= 1; ++x ) {
 					for( int y = -1; y <= 1; ++y ) {
 						X.add( new ArrayRealVector( new double[] { x + w, y + h } ) );
@@ -178,14 +214,25 @@ public class InformationTheoreticMetricLearner implements Runnable
 		}
 		
 		final ArrayList<int[]> S = new ArrayList<int[]>();
-		S.add( new int[] { 4, 31 } ); // Must link diagonally
+		S.add( new int[] { 4, 12 } ); // Must link diagonally
+		S.add( new int[] { 21, 31 } );
+		final ArrayList<double[]> Sd = new ArrayList<double[]>();
+		for( final int[] s : S ) {
+			final double[] a = X.get( s[0] ).subtract( X.get( s[1] ) ).toArray();
+			Sd.add( a );
+		}
+		
 		final ArrayList<int[]> D = new ArrayList<int[]>();
-		D.add( new int[] { 4, 13 } );
-		D.add( new int[] { 22, 31 } );
-		D.add( new int[] { 13, 22 } ); // Cannot link vertically
+		D.add( new int[] { 5, 23 } );
+		D.add( new int[] { 13, 32 } ); // Cannot link vertically
+		final ArrayList<double[]> Dd = new ArrayList<double[]>();
+		for( final int[] dd : D ) {
+			final double[] a = X.get( dd[0] ).subtract( X.get( dd[1] ) ).toArray();
+			Dd.add( a );
+		}
 		
 		final InformationTheoreticMetricLearner itml = new InformationTheoreticMetricLearner(
-			X, S, D, u, ell, A0, gamma, rng );
+			Sd, Dd, u, ell, A0, gamma, rng );
 		itml.run();
 		
 		final RealMatrix A = itml.A();

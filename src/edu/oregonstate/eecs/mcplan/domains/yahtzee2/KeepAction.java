@@ -5,6 +5,7 @@ package edu.oregonstate.eecs.mcplan.domains.yahtzee2;
 
 import java.util.Arrays;
 
+import edu.oregonstate.eecs.mcplan.util.Csv;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 
@@ -66,7 +67,7 @@ public class KeepAction extends YahtzeeAction
 	@Override
 	public String toString()
 	{
-		return "Keep" + Arrays.toString( keepers );
+		return "KeepAction(" + Csv.encode( keepers ) + ")";
 	}
 	
 	@Override

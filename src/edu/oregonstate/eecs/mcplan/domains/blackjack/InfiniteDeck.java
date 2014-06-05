@@ -28,7 +28,7 @@ public final class InfiniteDeck implements Deck
 	public Card deal()
 	{
 		final int i = rng_.nextInt( 52 );
-		return Card.values()[i + 1];
+		return Card.values()[i];
 	}
 	
 	@Override

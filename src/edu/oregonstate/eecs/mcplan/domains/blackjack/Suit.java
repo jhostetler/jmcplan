@@ -9,11 +9,12 @@ package edu.oregonstate.eecs.mcplan.domains.blackjack;
  */
 public enum Suit
 {
-	S_x,
 	S_c,
 	S_d,
 	S_h,
-	S_s;
+	S_s,
+	
+	S_x;
 	
 	@Override
 	public String toString()

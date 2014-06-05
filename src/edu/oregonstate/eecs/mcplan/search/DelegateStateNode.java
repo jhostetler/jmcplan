@@ -5,6 +5,8 @@ package edu.oregonstate.eecs.mcplan.search;
 
 import java.util.Arrays;
 
+import edu.oregonstate.eecs.mcplan.ActionGenerator;
+import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
@@ -20,14 +22,15 @@ public class DelegateStateNode<S, X extends Representation<S>, A extends Virtual
 	
 	// FIXME: Is the default_value mechanism a good way of handling this?
 	public DelegateStateNode( final BackupRule<X, A> backup, final double[] default_value,
-							  final X token, final int nagents, final int[] turn )
+							  final X token, final int nagents, final int[] turn,
+							  final ActionGenerator<S, JointAction<A>> action_gen )
 	{
-		super( token, nagents, turn );
+		super( token, nagents, turn, action_gen );
 		backup_ = backup;
 		default_value_ = default_value;
 	}
 
-	@Override
+//	@Override
 	public double[] v()
 	{
 		// FIXME: This is a hack to avoid NP exception when backing up

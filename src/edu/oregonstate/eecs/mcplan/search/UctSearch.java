@@ -66,16 +66,17 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 		}
 		
 		@Override
-		public GameTree<X, A> create( final MctsVisitor<S, X, A> visitor )
+		public GameTree<X, A> create( final MctsVisitor<S, A> visitor )
 		{
-			return new UctSearch<S, X, A>( new ResetAdapter<S, A>( sim_ ), repr_, actions_, c_, episode_limit_,
+			return new UctSearch<S, X, A>( new ResetAdapter<S, A>( sim_ ), repr_.create(), actions_, c_, episode_limit_,
 										   rng_, eval_, visitor )
 			{
 				@Override
 				protected MutableStateNode<S, X, A> createStateNode(
-					final MutableActionNode<S, X, A> an, final X x, final int nagents, final int[] turn )
+					final MutableActionNode<S, X, A> an, final X x, final int nagents, final int[] turn,
+					final ActionGenerator<S, JointAction<A>> action_gen )
 				{
-					return new DelegateStateNode<S, X, A>( backup_, default_value_, x, nagents, turn );
+					return new DelegateStateNode<S, X, A>( backup_, default_value_, x, nagents, turn, action_gen );
 				}
 				
 				@Override
@@ -93,79 +94,12 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 		}
 	}
 	
-//	public void cluster2ndLevel()
-//	{
-//		// Find all actions in a2 and assign them consecutive integer IDs
-//		int idx = 0;
-//		final Map<A, Integer> aidx = new HashMap<A, Integer>();
-//		for( final ActionNode<Representation<S, F>, A> a1 : Fn.in( root_.successors() ) ) {
-//			for( final StateNode<Representation<S, F>, A> s1 : Fn.in( a1.successors() ) ) {
-//				for( final ActionNode<Representation<S, F>, A> a2 : Fn.in( s1.successors() ) ) {
-//					if( !aidx.containsKey( a2.a ) ) {
-//						aidx.put( a2.a, idx++ );
-//					}
-//				}
-//			}
-//		}
-//		final int nactions = idx;
-//
-//		// Encode the Q-functions of states in s1
-//		// FIXME: We're assuming that all states have the same player-to-act
-//		final ArrayList<Representation<S, F>> s1 = new ArrayList<Representation<S, F>>();
-//		final ArrayList<double[]> xs = new ArrayList<double[]>();
-//		for( final ActionNode<Representation<S, F>, A> a1 : Fn.in( root_.successors() ) ) {
-//			for( final StateNode<Representation<S, F>, A> s2 : Fn.in( a1.successors() ) ) {
-//				s1.add( s2.token );
-//				final Map<A, Double> q = makeQTable( s2 );
-//				final double[] x = new double[nactions];
-//				for( final Map.Entry<A, Double> qa : q.entrySet() ) {
-//					x[aidx.get( qa.getKey() )] = qa.getValue();
-//				}
-//				xs.add( x );
-//			}
-//		}
-//		System.out.println( "n = " + xs.size() );
-//
-//		// Cluster the Q-functions
-//		final RandomGenerator rng = new MersenneTwister( 42 );
-//		double best_score = Double.MAX_VALUE;
-//		int best_k = 0;
-//		for( int k = 1; k <= Math.ceil( Math.sqrt( xs.size() ) ); ++k ) {
-//			System.out.println( "*** k = " + k );
-//			final GaussianMixtureModel gmm = new GaussianMixtureModel(
-//				k, xs.toArray( new double[xs.size()][] ), 10e-5, rng );
-//
-//			// AICc is undefined when n > k + 1. It's probably bad to have
-//			// more than one parameter for each sample, anyway.
-//			if( xs.size() <= gmm.nparameters() ) {
-//				break;
-//			}
-//
-//			gmm.run();
-//			for( int i = 0; i < gmm.mu().length; ++i ) {
-//				System.out.println( "Center " + i + ": " + gmm.mu()[i] );
-//			}
-//
-////			final double score = ScoreFunctions.aic( gmm.nparameters(), gmm.logLikelihood() );
-//			final double score = ScoreFunctions.aicc( xs.size(), gmm.nparameters(), gmm.logLikelihood() );
-////			final double score = ScoreFunctions.bic( xs.size(), gmm.nparameters(), gmm.logLikelihood() );
-//			System.out.println( "Score = " + score );
-//			System.out.println( "ll = " + gmm.logLikelihood() );
-//			gmm.debug();
-//			if( score < best_score ) {
-//				best_score = score;
-//				best_k = k;
-//			}
-//		}
-//		System.out.println( "Best model: k = " + best_k );
-//	}
-	
 	// -----------------------------------------------------------------------
 	
 	private final ResetSimulator<S, A> sim_;
 	private final Representer<S, X> repr_;
 	private final ActionGenerator<S, JointAction<A>> actions_;
-	private final MctsVisitor<S, X, A> visitor_;
+	private final MctsVisitor<S, A> visitor_;
 	private final double c_;
 	private final int episode_limit_;
 	private final RandomGenerator rng_;
@@ -183,7 +117,7 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 					  final double c, final int episode_limit,
 					  final RandomGenerator rng,
 					  final EvaluationFunction<S, A> eval,
-					  final MctsVisitor<S, X, A> visitor )
+					  final MctsVisitor<S, A> visitor )
 	{
 		sim_ = sim;
 		repr_ = repr;
@@ -196,7 +130,8 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 	}
 	
 	protected abstract MutableStateNode<S, X, A> createStateNode(
-		final MutableActionNode<S, X, A> an, final X x, final int nagents, final int[] turn );
+		final MutableActionNode<S, X, A> an, final X x, final int nagents, final int[] turn,
+		final ActionGenerator<S, JointAction<A>> action_gen );
 	
 	protected abstract MutableStateNode<S, X, A> fetchStateNode(
 		final MutableActionNode<S, X, A> an, final X x, final int nagents, final int[] turn );
@@ -232,7 +167,7 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 	 * @return
 	 */
 	private double[] visit(
-		final MutableActionNode<S, X, A> an, final int depth, final MctsVisitor<S, X, A> visitor )
+		final MutableActionNode<S, X, A> an, final int depth, final MctsVisitor<S, A> visitor )
 	{
 //		System.out.println( "visit()" );
 		final S s = sim_.state();
@@ -262,40 +197,33 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 		// supposed to be Simulator's responsibility, not State. It's also
 		// an error in design for UctSearch, since you shouldn't even be
 		// able to take an action in a leaf state!
-		if( sim_.isTerminalState() || visitor.halt() ) {
+		if( sim_.isTerminalState() ) {
 			final double[] r = sim_.reward();
 			final MutableStateNode<S, X, A> sn = touchLeafNode( r, an, x, turn );
-			return r;
-		}
-		else if( depth == 0 ) {
-			final MutableStateNode<S, X, A> sn = touchStateNode( an, x, turn );
-//			final double[] r = rollout( sn, rollout_depth_, visitor );
-			final double[] r = eval_.evaluate( sim_ );
-			visitor.checkpoint();
+			sn.updateR( r );
 			return r;
 		}
 		else {
 			final MutableStateNode<S, X, A> sn = touchStateNode( an, x, turn );
-			// Sample below 'sn' only if this is the first visit
-			if( sn.n() == 1 ) {
-//				final double[] r = rollout( sn, rollout_depth_, visitor );
-				final double[] r = eval_.evaluate( sim_ );
-				sn.setVhat( r );
+			final double[] r = sim_.reward();
+			sn.updateR( r );
+			
+			// If we've reached the fringe of the tree, use the evaluation function
+			if( sn.n() == 1 || depth == 0 ) {
+				final double[] v = eval_.evaluate( sim_ );
+//				sn.setVhat( v );
 				visitor.checkpoint();
-				return r;
+				return v;
 			}
 			else {
-				final double[] r = sim_.reward();
-				final ActionGenerator<S, JointAction<A>> action_gen = actions_.create();
-				action_gen.setState( s, sim_.t(), turn );
-				final MutableActionNode<S, X, A> sa = selectAction( sn, action_gen );
+				// Sample below 'sn'
+				final MutableActionNode<S, X, A> sa = selectAction( sn, s, sim_.t(), turn );
 				sa.visit();
 				sim_.takeAction( sa.a().create() );
 				final double[] z = visit( sa, depth - 1, visitor );
 				sa.updateQ( z );
 				Fn.scalar_multiply_inplace( z, discount_ );
 				Fn.vplus_inplace( r, z );
-//				sim_.untakeLastAction();
 				return r;
 			}
 		}
@@ -312,36 +240,87 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 		}
 	}
 	
-	private MutableActionNode<S, X, A> selectAction(
-		final MutableStateNode<S, X, A> sn, final ActionGenerator<S, JointAction<A>> actions )
+	private MutableActionNode<S, X, A> selectAction( final MutableStateNode<S, X, A> sn, final S s,
+													 final long t, final int[] turn )
 	{
 //		System.out.println( sn.token );
-		assert( actions.size() > 0 );
+		assert( !(sn instanceof LeafStateNode<?, ?, ?>) );
+		
 		double max_value = -Double.MAX_VALUE;
 		MutableActionNode<S, X, A> max_sa = null;
-		while( actions.hasNext() ) {
-			final JointAction<A> a = actions.next();
-			final MutableActionNode<S, X, A> sa = requireActionNode( sn, a );
-			if( sa.n() == 0 ) {
-				max_sa = sa;
-				break;
+		sn.action_gen_.setState( s, t, turn );
+		while( sn.action_gen_.hasNext() ) {
+			final JointAction<A> a = sn.action_gen_.next();
+			final MutableActionNode<S, X, A> an = sn.successor_map().get( a );
+			if( an == null ) {
+				final MutableActionNode<S, X, A> sa = requireActionNode( sn, a );
+				return sa;
 			}
 			else {
-				// TODO: Figure out how to generalize for simultaneous moves
-//				System.out.println( Arrays.toString( sn.turn ) );
-//				System.out.println( sn.getClass() );
-//				System.out.println( sim_.isTerminalState() );
-//				printTree( System.out );
-				final double exploit = sa.q( singleAgent( sn.turn ) );
-				final double explore = c_ * Math.sqrt( Math.log( sn.n() ) / sa.n() );
+				final double exploit = an.q( singleAgent( sn.turn ) );
+				final double explore = c_ * Math.sqrt( Math.log( sn.n() ) / an.n() );
 				final double v = explore + exploit;
 				if( v > max_value ) {
-					max_sa = sa;
+					max_sa = an;
 					max_value = v;
 				}
 			}
 		}
+		assert( max_sa != null );
 		return max_sa;
+		
+		
+		// If there are any actions left in action_gen, they have not been
+		// tried once yet, so we try them first.
+//		if( sn.action_gen_.hasNext() ) {
+//			final JointAction<A> a = sn.action_gen_.next();
+//			final MutableActionNode<S, X, A> sa = requireActionNode( sn, a );
+//			return sa;
+//		}
+//		else {
+//			// Otherwise, choose using UCB rule
+//			double max_value = -Double.MAX_VALUE;
+//			MutableActionNode<S, X, A> max_sa = null;
+//			for( final MutableActionNode<S, X, A> sa : Fn.in( sn.successors() ) ) {
+//				final double exploit = sa.q( singleAgent( sn.turn ) );
+//				final double explore = c_ * Math.sqrt( Math.log( sn.n() ) / sa.n() );
+//				final double v = explore + exploit;
+//				if( v > max_value ) {
+//					max_sa = sa;
+//					max_value = v;
+//				}
+//			}
+//			assert( max_sa != null );
+//			return max_sa;
+//		}
+		
+		
+//		assert( actions.size() > 0 );
+//		double max_value = -Double.MAX_VALUE;
+//		MutableActionNode<S, X, A> max_sa = null;
+//		while( actions.hasNext() ) {
+//			final JointAction<A> a = actions.next();
+//			final MutableActionNode<S, X, A> sa = requireActionNode( sn, a );
+//			if( sa.n() == 0 ) {
+//				max_sa = sa;
+//				break;
+//			}
+//			else {
+//				// TODO: Figure out how to generalize for simultaneous moves
+////				System.out.println( Arrays.toString( sn.turn ) );
+////				System.out.println( sn.getClass() );
+////				System.out.println( sim_.isTerminalState() );
+////				printTree( System.out );
+//				final double exploit = sa.q( singleAgent( sn.turn ) );
+//				final double explore = c_ * Math.sqrt( Math.log( sn.n() ) / sa.n() );
+//				final double v = explore + exploit;
+//				if( v > max_value ) {
+//					max_sa = sa;
+//					max_value = v;
+//				}
+//			}
+//		}
+//		return max_sa;
 	}
 	
 	private MutableStateNode<S, X, A> touchStateNode( final MutableActionNode<S, X, A> an, final X x, final int[] turn )
@@ -350,7 +329,9 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 		MutableStateNode<S, X, A> sn = null;
 		if( an == null ) {
 			if( root_ == null ) {
-				sn = createStateNode( an, x, sim_.nagents(), turn );
+				final ActionGenerator<S, JointAction<A>> action_gen = actions_.create();
+				action_gen.setState( sim_.state(), sim_.t(), turn );
+				sn = createStateNode( an, x, sim_.nagents(), turn, action_gen );
 				root_ = sn;
 			}
 			else {
@@ -360,7 +341,9 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 		else {
 			sn = fetchStateNode( an, x, sim_.nagents(), turn );
 			if( sn == null ) {
-				sn = createStateNode( an, x, sim_.nagents(), turn );
+				final ActionGenerator<S, JointAction<A>> action_gen = actions_.create();
+				action_gen.setState( sim_.state(), sim_.t(), turn );
+				sn = createStateNode( an, x, sim_.nagents(), turn, action_gen );
 				an.attachSuccessor( x, turn, sn );
 			}
 			else {
@@ -401,7 +384,10 @@ public abstract class UctSearch<S extends State, X extends Representation<S>, A 
 		if( an == null ) {
 			// FIXME: I'm *not* spawning a new 'repr_' so that we can do
 			// proper experiments with random noise for the AAAI paper.
-			an = new MutableActionNode<S, X, A>( a, sim_.nagents(), repr_ ); //repr_.create() );
+//			an = new MutableActionNode<S, X, A>( a, sim_.nagents(), repr_ );
+			
+			// This is how we normally want to do it
+			an = new MutableActionNode<S, X, A>( a, sim_.nagents(), repr_.create() );
 			sn.attachSuccessor( a, an );
 		}
 		return an;

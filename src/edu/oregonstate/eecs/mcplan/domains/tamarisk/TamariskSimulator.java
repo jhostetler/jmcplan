@@ -181,6 +181,24 @@ public class TamariskSimulator implements UndoSimulator<TamariskState, TamariskA
 					continue;
 				}
 				
+				// When total_arrivals == 1, alpha and beta below will be < 0,
+				// leading to an invalid Beta distribution. Since there is only
+				// one arrival, it automatically wins, and we assign it to
+				// an empty slot at random.
+				if( total_arrivals == 1 ) {
+					final int si = Fn.argmax( arrivals[i] );
+					int ri = s.rng.nextInt( c );
+					for( int j = 0; j < s.params.Nhabitats; ++j ) {
+						if( s.habitats[i][j] == Species.None ) {
+							if( ri-- == 0 ) {
+								s.habitats[i][j] = Species.values()[si];
+								break;
+							}
+						}
+					}
+					continue;
+				}
+				
 				// FIXME: This part doesn't generalize to >2 species
 				final double r = (s.params.competition_factor*arrivals[i][Species.Native.ordinal()])
 								 / (s.params.competition_factor*arrivals[i][Species.Native.ordinal()]
@@ -211,11 +229,20 @@ public class TamariskSimulator implements UndoSimulator<TamariskState, TamariskA
 				final double sigma_sq = (c - 1)*Math.pow( c - 2, b )*Math.pow( c, 1 - b )
 										+ Math.pow( c - 1, b )*Math.pow( c, 1 - b )
 										- Math.pow( c - 1, 2*b )*Math.pow( c, 2 - 2*b );
-//				System.out.println( "mu = " + mu );
-//				System.out.println( "sigma_sq = " + sigma_sq );
 				final double q = ((mu - a)*(b - mu)/sigma_sq - 1);
 				final double alpha = q * ((mu - a)/(b - a));
 				final double beta = q - alpha;
+				if( alpha < 0 || beta < 0 ) {
+					System.out.println( "a = " + a );
+					System.out.println( "b = " + b );
+					System.out.println( "c = " + c );
+					System.out.println( "mu = " + mu );
+					System.out.println( "sigma_sq = " + sigma_sq );
+					System.out.println( "q = " + q );
+					System.out.println( "alpha = " + alpha );
+					System.out.println( "beta = " + beta );
+					throw new IllegalArgumentException( "(alpha, beta) is not a valid Beta distribution" );
+				}
 //				System.out.println( "alpha = " + alpha );
 //				System.out.println( "beta = " + beta );
 				final BetaDistribution beta_dist = new BetaDistribution(
@@ -348,18 +375,22 @@ public class TamariskSimulator implements UndoSimulator<TamariskState, TamariskA
 		}
 		final double total_cost = action_cost + state_cost;
 		r_ = -total_cost;
+		s_.t += 1;
 		
+		assert( s_.t <= s_.params.T );
 		assert( action_history_.size() % Nevents_ == 0 );
 	}
 	
 	@Override
 	public void untakeLastAction()
 	{
+		s_.t -= 1;
 		for( int i = 0; i < Nevents_; ++i ) {
 			final TamariskAction a = action_history_.pop();
 			a.undoAction( s_ );
 		}
 		
+		assert( s_.t >= 0 );
 		assert( action_history_.size() % Nevents_ == 0 );
 	}
 
@@ -411,4 +442,39 @@ public class TamariskSimulator implements UndoSimulator<TamariskState, TamariskA
 		return "TamariskSimulator";
 	}
 
+	
+	public static void main( final String[] args )
+	{
+		for( int total_arrivals = 1; total_arrivals < 10; ++total_arrivals ) {
+			for( int c = 2; c < 10; ++c ) {
+				System.out.println( "total = " + total_arrivals + ", c = " + c );
+				final double a = 0.5;
+				final double b = Math.min( total_arrivals, c ) + 0.5;
+				final double mu = c - Math.pow( c - 1, b ) * Math.pow( c, 1 - b );
+		//				final double mu = c - Math.exp( b*Math.log( c-1 ) + (1-b)*Math.log( c ) );
+				final double sigma_sq = (c - 1)*Math.pow( c - 2, b )*Math.pow( c, 1 - b )
+										+ Math.pow( c - 1, b )*Math.pow( c, 1 - b )
+										- Math.pow( c - 1, 2*b )*Math.pow( c, 2 - 2*b );
+		//				final double sigma_sq = Math.exp( Math.log( c - 1 )+ b*Math.log( c - 2 ) + (1 - b)*Math.log( c ) )
+		//										+ Math.exp( b*Math.log( c - 1 ) + (1 - b)*Math.log( c ) )
+		//										- Math.exp( 2*b*Math.log( c - 1 ) + (2 - 2*b)*Math.log( c ) );
+		//				System.out.println( "mu = " + mu );
+		//				System.out.println( "sigma_sq = " + sigma_sq );
+				final double q = ((mu - a)*(b - mu)/sigma_sq - 1);
+		//				final double q = Math.exp( Math.log( mu - a ) + Math.log( b - mu ) - Math.log( sigma_sq ) ) - 1;
+				final double alpha = q * ((mu - a)/(b - a));
+				final double beta = q - alpha;
+				if( alpha < 0 || beta < 0 ) {
+					System.out.println( "a = " + a );
+					System.out.println( "b = " + b );
+					System.out.println( "c = " + c );
+					System.out.println( "mu = " + mu );
+					System.out.println( "sigma_sq = " + sigma_sq );
+					System.out.println( "q = " + q );
+					System.out.println( "alpha = " + alpha );
+					System.out.println( "beta = " + beta );
+				}
+			}
+		}
+	}
 }

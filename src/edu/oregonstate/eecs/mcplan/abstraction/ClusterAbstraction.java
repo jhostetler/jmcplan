@@ -3,15 +3,30 @@
  */
 package edu.oregonstate.eecs.mcplan.abstraction;
 
-import edu.oregonstate.eecs.mcplan.Representation;
+import java.util.ArrayList;
+
+import weka.core.Attribute;
+import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 
 /**
  * @author jhostetler
  *
  */
-public class ClusterAbstraction<T> extends Representation<T>
+public class ClusterAbstraction<T> extends FactoredRepresentation<T>
 {
-	private final int cluster_;
+	private static final ArrayList<Attribute> attributes_ = new ArrayList<Attribute>();
+	static {
+		attributes_.add( new Attribute( "__cluster__" ) );
+	}
+	
+	public static ArrayList<Attribute> attributes()
+	{
+		return attributes_;
+	}
+	
+	// -----------------------------------------------------------------------
+	
+	public final int cluster_;
 	
 	public ClusterAbstraction( final int cluster )
 	{
@@ -19,7 +34,7 @@ public class ClusterAbstraction<T> extends Representation<T>
 	}
 	
 	@Override
-	public Representation<T> copy()
+	public ClusterAbstraction<T> copy()
 	{
 		return new ClusterAbstraction<T>( cluster_ );
 	}
@@ -44,5 +59,11 @@ public class ClusterAbstraction<T> extends Representation<T>
 	public String toString()
 	{
 		return "ClusterAbstraction[" + cluster_ + "]";
+	}
+
+	@Override
+	public double[] phi()
+	{
+		return new double[] { cluster_ };
 	}
 }

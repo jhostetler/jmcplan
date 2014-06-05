@@ -6,8 +6,8 @@ package edu.oregonstate.eecs.mcplan.domains.racetrack;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.commons.math3.distribution.RealDistribution;
+import org.apache.commons.math3.distribution.UniformRealDistribution;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import com.vividsolutions.jts.geom.Coordinate;
@@ -63,10 +63,16 @@ public class RacetrackSimulator implements UndoSimulator<RacetrackState, Racetra
 			old_theta_ = s.car_theta;
 			
 			// Compute noisy control signal
-			final double control_noise_x = control_noise_.sample();
-			final double control_noise_y = control_noise_.sample();
-			final double car_accel_x = (s.car_ddx + ((s.car_ddx + 1) * control_noise_x));
-			final double car_accel_y = (s.car_ddy + ((s.car_ddy + 1) * control_noise_y));
+			final double steering_error = (control_noise_ != null ? control_noise_.sample() : 0);
+			final double noisy_theta = s.car_theta + s.car_accel_theta + steering_error;
+			final double car_accel_x = s.car_accel_v * Math.cos( noisy_theta ); //(s.car_ddx + ((s.car_ddx + 1) * control_noise_x));
+			final double car_accel_y = s.car_accel_v * Math.sin( noisy_theta ); //(s.car_ddy + ((s.car_ddy + 1) * control_noise_y));
+			
+			// Noisy velocity
+			final double velocity_error = (velocity_noise_ != null ? velocity_noise_.sample() : 0);
+			final double perturbed_theta = s.car_theta; // + velocity_error;
+			
+			// Noisy position
 			
 			// Dynamics
 			double t = 0.0;
@@ -76,11 +82,11 @@ public class RacetrackSimulator implements UndoSimulator<RacetrackState, Racetra
 				final double vmag = Math.sqrt( s.car_dx*s.car_dx + s.car_dy*s.car_dy );
 				
 				// Standard aerodynamic drag
-				final double Fdrag = 0.5 * frontal_area_ * air_density_ * drag_coefficient_ * vmag*vmag;
+				final double Fdrag = 0.5 * s_.frontal_area_ * s_.air_density_ * s_.drag_coefficient_ * vmag*vmag;
 				// If car is off track, it gets slowed by e.g. gravel traps
-				final double adrag = static_friction_accel_
+				final double adrag = s_.static_friction_accel_
 								   + ((Fdrag / s.car_mass)
-									 	* (s.on_track ? 1.0 : off_track_drag_multiplier_));
+									 	* (s.on_track ? 1.0 : s_.off_track_drag_multiplier_));
 //				System.out.println( "adrag = " + adrag );
 
 				// Largest possible displacement, to look for collisions
@@ -103,8 +109,8 @@ public class RacetrackSimulator implements UndoSimulator<RacetrackState, Racetra
 					seg_y = projected_y;
 				}
 				else {
-					seg_x = cross.getX() + eps*Math.cos( s.car_theta ); // + s.car_dx*0.03;
-					seg_y = cross.getY() + eps*Math.sin( s.car_theta ); // + s.car_dy*0.03;
+					seg_x = cross.getX() + eps*Math.cos( perturbed_theta ); // + s.car_dx*0.03;
+					seg_y = cross.getY() + eps*Math.sin( perturbed_theta ); // + s.car_dy*0.03;
 					
 				}
 				s.on_track = s.circuit.track.contains(
@@ -125,8 +131,8 @@ public class RacetrackSimulator implements UndoSimulator<RacetrackState, Racetra
 				final double control_deltaVx = 0.5*car_accel_x*deltaT;
 				final double control_deltaVy = 0.5*car_accel_y*deltaT;
 				final double uncontrolled_distance = -a_deltaV*deltaT + vmag*deltaT;
-				final double new_x = s.car_x + control_deltaVx*deltaT + Math.cos( s.car_theta )*uncontrolled_distance;
-				final double new_y = s.car_y + control_deltaVy*deltaT + Math.sin( s.car_theta )*uncontrolled_distance;
+				final double new_x = s.car_x + control_deltaVx*deltaT + Math.cos( perturbed_theta )*uncontrolled_distance;
+				final double new_y = s.car_y + control_deltaVy*deltaT + Math.sin( perturbed_theta )*uncontrolled_distance;
 				
 				coordinates[1].x = new_x;
 				coordinates[1].y = new_y;
@@ -146,6 +152,8 @@ public class RacetrackSimulator implements UndoSimulator<RacetrackState, Racetra
 					s.car_y = new_y;
 					s.car_dx += control_deltaVx - Math.cos( s.car_theta )*a_deltaV;
 					s.car_dy += control_deltaVy - Math.sin( s.car_theta )*a_deltaV;
+//					s.car_dx = vmag*Math.cos( perturbed_theta ) + control_deltaVx - Math.cos( perturbed_theta )*a_deltaV;
+//					s.car_dy = vmag*Math.sin( perturbed_theta ) + control_deltaVy - Math.sin( perturbed_theta )*a_deltaV;
 					t += deltaT;
 				}
 			}
@@ -190,29 +198,39 @@ public class RacetrackSimulator implements UndoSimulator<RacetrackState, Racetra
 	
 	private final RandomGenerator rng_;
 	private final RealDistribution control_noise_;
+	private final RealDistribution velocity_noise_;
+//	private final RealDistribution position_noise_;
 	
-	private final double static_friction_accel_ = 0.5; // m/s^2 -- Represents mechanical friction
-	private final double drag_coefficient_ = 2.0; // unitless -- This is higher than reality, but we need something
-												  // to limit maximum speed.
-	private final double air_density_ = 1.204; // kg/m^3 -- Wikipedia, 20 deg C
-	private final double frontal_area_ = 2.0; // m^2
-	private final double off_track_drag_multiplier_ = 30.0;
-	
-	public final double tstep_ = 0.2; // s -- Size of integration step
+	public static final double tstep_ = 0.25; // s -- Size of integration step
 	
 	public RacetrackSimulator( final RandomGenerator rng,
 							   final RacetrackState s,
-							   final double control_sigma )
+							   final double steering_error_range,
+							   final double velocity_perturbation_range )
 	{
 		rng_ = rng;
 		s_ = s;
-		control_noise_ = new NormalDistribution(
-			rng_, 0, control_sigma, NormalDistribution.DEFAULT_INVERSE_ABSOLUTE_ACCURACY );
-	}
-	
-	public double terminal_velocity()
-	{
-		return Math.sqrt( 2*s_.car_mass*s_.adhesion_limit / air_density_*frontal_area_*drag_coefficient_ );
+		if( steering_error_range == 0.0 ) {
+			control_noise_ = null;
+		}
+		else {
+			control_noise_ = new UniformRealDistribution(
+				rng_, -steering_error_range/2, steering_error_range/2,
+				UniformRealDistribution.DEFAULT_INVERSE_ABSOLUTE_ACCURACY );
+		}
+		
+		if( velocity_perturbation_range == 0.0 ) {
+			velocity_noise_ = null;
+		}
+		else {
+			velocity_noise_ = new UniformRealDistribution(
+				rng_, -velocity_perturbation_range/2, velocity_perturbation_range/2,
+				UniformRealDistribution.DEFAULT_INVERSE_ABSOLUTE_ACCURACY );
+		}
+		
+//		if( position_perturbation_range == 0.0 ) {
+//
+//		}
 	}
 	
 	@Override

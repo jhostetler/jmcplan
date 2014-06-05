@@ -15,20 +15,20 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  */
 public class Episode<S, A extends VirtualConstructor<A>> implements Runnable
 {
-	private final UndoSimulator<S, A> sim_;
+	private final Simulator<S, A> sim_;
 	private final Policy<S, JointAction<A>> pi_;
 	private final int T_;
 	private final ArrayList<EpisodeListener<S, A>> listeners_ = new ArrayList<EpisodeListener<S, A>>();
 	private final boolean use_burnin_ = false; // FIXME: Burn-in is messing up first move; disabling for now
 	
-	public Episode( final UndoSimulator<S, A> sim, final Policy<S, JointAction<A>> pi, final int T )
+	public Episode( final Simulator<S, A> sim, final Policy<S, JointAction<A>> pi, final int T )
 	{
 		sim_ = sim;
 		pi_ = pi;
 		T_ = T;
 	}
 	
-	public Episode( final UndoSimulator<S, A> sim, final Policy<S, JointAction<A>> pi )
+	public Episode( final Simulator<S, A> sim, final Policy<S, JointAction<A>> pi )
 	{
 		sim_ = sim;
 		pi_ = pi;
@@ -38,7 +38,7 @@ public class Episode<S, A extends VirtualConstructor<A>> implements Runnable
 	@Override
 	public void run()
 	{
-		fireStartState( sim_.state() );
+		fireStartState( sim_.state(), sim_.reward() );
 		
 		if( use_burnin_ ) {
 			// The first player to move always ends up achieving fewer rollouts
@@ -66,7 +66,7 @@ public class Episode<S, A extends VirtualConstructor<A>> implements Runnable
 //			System.out.println( "[Episode] Execution" );
 			sim_.takeAction( a );
 			pi_.actionResult( sim_.state(), sim_.reward() );
-			fireActionsTaken( sim_.state() );
+			fireActionsTaken( sim_.state(), sim_.reward() );
 			if( sim_.isTerminalState( ) ) {
 //				System.out.println( "[Episode] Terminal state" );
 				break;
@@ -80,10 +80,10 @@ public class Episode<S, A extends VirtualConstructor<A>> implements Runnable
 		listeners_.add( listener );
 	}
 	
-	private void fireStartState( final S s )
+	private void fireStartState( final S s, final double[] r )
 	{
 		for( final EpisodeListener<S, A> listener : listeners_ ) {
-			listener.startState( s, pi_ );
+			listener.startState( s, r, pi_ );
 		}
 	}
 	
@@ -101,10 +101,10 @@ public class Episode<S, A extends VirtualConstructor<A>> implements Runnable
 		}
 	}
 	
-	private void fireActionsTaken( final S sprime )
+	private void fireActionsTaken( final S sprime, final double[] r )
 	{
 		for( final EpisodeListener<S, A> listener : listeners_ ) {
-			listener.onActionsTaken( sprime );
+			listener.onActionsTaken( sprime, r );
 		}
 	}
 	

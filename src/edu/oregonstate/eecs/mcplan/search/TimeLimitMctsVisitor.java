@@ -14,21 +14,21 @@ import edu.oregonstate.eecs.mcplan.util.Countdown;
  * @author jhostetler
  *
  */
-public class TimeLimitMctsVisitor<S, X, A extends VirtualConstructor<A>> implements MctsVisitor<S, X, A>
+public class TimeLimitMctsVisitor<S, A extends VirtualConstructor<A>> implements MctsVisitor<S, A>
 {
-	public static <S, X, A extends VirtualConstructor<A>>
-	TimeLimitMctsVisitor<S, X, A> create( final MctsVisitor<S, X, A> inner, final Countdown countdown )
+	public static <S, A extends VirtualConstructor<A>>
+	TimeLimitMctsVisitor<S, A> create( final MctsVisitor<S, A> inner, final Countdown countdown )
 	{
-		return new TimeLimitMctsVisitor<S, X, A>( inner, countdown );
+		return new TimeLimitMctsVisitor<S, A>( inner, countdown );
 	}
 	
 	private static final Logger log = LoggerFactory.getLogger( TimeLimitMctsVisitor.class );
 	
-	private final MctsVisitor<S, X, A> inner_;
+	private final MctsVisitor<S, A> inner_;
 	private final Countdown countdown_;
 	private long start_time_ = 0L;
 	
-	public TimeLimitMctsVisitor( final MctsVisitor<S, X, A> inner, final Countdown countdown )
+	public TimeLimitMctsVisitor( final MctsVisitor<S, A> inner, final Countdown countdown )
 	{
 		inner_ = inner;
 		countdown_ = countdown;
@@ -97,18 +97,6 @@ public class TimeLimitMctsVisitor<S, X, A extends VirtualConstructor<A>> impleme
 	public void depthLimit( final S s, final int[] turn )
 	{
 		inner_.depthLimit( s, turn );
-	}
-
-	@Override
-	public double[] terminal( final S s, final int[] turn )
-	{
-		return inner_.terminal( s, turn );
-	}
-
-	@Override
-	public boolean isTerminal( final S s, final int[] turn )
-	{
-		return inner_.isTerminal( s, turn );
 	}
 
 	@Override

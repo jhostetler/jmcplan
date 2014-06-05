@@ -9,7 +9,6 @@ package edu.oregonstate.eecs.mcplan.domains.blackjack;
  */
 public enum Card
 {
-	C_X( Rank.R_X, Suit.S_x ),
 	C_Ac( Rank.R_A, Suit.S_c ), C_Ad( Rank.R_A, Suit.S_d ), C_Ah( Rank.R_A, Suit.S_h ), C_As( Rank.R_A, Suit.S_s ),
 	C_2c( Rank.R_2, Suit.S_c ), C_2d( Rank.R_2, Suit.S_d ), C_2h( Rank.R_2, Suit.S_h ), C_2s( Rank.R_2, Suit.S_s ),
 	C_3c( Rank.R_3, Suit.S_c ), C_3d( Rank.R_3, Suit.S_d ), C_3h( Rank.R_3, Suit.S_h ), C_3s( Rank.R_3, Suit.S_s ),
@@ -22,7 +21,9 @@ public enum Card
 	C_Tc( Rank.R_T, Suit.S_c ), C_Td( Rank.R_T, Suit.S_d ), C_Th( Rank.R_T, Suit.S_h ), C_Ts( Rank.R_T, Suit.S_s ),
 	C_Jc( Rank.R_J, Suit.S_c ), C_Jd( Rank.R_J, Suit.S_d ), C_Jh( Rank.R_J, Suit.S_h ), C_Js( Rank.R_J, Suit.S_s ),
 	C_Qc( Rank.R_Q, Suit.S_c ), C_Qd( Rank.R_Q, Suit.S_d ), C_Qh( Rank.R_Q, Suit.S_h ), C_Qs( Rank.R_Q, Suit.S_s ),
-	C_Kc( Rank.R_K, Suit.S_c ), C_Kd( Rank.R_K, Suit.S_d ), C_Kh( Rank.R_K, Suit.S_h ), C_Ks( Rank.R_K, Suit.S_s );
+	C_Kc( Rank.R_K, Suit.S_c ), C_Kd( Rank.R_K, Suit.S_d ), C_Kh( Rank.R_K, Suit.S_h ), C_Ks( Rank.R_K, Suit.S_s ),
+	
+	C_X( Rank.R_X, Suit.S_x );
 	
 	public final Rank rank;
 	public final Suit suit;

@@ -24,14 +24,14 @@ public class BlackjackStateToken extends FactoredRepresentation<BlackjackState>
 		final HashCodeBuilder h = new HashCodeBuilder();
 		final StringBuilder sb = new StringBuilder();
 		h.append( s.dealerHand() );
-		phi_ = new double[52 + 52];
-		phi_[52 + s.dealerHand().get( 0 ).rank.ordinal() - 1] = 1;
+		phi_ = new double[s.nplayers()*52 + 52];
+		phi_[s.nplayers()*52 + s.dealerHand().get( 0 ).ordinal()] = 1;
 		sb.append( "d:" ).append( s.dealerHand().toString() );
 		for( int i = 0; i < s.nplayers(); ++i ) {
 			sb.append( ", " ).append( i ).append( ":" );
 			h.append( s.hand( i ) );
 			for( final Card c : s.hand( i ) ) {
-				phi_[c.rank.ordinal() - 1] += 1;
+				phi_[52*i + c.ordinal()] += 1;
 			}
 			sb.append( s.hand( i ).toString() );
 			h.append( s.passed( i ) );

@@ -6,12 +6,13 @@ package edu.oregonstate.eecs.mcplan.util;
 /**
  * Incremental calculation of mean and variance.
  */
-public class MeanVarianceAccumulator
+public class MeanVarianceAccumulator implements StatisticAccumulator
 {
 	private int n_ = 0;
 	private double mean_ = 0.0;
 	private double m2_ = 0.0;
 	
+	@Override
 	public void add( final double x )
 	{
     	n_ += 1;

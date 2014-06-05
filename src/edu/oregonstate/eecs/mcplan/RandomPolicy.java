@@ -2,6 +2,8 @@ package edu.oregonstate.eecs.mcplan;
 
 import org.apache.commons.math3.random.MersenneTwister;
 
+import edu.oregonstate.eecs.mcplan.util.Fn;
+
 
 public class RandomPolicy<S, A> extends AnytimePolicy<S, A>
 {
@@ -48,11 +50,11 @@ public class RandomPolicy<S, A> extends AnytimePolicy<S, A>
 	@Override
 	public A getAction()
 	{
-		int i = rng_.nextInt( action_gen_.size() );
-		while( i-- > 0 ) {
-			action_gen_.next();
-		}
-		final A a = action_gen_.next();
+//		int i = rng_.nextInt( action_gen_.size() );
+//		while( i-- > 0 ) {
+//			action_gen_.next();
+//		}
+		final A a = Fn.uniform_choice( rng_, action_gen_ );
 //		System.out.println( "Random action: " + a ); // TODO: Debugging
 		return a;
 	}

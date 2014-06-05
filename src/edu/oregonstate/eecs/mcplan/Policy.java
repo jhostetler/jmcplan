@@ -16,6 +16,11 @@ public abstract class Policy<S, A>
 	/**
 	 * This function may be called by the execution environment to provide
 	 * reward feedback. The default implementation is a no-op.
+	 * 
+	 * We adopt the most general reward model and assume that the reward is a
+	 * function of the entire transition (s, a, s') -> r. Thus the r given
+	 * to actionResult() is the reward "in" s'.
+	 * 
 	 * @param sprime
 	 * @param r
 	 * @param s

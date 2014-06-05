@@ -4,9 +4,15 @@
 package edu.oregonstate.eecs.mcplan.util;
 
 /**
+ * WARNING: If either type is an array, the hashCode()/equals() implementation
+ * will depend on the *identity* of the array, and *not* on Arrays.equals().
+ * I am considering how to work around that.
+ * 
+ * @deprecated
  * @author jhostetler
  *
  */
+@Deprecated
 public class Tuple
 {
 	public static final class Tuple2<A, B>

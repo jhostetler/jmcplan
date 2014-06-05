@@ -7,21 +7,20 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
-import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * @author jhostetler
  *
  */
-public class SmartActionGenerator extends ActionGenerator<YahtzeeState, JointAction<YahtzeeAction>>
+public class SmartActionGenerator extends ActionGenerator<YahtzeeState, YahtzeeAction>
 {
 	private YahtzeeState s_ = null;
 	private long t_ = 0L;
 	
-	private final ArrayList<JointAction<YahtzeeAction>> actions_
-		= new ArrayList<JointAction<YahtzeeAction>>();
-	private Iterator<JointAction<YahtzeeAction>> itr_ = null;
+	private final ArrayList<YahtzeeAction> actions_
+		= new ArrayList<YahtzeeAction>();
+	private Iterator<YahtzeeAction> itr_ = null;
 	
 	@Override
 	public SmartActionGenerator create()
@@ -42,10 +41,10 @@ public class SmartActionGenerator extends ActionGenerator<YahtzeeState, JointAct
 //				actions_.add( new JointAction<YahtzeeAction>( new KeepAllAction( i ) ) );
 //			}
 			
-			actions_.add( new JointAction<YahtzeeAction>( new KeepMostAction() ) );
-			actions_.add( new JointAction<YahtzeeAction>( new KeepStraightAction() ) );
+			actions_.add( new KeepMostAction() );
+			actions_.add( new KeepStraightAction() );
 			// Reroll all action
-			actions_.add( new JointAction<YahtzeeAction>( new KeepAction( Fn.repeat( 0, Hand.Nfaces ) ) ) );
+			actions_.add( new KeepAction( Fn.repeat( 0, Hand.Nfaces ) ) );
 		}
 		
 		// Add ScoreAction for each open category
@@ -54,8 +53,23 @@ public class SmartActionGenerator extends ActionGenerator<YahtzeeState, JointAct
 //				actions_.add( new JointAction<YahtzeeAction>( new ScoreAction( category ) ) );
 //			}
 //		}
-		actions_.add( new JointAction<YahtzeeAction>( new ScoreHighestAction() ) );
-		actions_.add( new JointAction<YahtzeeAction>( new ScoreMinMaxAction() ) );
+//		actions_.add( new ScoreHighestAction() );
+		
+		for( final YahtzeeScores category : YahtzeeScores.values() ) {
+			if( !s.filled[category.ordinal()] && category.isUpper() ) {
+				actions_.add( new ScoreMaxUpperAction() );
+				break;
+			}
+		}
+		
+		for( final YahtzeeScores category : YahtzeeScores.values() ) {
+			if( !s.filled[category.ordinal()] && !category.isUpper() ) {
+				actions_.add( new ScoreMaxLowerAction() );
+				break;
+			}
+		}
+		
+		actions_.add( new ScoreMinMaxAction() );
 		
 		itr_ = actions_.iterator();
 	}
@@ -73,7 +87,7 @@ public class SmartActionGenerator extends ActionGenerator<YahtzeeState, JointAct
 	}
 
 	@Override
-	public JointAction<YahtzeeAction> next()
+	public YahtzeeAction next()
 	{
 		return itr_.next();
 	}

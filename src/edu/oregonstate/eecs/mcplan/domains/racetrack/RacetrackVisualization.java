@@ -164,7 +164,7 @@ public class RacetrackVisualization
 
 		@Override
 		public <P extends Policy<RacetrackState, JointAction<RacetrackAction>>>
-		void startState( final RacetrackState s, final P pi )
+		void startState( final RacetrackState s, final double[] r, final P pi )
 		{
 			updateStateOnEDT( s );
 		}
@@ -178,7 +178,7 @@ public class RacetrackVisualization
 		{ }
 
 		@Override
-		public void onActionsTaken( final RacetrackState sprime )
+		public void onActionsTaken( final RacetrackState sprime, final double[] r )
 		{
 			updateStateOnEDT( sprime );
 			if( sleep_ > 0 ) {
@@ -193,112 +193,104 @@ public class RacetrackVisualization
 	
 	private class UserActionN extends AbstractAction
 	{
-		public UserActionN() { super( "N" ); }
+		public UserActionN() { super( "^" ); }
 		
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			final double theta = state.car_theta;
 			sim.takeAction( new JointAction<RacetrackAction>(
-				new AccelerateAction( state.adhesion_limit*Math.cos( theta ), state.adhesion_limit*Math.sin( theta ) ) ) );
+				new AccelerateAction( state.adhesion_limit, 0 ) ) );
 			updateState( sim.state() );
 		}
 	}
 	
 	private class UserActionE extends AbstractAction
 	{
-		public UserActionE() { super( "E" ); }
+		public UserActionE() { super( ">" ); }
 		
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			final double theta = state.car_theta - (Math.PI / 2);
 			sim.takeAction( new JointAction<RacetrackAction>(
-				new AccelerateAction( state.adhesion_limit*Math.cos( theta ), state.adhesion_limit*Math.sin( theta ) ) ) );
+				new AccelerateAction( state.adhesion_limit, -Math.PI / 2 ) ) );
 			updateState( sim.state() );
 		}
 	}
 	
 	private class UserActionS extends AbstractAction
 	{
-		public UserActionS() { super( "S" ); }
+		public UserActionS() { super( "v" ); }
 		
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			final double theta = state.car_theta + (Math.PI);
 			sim.takeAction( new JointAction<RacetrackAction>(
-				new AccelerateAction( state.adhesion_limit*Math.cos( theta ), state.adhesion_limit*Math.sin( theta ) ) ) );
+				new AccelerateAction( state.adhesion_limit, Math.PI ) ) );
 			updateState( sim.state() );
 		}
 	}
 	
 	private class UserActionW extends AbstractAction
 	{
-		public UserActionW() { super( "W" ); }
+		public UserActionW() { super( "<" ); }
 		
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			final double theta = state.car_theta + (Math.PI / 2);
 			sim.takeAction( new JointAction<RacetrackAction>(
-				new AccelerateAction( state.adhesion_limit*Math.cos( theta ), state.adhesion_limit*Math.sin( theta ) ) ) );
+				new AccelerateAction( state.adhesion_limit, Math.PI / 2 ) ) );
 			updateState( sim.state() );
 		}
 	}
 	
 	private class UserActionNE extends AbstractAction
 	{
-		public UserActionNE() { super( "NE" ); }
+		public UserActionNE() { super( "/" ); }
 		
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			final double theta = state.car_theta - (Math.PI / 4);
 			sim.takeAction( new JointAction<RacetrackAction>(
-				new AccelerateAction( state.adhesion_limit*Math.cos( theta ), state.adhesion_limit*Math.sin( theta ) ) ) );
+				new AccelerateAction( state.adhesion_limit, -Math.PI / 4 ) ) );
 			updateState( sim.state() );
 		}
 	}
 	
 	private class UserActionSE extends AbstractAction
 	{
-		public UserActionSE() { super( "SE" ); }
+		public UserActionSE() { super( "\\" ); }
 		
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			final double theta = state.car_theta - (3 * Math.PI / 4);
 			sim.takeAction( new JointAction<RacetrackAction>(
-				new AccelerateAction( state.adhesion_limit*Math.cos( theta ), state.adhesion_limit*Math.sin( theta ) ) ) );
+				new AccelerateAction( state.adhesion_limit, -3*Math.PI / 4 ) ) );
 			updateState( sim.state() );
 		}
 	}
 	
 	private class UserActionSW extends AbstractAction
 	{
-		public UserActionSW() { super( "SW" ); }
+		public UserActionSW() { super( "/" ); }
 		
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			final double theta = state.car_theta + (3 * Math.PI / 4);
 			sim.takeAction( new JointAction<RacetrackAction>(
-				new AccelerateAction( state.adhesion_limit*Math.cos( theta ), state.adhesion_limit*Math.sin( theta ) ) ) );
+				new AccelerateAction( state.adhesion_limit, 3*Math.PI / 4 ) ) );
 			updateState( sim.state() );
 		}
 	}
 	
 	private class UserActionNW extends AbstractAction
 	{
-		public UserActionNW() { super( "NW" ); }
+		public UserActionNW() { super( "\\" ); }
 		
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			final double theta = state.car_theta + (Math.PI / 4);
 			sim.takeAction( new JointAction<RacetrackAction>(
-				new AccelerateAction( state.adhesion_limit*Math.cos( theta ), state.adhesion_limit*Math.sin( theta ) ) ) );
+				new AccelerateAction( state.adhesion_limit, Math.PI / 4 ) ) );
 			updateState( sim.state() );
 		}
 	}
@@ -367,7 +359,7 @@ public class RacetrackVisualization
 			laps_to_go_.setText( "Laps to go: " + laps_to_go );
 			if( sim != null ) {
 				System.out.println( "Eval: " + Arrays.toString(
-					new SectorEvaluator( sim.terminal_velocity(), sim.tstep_ ).evaluate( sim ) ) );
+					new SectorEvaluator( sim.state().terminal_velocity() ).evaluate( sim ) ) );
 			}
 		}
 		
@@ -521,10 +513,11 @@ public class RacetrackVisualization
 		final RandomGenerator rng = new MersenneTwister( 42 );
 //		final Circuit circuit = Circuits.DragStrip( 2000, 100 );
 //		final Circuit circuit = Circuits.Donut( 50, 70, 16 );
-		final Circuit circuit = Circuits.PaperClip( 500, 200 );
+		final Circuit circuit = Circuits.PaperClip( 400, 150 );
 		final RacetrackState state = new RacetrackState( circuit );
-		final double control_noise = 0.1;
-		final RacetrackSimulator sim = new RacetrackSimulator( rng, state, control_noise );
+		final double steering_error_range = 0; //Math.PI / 2;
+		final double perturbation_range = 0.001;
+		final RacetrackSimulator sim = new RacetrackSimulator( rng, state, steering_error_range, perturbation_range );
 		final double scale = 2;
 		final RacetrackVisualization vis = new RacetrackVisualization( circuit, sim, scale );
 	}

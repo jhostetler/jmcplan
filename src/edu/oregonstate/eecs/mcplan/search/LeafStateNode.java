@@ -17,17 +17,18 @@ public class LeafStateNode<S, X extends Representation<S>, A extends VirtualCons
 	
 	public LeafStateNode( final double[] v, final X token, final int nagents, final int[] turn )
 	{
-		super( token, nagents, turn );
+		// Note: Passing 'null' for action_gen.
+		super( token, nagents, turn, null );
 		v_ = v;
 	}
 
 	/* (non-Javadoc)
 	 * @see edu.oregonstate.eecs.mcplan.search.StateNode#v()
 	 */
-	@Override
-	public double[] v()
-	{
-		return v_;
-	}
+//	@Override
+//	public double[] v()
+//	{
+//		return v_;
+//	}
 
 }

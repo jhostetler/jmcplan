@@ -401,7 +401,7 @@ public class AbstractionDiscovery
 				.cell( "mean" ).cell( "var" ).cell( "conf" ).newline();
 		
 		final ActionGenerator<BlackjackState, JointAction<BlackjackAction>> action_gen
-			= new BlackjackActionGenerator( 1 );
+			= new BlackjackJointActionGenerator( 1 );
 		final Policy<BlackjackState, JointAction<BlackjackAction>>
 			rollout_policy = new RandomPolicy<BlackjackState, JointAction<BlackjackAction>>(
 				0 /*Player*/, rng.nextInt(), action_gen.create() );

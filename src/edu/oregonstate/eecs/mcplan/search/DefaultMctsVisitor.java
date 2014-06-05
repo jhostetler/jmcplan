@@ -9,22 +9,18 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
 
 /**
+ * A stub implementation of MctsVisitor. Use this when you need a visitor that
+ * does nothing, or inherit from it if you only need to override one or
+ * two methods.
+ * 
  * @author jhostetler
- *
  */
-public class DefaultMctsVisitor<S, X, A extends VirtualConstructor<A>>
-	implements MctsVisitor<S, X, A>
+public class DefaultMctsVisitor<S, A extends VirtualConstructor<A>>
+	implements MctsVisitor<S, A>
 {
-	private int nagents_ = 0;
-	
-	protected int nagents()
-	{ return nagents_; }
-	
 	@Override
 	public void startEpisode( final S s, final int nagents, final int[] turn )
-	{
-		nagents_ = nagents;
-	}
+	{ }
 
 	@Override
 	public boolean startRollout( final S s, final int[] turn )
@@ -57,16 +53,6 @@ public class DefaultMctsVisitor<S, X, A extends VirtualConstructor<A>>
 	@Override
 	public void depthLimit( final S s, final int[] turn )
 	{ }
-
-	@Override
-	public double[] terminal( final S s, final int[] turn )
-	{
-		return new double[nagents()];
-	}
-
-	@Override
-	public boolean isTerminal( final S s, final int[] turn )
-	{ return false; }
 
 	@Override
 	public void checkpoint()

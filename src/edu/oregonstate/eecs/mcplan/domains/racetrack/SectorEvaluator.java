@@ -7,7 +7,7 @@ import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Point;
 
 import edu.oregonstate.eecs.mcplan.search.EvaluationFunction;
-import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
+import edu.oregonstate.eecs.mcplan.sim.Simulator;
 import edu.oregonstate.eecs.mcplan.util.Tuple.Tuple2;
 
 /**
@@ -17,16 +17,15 @@ import edu.oregonstate.eecs.mcplan.util.Tuple.Tuple2;
 public class SectorEvaluator implements EvaluationFunction<RacetrackState, RacetrackAction>
 {
 	public final double max_speed;
-	public final double tstep;
+	public final double tstep = RacetrackSimulator.tstep_;
 	
-	public SectorEvaluator( final double max_speed, final double tstep )
+	public SectorEvaluator( final double max_speed )
 	{
 		this.max_speed = max_speed;
-		this.tstep = tstep;
 	}
 	
 	@Override
-	public double[] evaluate( final UndoSimulator<RacetrackState, RacetrackAction> sim )
+	public double[] evaluate( final Simulator<RacetrackState, RacetrackAction> sim )
 	{
 		final RacetrackState s = sim.state();
 		final double x_proj = s.car_x + tstep*s.car_dx;

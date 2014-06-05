@@ -32,18 +32,6 @@ import org.jgrapht.graph.ListenableDirectedWeightedGraph;
  * @author jhostetler
  *
  */
-/**
- * @author jhostetler
- *
- */
-/**
- * @author jhostetler
- *
- */
-/**
- * @author jhostetler
- *
- */
 public class TamariskParameters
 {
 	/*
@@ -138,6 +126,15 @@ public class TamariskParameters
 	public final double restore_cost_per_empty = 0.4;
 	public final double restore_cost_per_invasive = 0.8;
 	
+	// Extra stuff that was not in the RL competition version
+	
+	/**
+	 * Maximum number of steps. Good algorithms should rarely reach this
+	 * number with the default parameter settings. It is enforced mainly
+	 * to prevent poor algorithms from taking a long time.
+	 */
+	public final int T = 50;
+	
 	public TamariskParameters( final RandomGenerator rng, final int Nreaches, final int Nhabitats )
 	{
 		this.Nreaches = Nreaches;
@@ -145,10 +142,14 @@ public class TamariskParameters
 		
 		reach_arrival_rate = new int[Nreaches][Species.N];
 		reach_arrival_prob = new double[Nreaches][Species.N];
-		for( int i = 0; i < Nreaches; ++i ) {
-			for( int j = 0; j < Species.N; ++j ) {
-				reach_arrival_rate[i][j] = 100 + rng.nextInt( 1000 - 100 );
-				reach_arrival_prob[i][j] = rng.nextDouble();
+		if( exongenous_arrivals ) {
+			for( int i = 0; i < Nreaches; ++i ) {
+				for( int j = 0; j < Species.N; ++j ) {
+//					reach_arrival_rate[i][j] = 100 + rng.nextInt( 1000 - 100 );
+//					reach_arrival_prob[i][j] = rng.nextDouble();
+					reach_arrival_rate[i][j] = 100;
+					reach_arrival_prob[i][j] = 0.5; //rng.nextDouble();
+				}
 			}
 		}
 	}
@@ -193,6 +194,43 @@ public class TamariskParameters
 			visited[node] += 1;
 			if( visited[node] >= 2 ) {
 				nodes.removeAt( node_idx );
+			}
+		}
+		return graph;
+	}
+	
+	/**
+	 * Creates a tree that is "balanced", in the sense that the longest path
+	 * is at most 1 longer than the shortest path. Node indices increase as we
+	 * head upstream. The furthest-downstream reach is always single, so
+	 * branching begins above node 1.
+	 * 
+	 * @param branching Number of branches per node.
+	 * @return
+	 */
+	public ListenableDirectedWeightedGraph<Integer, DefaultEdge> createBalancedGraph( final int branching )
+	{
+		final ListenableDirectedWeightedGraph<Integer, DefaultEdge> graph
+			= new ListenableDirectedWeightedGraph<Integer, DefaultEdge>( DefaultEdge.class );
+		for( int i = 0; i < Nreaches + 1; ++i ) {
+			graph.addVertex( i );
+		}
+		
+		final TIntArrayList pred = new TIntArrayList();
+		graph.addEdge( 1, 0 );
+		int v = 1;
+		pred.add( v );
+		while( !pred.isEmpty() ) {
+			final int p = pred.removeAt( 0 );
+			for( int b = 0; b < branching; ++b ) {
+				v += 1;
+				if( v >= Nreaches + 1 ) {
+					break;
+				}
+				else {
+					graph.addEdge( v, p );
+					pred.add( v );
+				}
 			}
 		}
 		return graph;
@@ -287,12 +325,13 @@ public class TamariskParameters
 //				= new TamariskParameters( rng, Nreaches, Nhabitats ).createRandomGraph( 42 + i, true );
 //		}
 		
-		final int Nreaches = 7;
+		final int Nreaches = 10;
 		final int Nhabitats = 4;
 		final RandomGenerator rng = new MersenneTwister( 42 );
 		final TamariskParameters params = new TamariskParameters( rng, Nreaches, Nhabitats );
 		
-		final ListenableDirectedWeightedGraph<Integer, DefaultEdge> g = params.createRandomGraph( 42, true );
+//		final ListenableDirectedWeightedGraph<Integer, DefaultEdge> g = params.createRandomGraph( 42, true );
+		final ListenableDirectedWeightedGraph<Integer, DefaultEdge> g = params.createBalancedGraph( 3 );
 		final double[][] K = params.calculateDispersionKernel( g );
 		for( int i = 0; i < K.length; ++i ) {
 			System.out.println( Arrays.toString( K[i] ) );
@@ -307,7 +346,7 @@ public class TamariskParameters
 		frame.getContentPane().add( new JGraph( new JGraphModelAdapter( g ) ) );
 		frame.setVisible( true );
 		
-		final TamariskState state = new TamariskState( rng, params );
+		final TamariskState state = new TamariskState( rng, params, g );
 		final TamariskSimulator sim = new TamariskSimulator( state );
 		
 		System.out.println( state );

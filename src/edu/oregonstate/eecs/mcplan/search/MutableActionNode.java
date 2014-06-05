@@ -13,7 +13,6 @@ import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Generator;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
-import edu.oregonstate.eecs.mcplan.util.Tuple.Tuple2;
 
 /**
  * @author jhostetler
@@ -22,13 +21,41 @@ import edu.oregonstate.eecs.mcplan.util.Tuple.Tuple2;
 public class MutableActionNode<S, X extends Representation<S>, A extends VirtualConstructor<A>>
 	extends ActionNode<X, A>
 {
+	private static class StateTuple<X>
+	{
+		public final X x;
+		public final int[] turn;
+		
+		public StateTuple( final X x, final int[] turn )
+		{
+			this.x = x;
+			this.turn = turn;
+		}
+		
+		@Override
+		public int hashCode()
+		{
+			return 181 * (x.hashCode() + 191 * Arrays.hashCode( turn ));
+		}
+		
+		@Override
+		public boolean equals( final Object obj )
+		{
+			if( obj == null || !(obj instanceof StateTuple<?>) ) {
+				return false;
+			}
+			final StateTuple<?> that = (StateTuple<?>) obj;
+			return x.equals( that.x ) && Arrays.equals( turn, that.turn );
+		}
+	}
+	
 	private final Representer<S, X> repr_;
 	
 	protected int n_ = 0;
 	protected final MeanVarianceAccumulator[] qv_;
 	protected final MeanVarianceAccumulator[] rv_;
-	protected final Map<Tuple2<X, int[]>, MutableStateNode<S, X, A>> s_
-		= new HashMap<Tuple2<X, int[]>, MutableStateNode<S, X, A>>();
+	protected final Map<StateTuple<X>, MutableStateNode<S, X, A>> s_
+		= new HashMap<StateTuple<X>, MutableStateNode<S, X, A>>();
 	
 	public MutableActionNode( final JointAction<A> a, final int nagents, final Representer<S, X> repr )
 	{
@@ -49,7 +76,7 @@ public class MutableActionNode<S, X extends Representation<S>, A extends Virtual
 	
 	public void attachSuccessor( final X token, final int[] turn, final MutableStateNode<S, X, A> node )
 	{
-		s_.put( Tuple2.of( token, turn ), node );
+		s_.put( new StateTuple<X>( token, turn ), node );
 	}
 	
 	public void visit()
@@ -58,7 +85,7 @@ public class MutableActionNode<S, X extends Representation<S>, A extends Virtual
 	@Override
 	public MutableStateNode<S, X, A> getStateNode( final X token, final int[] turn )
 	{
-		return s_.get( Tuple2.of( token, turn ) );
+		return s_.get( new StateTuple<X>( token, turn ) );
 	}
 	
 	@Override
@@ -105,12 +132,12 @@ public class MutableActionNode<S, X extends Representation<S>, A extends Virtual
 	
 	public void updateR( final double[] r )
 	{
-		if( r.length != rv_.length ) {
-			System.out.println( Arrays.toString( r ) );
-			System.out.println( Arrays.toString( rv_ ) );
-			assert( r.length == rv_.length );
-		}
+//		if( r.length != rv_.length ) {
+//			System.out.println( Arrays.toString( r ) );
+//			System.out.println( Arrays.toString( rv_ ) );
+//		}
 		
+		assert( r.length == rv_.length );
 		for( int i = 0; i < r.length; ++i ) {
 			rv_[i].add( r[i] );
 		}

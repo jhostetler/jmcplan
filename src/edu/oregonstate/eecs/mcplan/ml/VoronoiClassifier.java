@@ -31,6 +31,9 @@ public abstract class VoronoiClassifier
 				best_idx = i;
 			}
 		}
+//		System.out.print( x );
+//		System.out.print( " -> " );
+//		System.out.println( centers_[best_idx] );
 		return best_idx;
 	}
 }

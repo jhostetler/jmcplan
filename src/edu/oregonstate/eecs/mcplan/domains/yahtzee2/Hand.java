@@ -10,7 +10,7 @@ package edu.oregonstate.eecs.mcplan.domains.yahtzee2;
 public class Hand
 {
 	// TODO: This isn't the best place to put 'Nrerolls'
-	public static final int Nrerolls = 3;
+	public static final int Nrerolls = 2;
 	public static final int Ndice = 5;
 	public static final int Nfaces = 6;
 	

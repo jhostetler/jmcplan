@@ -40,11 +40,11 @@ public class ScoreMinMaxAction extends YahtzeeAction
 		old_hand_ = h;
 		old_rerolls_ = s.rerolls;
 		
-		int best_scalar = -1;
+		int best_scalar = Integer.MAX_VALUE;
 		for( final YahtzeeScores category : YahtzeeScores.values() ) {
 			if( !s.filled[category.ordinal()] ) {
 				final int v = category.maxScore();
-				if( v > best_scalar ) {
+				if( v < best_scalar ) {
 					best_scalar = v;
 					this.category = category;
 				}

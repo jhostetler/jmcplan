@@ -40,7 +40,7 @@ public class YahtzeeState implements State
 	
 	public int[] roll( final int n )
 	{
-		assert( n > 0 );
+//		assert( n > 0 );
 		assert( n <= Hand.Ndice );
 		final int[] r = new int[Hand.Nfaces];
 		for( int i = 0; i < n; ++i ) {

@@ -226,6 +226,9 @@ public final class JointAction<A extends VirtualConstructor<A>>
 	public boolean equals( final Object obj )
 	{
 //		System.out.println( "JointAction.equals()" );
+		// Note: I removed the instanceof because I'm going to force a cast
+		// to JointAction<A> and I'd rather throw an exception than return
+		// false.
 		if( obj == null ) { // || !(obj instanceof JointAction<?>) ) {
 			return false;
 		}

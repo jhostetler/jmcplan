@@ -23,4 +23,15 @@ public class HilbertSpace
 		}
 		return s;
 	}
+	
+	public static double inner_prod( final double[] x, final RealMatrix M, final double[] y )
+	{
+		double s = 0.0;
+		for( int i = 0; i < M.getRowDimension(); ++i ) {
+			for( int j = 0; j < M.getColumnDimension(); ++j ) {
+				s += x[i]*M.getEntry( i, j )*y[j];
+			}
+		}
+		return s;
+	}
 }

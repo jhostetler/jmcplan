@@ -6,7 +6,7 @@ package edu.oregonstate.eecs.mcplan;
 import edu.oregonstate.eecs.mcplan.util.Generator;
 
 /**
- * An iterator-like type that generates the legal actions in a state.
+ * An Generator that yields the legal actions in a state.
  * 
  * The implementation must *not* require initialization specific to a
  * particular state or player. That's what the parameters in setState() are
@@ -26,5 +26,13 @@ public abstract class ActionGenerator<S, A> extends Generator<A>
 	
 	public abstract int size();
 	
+//	public abstract void repeat();
+	
 	// FIXME: Should require hashCode() / equals()
+	
+	@Override
+	public String toString()
+	{
+		return this.getClass().getName();
+	}
 }

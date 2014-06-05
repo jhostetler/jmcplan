@@ -36,27 +36,6 @@ import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 public class Experiments
 {
 
-	public static class IdentityRepresenter implements Representer<BlackjackState, BlackjackStateToken>
-	{
-		@Override
-		public Representer<BlackjackState, BlackjackStateToken> create()
-		{
-			return new IdentityRepresenter();
-		}
-
-		@Override
-		public BlackjackStateToken encode( final BlackjackState s )
-		{
-			return new BlackjackStateToken( s );
-		}
-		
-		@Override
-		public String toString()
-		{
-			return "flat";
-		}
-	}
-	
 	private static final RandomGenerator rng = new MersenneTwister( 43 );
 	
 	private static <X extends Representation<BlackjackState>, R extends Representer<BlackjackState, X>>
@@ -67,11 +46,11 @@ public class Experiments
 		System.out.println( "game = " + params.max_score + " x " + Ngames
 							+ ": " + repr + " x " + Nepisodes + ", p = " + p );
 		
-		final MctsVisitor<BlackjackState, X, BlackjackAction>
-			visitor	= new DefaultMctsVisitor<BlackjackState, X, BlackjackAction>();
+		final MctsVisitor<BlackjackState, BlackjackAction>
+			visitor	= new DefaultMctsVisitor<BlackjackState, BlackjackAction>();
 		
 		final ActionGenerator<BlackjackState, JointAction<BlackjackAction>> action_gen
-			= new BlackjackActionGenerator( 1 );
+			= new BlackjackJointActionGenerator( 1 );
 		
 		final double c = 1.0;
 		final int rollout_width = 1;
@@ -183,7 +162,7 @@ public class Experiments
 			}
 			
 			runExperiment( new BlackjackAggregator(), params, Nepisodes, 0.0, Ngames, data_out );
-			runExperiment( new IdentityRepresenter(), params, Nepisodes, 0.0, Ngames, data_out );
+			runExperiment( new BlackjackPrimitiveRepresenter(), params, Nepisodes, 0.0, Ngames, data_out );
 		}
 	}
 //		final RandomGenerator rng = new MersenneTwister();

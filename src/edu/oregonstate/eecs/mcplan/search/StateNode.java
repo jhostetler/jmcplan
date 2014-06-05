@@ -31,7 +31,15 @@ public abstract class StateNode<S, A extends VirtualConstructor<A>>
 	
 	public abstract int n();
 	
-	public abstract double[] v();
+//	public abstract double[] v();
+	
+	public abstract double[] r();
+
+	public abstract double r( final int i );
+	
+	public abstract double[] rvar();
+	
+	public abstract double rvar( final int i );
 	
 	@Override
 	public abstract Generator<? extends ActionNode<S, A>> successors();

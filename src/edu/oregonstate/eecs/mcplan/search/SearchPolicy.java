@@ -15,8 +15,11 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Countdown;
 
 /**
+ * A Policy that uses a GameTreeSearch to choose an action.
+ * 
+ * TODO: Maybe the TimeLimitMctsVisitor shouldn't be baked in to this class.
+ * 
  * @author jhostetler
- *
  */
 public abstract class SearchPolicy<S, X extends Representation<S>, A extends VirtualConstructor<A>>
 	extends AnytimePolicy<S, JointAction<A>>
@@ -24,14 +27,14 @@ public abstract class SearchPolicy<S, X extends Representation<S>, A extends Vir
 	private static final Logger log = LoggerFactory.getLogger( SearchPolicy.class );
 	
 	private final GameTreeFactory<S, X, A> factory_;
-	private final MctsVisitor<S, X, A> visitor_;
+	private final MctsVisitor<S, A> visitor_;
 	private final PrintStream log_stream_;
 	
 	private S s_ = null;
 	private long t_ = 0L;
 	
 	public SearchPolicy( final GameTreeFactory<S, X, A> factory,
-						 final MctsVisitor<S, X, A> visitor,
+						 final MctsVisitor<S, A> visitor,
 						 final PrintStream log_stream )
 	{
 		factory_ = factory;
@@ -40,7 +43,7 @@ public abstract class SearchPolicy<S, X extends Representation<S>, A extends Vir
 	}
 	
 	public SearchPolicy( final GameTreeFactory<S, X, A> factory,
-						 final MctsVisitor<S, X, A> visitor )
+						 final MctsVisitor<S, A> visitor )
 	{
 		this( factory, visitor, System.out );
 	}
@@ -89,12 +92,12 @@ public abstract class SearchPolicy<S, X extends Representation<S>, A extends Vir
 	public JointAction<A> getAction( final long control )
 	{
 //		log.info( "getAction( {} )", control );
-		final MctsVisitor<S, X, A> time_limit
-			= new TimeLimitMctsVisitor<S, X, A>( visitor_, new Countdown( control ) );
+		final MctsVisitor<S, A> time_limit
+			= new TimeLimitMctsVisitor<S, A>( visitor_, new Countdown( control ) );
 		final GameTree<X, A> search = factory_.create( time_limit );
-		final long start = System.currentTimeMillis();
+//		final long start = System.currentTimeMillis();
 		search.run();
-		final long stop = System.currentTimeMillis();
+//		final long stop = System.currentTimeMillis();
 //		System.out.println( "*** Tree search finished in " + (stop - start) + " ms" );
 		
 		if( log_stream_ != null ) {

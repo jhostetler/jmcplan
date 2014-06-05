@@ -15,6 +15,12 @@ public class TreePrinter<S, A extends VirtualConstructor<A>>
 		return new TreePrinter<S, A>();
 	}
 	
+	public static <S, A extends VirtualConstructor<A>>
+	TreePrinter<S, A> create( final GameTree<S, A> tree, final PrintStream out )
+	{
+		return new TreePrinter<S, A>( out );
+	}
+	
 	private final PrintStream out_;
 	private int d_ = 0;
 	private int[] turn_ = null;

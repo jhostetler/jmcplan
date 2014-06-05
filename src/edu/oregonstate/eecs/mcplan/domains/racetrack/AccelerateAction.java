@@ -12,18 +12,18 @@ public class AccelerateAction extends RacetrackAction
 {
 	private boolean done_ = false;
 	
-	public final double ddx;
-	public final double ddy;
+	public final double v;
+	public final double theta;
 	
-	public static AccelerateAction fromPolar( final double theta, final double r )
-	{
-		return new AccelerateAction( r*Math.cos( theta ), r*Math.sin( theta ) );
-	}
+//	public static AccelerateAction fromPolar( final double theta, final double r )
+//	{
+//		return new AccelerateAction( r*Math.cos( theta ), r*Math.sin( theta ) );
+//	}
 	
-	public AccelerateAction( final double ddx, final double ddy )
+	public AccelerateAction( final double v, final double theta )
 	{
-		this.ddx = ddx;
-		this.ddy = ddy;
+		this.v = v;
+		this.theta = theta;
 	}
 	
 	@Override
@@ -31,8 +31,8 @@ public class AccelerateAction extends RacetrackAction
 	{
 		assert( done_ );
 		
-		s.car_ddx = 0;
-		s.car_ddy = 0;
+		s.car_accel_v = 0;
+		s.car_accel_theta = 0;
 		
 		done_ = false;
 	}
@@ -42,8 +42,8 @@ public class AccelerateAction extends RacetrackAction
 	{
 		assert( !done_ );
 
-		s.car_ddx = ddx;
-		s.car_ddy = ddy;
+		s.car_accel_v = v;
+		s.car_accel_theta = theta;
 		
 		done_ = true;
 	}
@@ -57,13 +57,13 @@ public class AccelerateAction extends RacetrackAction
 	@Override
 	public AccelerateAction create()
 	{
-		return new AccelerateAction( ddx, ddy );
+		return new AccelerateAction( v, theta );
 	}
 	
 	@Override
 	public int hashCode()
 	{
-		final long bits = (41 + 37 * Double.doubleToLongBits( ddx )) * 43 + Double.doubleToLongBits( ddy );
+		final long bits = (41 + 37 * Double.doubleToLongBits( v )) * 43 + Double.doubleToLongBits( theta );
 		return (int) (bits ^ (bits >>> 32));
 	}
 	
@@ -74,13 +74,13 @@ public class AccelerateAction extends RacetrackAction
 			return false;
 		}
 		final AccelerateAction that = (AccelerateAction) obj;
-		return ddx == that.ddx && ddy == that.ddy;
+		return v == that.v && theta == that.theta;
 	}
 	
 	@Override
 	public String toString()
 	{
-		return "Accelerate[" + ddx + ", " + ddy + "]";
+		return "Accelerate[" + v + ", " + theta + "]";
 	}
 
 }
