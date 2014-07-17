@@ -8,6 +8,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.math3.linear.ArrayRealVector;
+import org.apache.commons.math3.linear.RealVector;
+
 import weka.classifiers.Classifier;
 import weka.core.Attribute;
 import weka.core.DenseInstance;
@@ -16,6 +19,7 @@ import weka.core.Instances;
 import weka.core.converters.ArffSaver;
 import weka.core.converters.ConverterUtils.DataSource;
 import weka.core.converters.Saver;
+import edu.oregonstate.eecs.mcplan.Pair;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
@@ -25,11 +29,26 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  */
 public class WekaUtil
 {
+	public static ArrayList<RealVector> instancesToUnlabeledVectors( final Instances instances )
+	{
+		final ArrayList<RealVector> result = new ArrayList<RealVector>();
+		for( final Instance i : instances ) {
+			result.add( new ArrayRealVector( unlabeledFeatures( i ) ) );
+		}
+		return result;
+	}
+	
 	public static Instances createEmptyInstances( final String name, final ArrayList<Attribute> attributes )
 	{
 		final Instances instances = new Instances( name, attributes, 0 );
 		instances.setClassIndex( attributes.size() - 1 );
 		return instances;
+	}
+	
+	public static void addInstance( final Instances instances, final Instance i )
+	{
+		instances.add( i );
+		i.setDataset( instances );
 	}
 	
 	/**
@@ -39,9 +58,20 @@ public class WekaUtil
 	 */
 	public static Attribute createBinaryNominalAttribute( final String name )
 	{
-		final List<String> values = new ArrayList<String>( 2 );
-		values.add( "0" );
-		values.add( "1" );
+		return createNominalAttribute( name, 2 );
+	}
+	
+	/**
+	 * Creates a nominal attribute containing the values {0,...,N}.
+	 * @param name
+	 * @return
+	 */
+	public static Attribute createNominalAttribute( final String name, final int N )
+	{
+		final List<String> values = new ArrayList<String>( N );
+		for( int i = 0; i < N; ++i ) {
+			values.add( Integer.toString( i ) );
+		}
 		final Attribute attr = new Attribute( name, values );
 		assert( attr.type() == Attribute.NOMINAL );
 		return attr;
@@ -188,5 +218,58 @@ public class WekaUtil
 			phi[j] = i.value( j );
 		}
 		return phi;
+	}
+
+	public static Instance labeledInstanceFromUnlabeledFeatures( final Instances headers, final double[] x )
+	{
+		assert( x.length == headers.numAttributes() - 1 );
+		final double[] labeled = new double[x.length + 1];
+		Fn.memcpy( labeled, x, x.length );
+		labeled[labeled.length - 1] = Double.NaN;
+		final DenseInstance inst = new DenseInstance( 1.0, labeled );
+		return inst;
+	}
+	
+	/**
+	 * Adds a dummy label and converts to an Instance
+	 * @param headers
+	 * @param x
+	 * @return
+	 */
+	public static Instance labeledInstanceFromUnlabeledFeatures( final Instances headers, final RealVector x )
+	{
+		assert( x.getDimension() == headers.numAttributes() - 1 );
+		final double[] labeled = new double[x.getDimension() + 1];
+		for( int i = 0; i < x.getDimension(); ++i ) {
+			labeled[i] = x.getEntry( i );
+		}
+		labeled[labeled.length - 1] = Double.NaN;
+		final DenseInstance inst = new DenseInstance( 1.0, labeled );
+		return inst;
+	}
+
+	public static Pair<ArrayList<double[]>, int[]> splitLabels( final Instances train )
+	{
+		assert( train.classAttribute() != null );
+		
+		final ArrayList<double[]> X = new ArrayList<double[]>();
+		final int[] Y = new int[train.size()];
+		
+		for( int i = 0; i < train.size(); ++i ) {
+			final Instance inst = train.get( i );
+			final double[] x = new double[train.numAttributes() - 1];
+			int idx = 0;
+			for( int j = 0; j < train.numAttributes(); ++j ) {
+				if( j == train.classIndex() ) {
+					Y[i] = (int) inst.classValue();
+				}
+				else {
+					x[idx++] = inst.value( j );
+				}
+			}
+			X.add( x );
+		}
+		
+		return Pair.makePair( X, Y );
 	}
 }

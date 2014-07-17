@@ -35,4 +35,9 @@ public class MeanVarianceAccumulator implements StatisticAccumulator
 			return 0.0;
 		}
 	}
+	
+	public double confidence()
+	{
+		return 1.96 * Math.sqrt( variance() ) / Math.sqrt( n_ );
+	}
 }

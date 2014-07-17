@@ -30,9 +30,7 @@ public class Episode<S, A extends VirtualConstructor<A>> implements Runnable
 	
 	public Episode( final Simulator<S, A> sim, final Policy<S, JointAction<A>> pi )
 	{
-		sim_ = sim;
-		pi_ = pi;
-		T_ = Integer.MAX_VALUE;
+		this( sim, pi, Integer.MAX_VALUE );
 	}
 	
 	@Override
@@ -49,6 +47,11 @@ public class Episode<S, A extends VirtualConstructor<A>> implements Runnable
 			// appears to work.
 			// TODO: The visitors passed to policies like UctPolicy will still
 			// be called for the fake searches. What are the consequences?
+			// [2014/06/23] It may be possible to suppress this behavior of
+			// the JVM by specifying -XXaggressive and -XX:-UseCallProfiling,
+			// however it says here (http://docs.oracle.com/cd/E15289_01/doc.40/e15062/optionxx.htm)
+			// that profiling is not enabled by default.
+			
 //			System.out.println( "[Episode] Burn-in" );
 			final int t0 = 0;
 			pi_.setState( sim_.state(), t0 );

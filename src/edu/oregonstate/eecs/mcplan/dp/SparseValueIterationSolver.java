@@ -5,9 +5,11 @@ package edu.oregonstate.eecs.mcplan.dp;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 import edu.oregonstate.eecs.mcplan.MarkovDecisionProblem;
 import edu.oregonstate.eecs.mcplan.Pair;
+import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.util.Generator;
 
 /**
@@ -53,6 +55,39 @@ public class SparseValueIterationSolver<S, A> implements Runnable
 			}
 		};
 	}
+	
+	public double Q( final S s, final A a )
+	{
+		double q = m_.R( s, a );
+		final Pair<ArrayList<S>, ArrayList<Double>> succ = m_.sparseP( s, a );
+		for( int i = 0; i < succ.first.size(); ++i ) {
+			q += succ.second.get( i ) * v_.get( succ.first.get( i ) );
+		}
+		return q;
+	}
+	
+	public Policy<S, A> pistar()
+	{
+		final Map<S, A> actions = new HashMap<S, A>();
+		final Generator<S> g = m_.S().generator();
+		while( g.hasNext() ) {
+			final S s = g.next();
+			m_.A().setState( s );
+			final Generator<A> ga = m_.A().generator();
+			double max_q = -Double.MAX_VALUE;
+			A max_a = null;
+			while( ga.hasNext() ) {
+				final A a = ga.next();
+				final double q = Q( s, a );
+				if( q > max_q ) {
+					max_q = q;
+					max_a = a;
+				}
+			}
+			actions.put( s, max_a );
+		}
+		return new LookupPolicy<S, A>( actions );
+	}
 
 	@Override
 	public void run()
@@ -87,11 +122,18 @@ public class SparseValueIterationSolver<S, A> implements Runnable
 //				System.out.println( s.toString() );
 				final Pair<ArrayList<S>, ArrayList<Double>> sparse_p = m_.sparseP( s, a );
 				double q = m_.R( s, a );
+//				System.out.println( sparse_p.first.size() );
 				for( int i = 0; i < sparse_p.first.size(); ++i ) {
 					final S sprime = sparse_p.first.get( i );
 //					System.out.println( sprime.toString() );
 					final double p = sparse_p.second.get( i );
-					q += p * gamma_ * v_.get( sprime );
+					final Double vs = v_.get( sprime );
+					if( vs == null ) {
+						System.out.println( sprime.toString() );
+//						vs = 0.0;
+//						v_.put( sprime, vs );
+					}
+					q += p * gamma_ * vs;
 				}
 				if( q > qstar ) {
 					qstar = q;

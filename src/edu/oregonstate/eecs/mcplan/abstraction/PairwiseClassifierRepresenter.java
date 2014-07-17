@@ -71,12 +71,11 @@ public final class PairwiseClassifierRepresenter<S extends State, X extends Fact
 			repr_.create(), sf_, decision_threshold_, max_branching_ );
 	}
 	
-	public ClusterAbstraction<S> clusterState( final X x )
+	public ClusterAbstraction<S> clusterState( final double[] phi )
 	{
 //		System.out.println( "\tcluster " + (count_++) +": size = " + clusters_.size() );
 		
 		try { // try-block for the sake of Weka
-			final double[] phi = x.phi();
 			// TODO: How to do this step is a big design decision. We might
 			// eventually like something formally justified, e.g. the
 			// "Chinese restaurant process" approach.
@@ -139,13 +138,13 @@ public final class PairwiseClassifierRepresenter<S extends State, X extends Fact
 		if( use_cache_ ) {
 			ClusterAbstraction<S> c = cache_.get( x );
 			if( c == null ) {
-				c = clusterState( x );
+				c = clusterState( x.phi() );
 				cache_.put( x, c );
 			}
 			return c;
 		}
 		else {
-			return clusterState( x );
+			return clusterState( x.phi() );
 		}
 	}
 }

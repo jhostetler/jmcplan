@@ -1119,11 +1119,51 @@ public final class Fn
 		return dest;
 	}
 	
+	/**
+	 * Copies 'src' element-wise into 'dest' and returns 'dest'.
+	 * @param dest
+	 * @param src
+	 * @return
+	 */
+	public static int[] memcpy( final int[] dest, final int[] src )
+	{
+		return memcpy( dest, src, dest.length );
+	}
+	
 	public static <T> ArrayList<T> memcpy( final ArrayList<T> dest, final ArrayList<T> src )
 	{
 		assert( dest.size() == src.size() );
 		for( int i = 0; i < dest.size(); ++i ) {
 			dest.set( i, src.get( i ) );
+		}
+		return dest;
+	}
+	
+	public static int[] copy( final int[] x )
+	{
+		return Arrays.copyOf( x, x.length );
+	}
+	
+	public static double[] copy( final double[] x )
+	{
+		return Arrays.copyOf( x, x.length );
+	}
+	
+	public static int[][] copy( final int[][] a )
+	{
+		final int[][] r = new int[a.length][];
+		for( int i = 0; i < a.length; ++i ) {
+			r[i] = Arrays.copyOf( a[i], a[i].length );
+		}
+		return r;
+	}
+	
+	public static int[][] memcpy( final int[][] dest, final int[][] src )
+	{
+		for( int i = 0; i < dest.length; ++i ) {
+			for( int j = 0; j < dest[i].length; ++j ) {
+				dest[i][j] = src[i][j];
+			}
 		}
 		return dest;
 	}
@@ -1433,6 +1473,13 @@ public final class Fn
 		}
 		return a;
 	}
+	
+	public static double[] scalar_multiply( final double[] a, final double x )
+	{
+		final double[] result = Arrays.copyOf( a, a.length );
+		scalar_multiply_inplace( result, x );
+		return result;
+	}
 
 	/**
 	 * Normalize a vector *in place*. The vector 'v' is normalized and then
@@ -1479,5 +1526,7 @@ public final class Fn
 		}
 		System.out.println( Arrays.toString( counts ) );
 	}
+
+	
 	
 }

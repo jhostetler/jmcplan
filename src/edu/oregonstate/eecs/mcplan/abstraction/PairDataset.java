@@ -15,6 +15,7 @@ import weka.core.Instance;
 import weka.core.Instances;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 import edu.oregonstate.eecs.mcplan.util.ReservoirSampleAccumulator;
 
 /**
@@ -40,6 +41,7 @@ public class PairDataset
 	{
 		public abstract ArrayList<Attribute> attributes();
 		public abstract DenseInstance apply( Instance a, Instance b, final int label );
+		public abstract double[] apply( final double[] a, final double[] b );
 		public abstract String keyword();
 	}
 	
@@ -47,6 +49,10 @@ public class PairDataset
 	{
 		private final ArrayList<Attribute> attributes_;
 		
+		/**
+		 * Attributes must include label.
+		 * @param attributes
+		 */
 		public DifferenceFeatures( final ArrayList<Attribute> attributes )
 		{
 			attributes_ = attributes;
@@ -63,6 +69,12 @@ public class PairDataset
 			}
 			phi[phi.length - 1] = pair_label;
 			return new DenseInstance( 1.0, phi );
+		}
+		
+		@Override
+		public double[] apply( final double[] a, final double[] b )
+		{
+			return Fn.vminus( a, b );
 		}
 		
 		@Override
@@ -113,6 +125,13 @@ public class PairDataset
 		}
 		
 		@Override
+		public double[] apply( final double[] a, final double[] b )
+		{
+			// TODO Auto-generated method stub
+			return null;
+		}
+		
+		@Override
 		public String keyword()
 		{
 			return "symmetric";
@@ -135,6 +154,45 @@ public class PairDataset
 	}
 	
 	// -----------------------------------------------------------------------
+	
+	public static <S, X extends FactoredRepresentation<S>, A extends VirtualConstructor<A>>
+	ArrayList<PairInstance> makePairDataset(
+		final RandomGenerator rng, final int max_pairwise_instances, final Instances single )
+	{
+		final ReservoirSampleAccumulator<PairInstance> negative
+			= new ReservoirSampleAccumulator<PairInstance>( rng, max_pairwise_instances );
+		final ReservoirSampleAccumulator<PairInstance> positive
+			= new ReservoirSampleAccumulator<PairInstance>( rng, max_pairwise_instances );
+		
+		for( int i = 0; i < single.size(); ++i ) {
+			for( int j = i + 1; j < single.size(); ++j ) {
+				final Instance ii = single.get( i );
+				final Instance ij = single.get( j );
+				final int label;
+				if( ii.classValue() == ij.classValue() ) {
+					label = 1;
+					if( positive.acceptNext() ) {
+						final PairInstance pair_instance = new PairInstance(
+							ii.toDoubleArray(), ij.toDoubleArray(), label );
+						positive.addPending( pair_instance );
+					}
+				}
+				else {
+					label = 0;
+					if( negative.acceptNext() ) {
+						final PairInstance pair_instance = new PairInstance(
+							ii.toDoubleArray(), ij.toDoubleArray(), label );
+						negative.addPending( pair_instance );
+					}
+				}
+			}
+		}
+		
+		final ArrayList<PairInstance> result = new ArrayList<PairInstance>( negative.n() + positive.n() );
+		result.addAll( negative.samples() );
+		result.addAll( positive.samples() );
+		return result;
+	}
 	
 	public static <S, X extends FactoredRepresentation<S>, A extends VirtualConstructor<A>>
 	Instances makePairDataset( final RandomGenerator rng, final int max_pairwise_instances,

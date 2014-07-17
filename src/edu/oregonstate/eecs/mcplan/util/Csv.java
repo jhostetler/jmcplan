@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.util;
 
+import gnu.trove.list.array.TDoubleArrayList;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -30,6 +32,11 @@ public class Csv
 		public Writer( final PrintStream out )
 		{
 			this.out = out;
+		}
+		
+		public void close()
+		{
+			out.close();
 		}
 		
 		public Writer cell( final Object o )
@@ -118,6 +125,40 @@ public class Csv
 		return sb.toString();
 	}
 	
+	public static void write( final PrintStream out, final double[] v )
+	{
+		final Writer writer = new Writer( out );
+		for( int i = 0; i < v.length; ++i ) {
+			writer.cell( v[i] );
+		}
+		writer.newline();
+	}
+	
+	public static void write( final PrintStream out, final TDoubleArrayList v )
+	{
+		final Writer writer = new Writer( out );
+		for( int i = 0; i < v.size(); ++i ) {
+			writer.cell( v.get( i ) );
+		}
+		writer.newline();
+	}
+	
+	public static void write( final PrintStream out, final RealVector v )
+	{
+		final Writer writer = new Writer( out );
+		for( int i = 0; i < v.getDimension(); ++i ) {
+			writer.cell( v.getEntry( i ) );
+		}
+		writer.newline();
+	}
+	
+	public static void write( final PrintStream out, final Iterable<RealVector> ts )
+	{
+		for( final RealVector t : ts ) {
+			write( out, t );
+		}
+	}
+	
 	public static void write( final PrintStream out, final RealMatrix m )
 	{
 		final Writer writer = new Writer( out );
@@ -197,17 +238,18 @@ public class Csv
 	{
 		try {
 			final BufferedReader r = new BufferedReader( new FileReader( f ) );
-			final String line = r.readLine();
-			final String[] entries = line.split( "," );
-			final ArrayRealVector v = new ArrayRealVector( entries.length );
-			for( int i = 0; i < entries.length; ++i ) {
-				v.setEntry( i, Double.parseDouble( entries[i] ) );
+			String line;
+			final TDoubleArrayList values = new TDoubleArrayList();
+			while( (line = r.readLine()) != null ) {
+				values.add( Double.parseDouble( line ) );
 			}
-			
-			return v;
+			r.close();
+			return new ArrayRealVector( values.toArray() );
 		}
 		catch( final Exception ex ) {
 			throw new RuntimeException( ex );
 		}
 	}
+
+	
 }

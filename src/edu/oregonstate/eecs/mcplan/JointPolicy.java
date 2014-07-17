@@ -27,6 +27,11 @@ public class JointPolicy<S, A extends VirtualConstructor<A>> extends Policy<S, J
 		}
 	}
 	
+	public static <S, A extends VirtualConstructor<A>> JointPolicy<S, A> create( final Policy<S, A>... Pi )
+	{
+		return new JointPolicy<S, A>( Pi );
+	}
+	
 	private final ArrayList<Policy<S, A>> Pi_;
 	
 	public JointPolicy( final Policy<S, A>... Pi )

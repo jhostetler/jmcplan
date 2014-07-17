@@ -25,6 +25,7 @@ import org.apache.commons.math3.stat.correlation.StorelessCovariance;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
 
+import weka.classifiers.Classifier;
 import weka.core.Attribute;
 import weka.core.DenseInstance;
 import weka.core.Instance;
@@ -79,6 +80,13 @@ import edu.oregonstate.eecs.mcplan.domains.tamarisk.TamariskActionGenerator;
 import edu.oregonstate.eecs.mcplan.domains.tamarisk.TamariskParameters;
 import edu.oregonstate.eecs.mcplan.domains.tamarisk.TamariskSimulator;
 import edu.oregonstate.eecs.mcplan.domains.tamarisk.TamariskState;
+import edu.oregonstate.eecs.mcplan.domains.taxi.PrimitiveTaxiRepresenter;
+import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiAction;
+import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiActionGenerator;
+import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiSimulator;
+import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiState;
+import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiVisualization;
+import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiWorlds;
 import edu.oregonstate.eecs.mcplan.domains.toy.ChainWalk;
 import edu.oregonstate.eecs.mcplan.domains.toy.Irrelevance;
 import edu.oregonstate.eecs.mcplan.domains.yahtzee2.PrimitiveYahtzeeRepresenter;
@@ -738,6 +746,84 @@ public class Experiments
 	
 	// -----------------------------------------------------------------------
 	
+	private static class RandomClusterAbstraction<S extends State, X extends FactoredRepresentation<S>,
+					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
+		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
+	{
+		public static <S extends State, X extends FactoredRepresentation<S>,
+					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
+		RandomClusterAbstraction<S, X, A, R> create( final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			return new RandomClusterAbstraction<S, X, A, R>( config );
+		}
+		
+		private final Configuration config_;
+		private final int max_branching_;
+		
+		public RandomClusterAbstraction( final Configuration config )
+		{
+			config_ = config;
+			max_branching_ = config_.getInt( "pairwise_classifier.max_branching" );
+		}
+		
+		@Override
+		public MctsVisitor<S, A> getTrainingMctsVisitor()
+		{
+			return new DefaultMctsVisitor<S, A>();
+		}
+		
+		@Override
+		public EpisodeListener<S, A> getTrainingEpisodeListener()
+		{
+			return new DefaultEpisodeListener<S, A>();
+		}
+		
+		@Override
+		public Representer<S, Representation<S>> trainRepresenter(
+			final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter )
+		{
+			return new ReprWrapper<S>( new RandomClusterRepresenter<S>( config_.rng, max_branching_ ) );
+		}
+
+		@Override
+		public SolvedStateGapRecorder<Representation<S>, A> getGapRecorder()
+		{
+			return null;
+		}
+
+		@Override
+		public ArrayList<double[]> getTrainingVectors()
+		{
+			return new ArrayList<double[]>();
+		}
+
+		@Override
+		public ArrayList<A> getTrainingLabels()
+		{
+			return new ArrayList<A>();
+		}
+
+		@Override
+		public Representer<S, Representation<S>> loadModel(
+			final File dir, final FactoredRepresenter<S, X> base_repr, final int iter )
+		{
+			return new ReprWrapper<S>( new RandomClusterRepresenter<S>( config_.rng, max_branching_ ) );
+		}
+
+		@Override
+		public void writeModel( final int iter )
+		{ }
+
+		@Override
+		public Instances makePairwiseInstances(
+			final Instances single, final FactoredRepresenter<S, X> repr )
+		{
+			return null;
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
 	private static class HammingDistanceAbstraction<S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
 		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
@@ -884,34 +970,6 @@ public class Experiments
 	}
 	
 	// -----------------------------------------------------------------------
-	
-	private static class MetricSimilarityFunction implements SimilarityFunction
-	{
-		private final RealMatrix metric_;
-		
-		public MetricSimilarityFunction( final RealMatrix metric )
-		{
-			metric_ = metric;
-		}
-		
-		@Override
-		public double similarity( final double[] a, final double[] b )
-		{
-			final double eps = 1e-6;
-			final double[] diff = Fn.vminus( a, b );
-			final double ip = HilbertSpace.inner_prod( diff, metric_, diff );
-//			assert( ip >= -eps );
-			if( ip < 0 ) {
-				if( ip > -eps ) {
-					return 0.0;
-				}
-				else {
-					throw new IllegalStateException( "inner_prod = " + ip );
-				}
-			}
-			return -Math.sqrt( ip );
-		}
-	}
 	
 	private static class MetricLearningAbstraction<S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
@@ -1194,6 +1252,138 @@ public class Experiments
 				Csv.write( new PrintStream( new File( config_.data_directory, "params" + iter + ".csv" ) ), m );
 			}
 			catch( final FileNotFoundException ex ) {
+				throw new RuntimeException( ex );
+			}
+		}
+
+		@Override
+		public Instances makePairwiseInstances(
+			final Instances single, final FactoredRepresenter<S, X> repr )
+		{
+			final int max_pairwise_instances = config_.getInt( "training.max_pairwise" );
+			final PairDataset.InstanceCombiner combiner = new PairDataset.DifferenceFeatures( repr.attributes() );
+			return PairDataset.makePairDataset(
+				config_.rng, max_pairwise_instances, single, combiner );
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
+	private static class MulticlassAbstraction<S extends State, X extends FactoredRepresentation<S>,
+					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
+		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
+	{
+		public static <S extends State, X extends FactoredRepresentation<S>,
+					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
+		MulticlassAbstraction<S, X, A, R> create( final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			return new MahalanobisDistanceAbstraction<S, X, A, R>( config, domain );
+		}
+		
+		private final Configuration config_;
+		private final R base_repr_;
+		
+		private final SolvedStateAccumulator<S, X, A> labeled_;
+		private final SolvedStateGapRecorder<Representation<S>, A> gaps_
+			= new SolvedStateGapRecorder<Representation<S>, A>();
+		
+		private Classifier classifier_ = null;
+		
+		public MulticlassAbstraction( final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			config_ = config;
+			base_repr_ = domain.getBaseRepresenter();
+			labeled_ = new SolvedStateAccumulator<S, X, A>( base_repr_.create() );
+		}
+		
+		@Override
+		public MctsVisitor<S, A> getTrainingMctsVisitor()
+		{
+			return new DefaultMctsVisitor<S, A>();
+		}
+		
+		@Override
+		public EpisodeListener<S, A> getTrainingEpisodeListener()
+		{
+			return labeled_;
+		}
+		
+		@Override
+		public Representer<S, Representation<S>> trainRepresenter(
+			final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter )
+		{
+			try {
+				final String algorithm = config_.get( "multiclass.classifier" );
+				if( "random_forest".equals( algorithm ) ) {
+					final FastRandomForest rf = new FastRandomForest();
+					rf.setNumTrees( config_.getInt( "multiclass.random_forest.Ntrees" ) );
+					rf.setMaxDepth( config_.getInt( "multiclass.random_forest.max_depth" ) );
+					rf.setNumThreads( 1 );
+					rf.buildClassifier( train.single );
+					classifier_ = rf;
+				}
+				else {
+					throw new IllegalArgumentException( "multiclass.classifier = " + algorithm );
+				}
+				return new ReprWrapper<S>( new MulticlassRepresenter<S, X>(
+					classifier_, train.single.numClasses(), base_repr ) );
+			}
+			catch( final RuntimeException ex ) {
+				throw ex;
+			}
+			catch( final Exception ex ) {
+				throw new RuntimeException( ex );
+			}
+		}
+
+		@Override
+		public SolvedStateGapRecorder<Representation<S>, A> getGapRecorder()
+		{
+			return gaps_;
+		}
+
+		@Override
+		public ArrayList<double[]> getTrainingVectors()
+		{
+			return labeled_.Phi_;
+		}
+
+		@Override
+		public ArrayList<A> getTrainingLabels()
+		{
+			return labeled_.actions_;
+		}
+
+		private String modelFilename()
+		{
+			final String algorithm = config_.get( "multiclass.classifier" );
+			return "multiclass." + algorithm + ".model";
+		}
+		
+		@Override
+		public Representer<S, Representation<S>> loadModel(
+			final File dir, final FactoredRepresenter<S, X> base_repr, final int iter )
+		{
+			classifier_ = (Classifier) SerializationHelper.read(
+				new File( config_.data_directory, modelFilename() ).getPath() );
+
+			return new ReprWrapper<S>( new PairwiseClassifierRepresenter<S, X>(
+				base_repr.create(), new MetricSimilarityFunction( M_ ),
+				decision_threshold_,
+				config_.getInt( "pairwise_classifier.max_branching" ) ) );
+		}
+
+		@Override
+		public void writeModel( final int iter )
+		{
+			try {
+				SerializationHelper.write(
+					new File( config_.data_directory, modelFilename() ).getPath(), classifier_ );
+			}
+			catch( final RuntimeException ex ) {
+				throw ex;
+			}
+			catch( final Exception ex ) {
 				throw new RuntimeException( ex );
 			}
 		}
@@ -1533,7 +1723,10 @@ public class Experiments
 	AbstractionDiscoveryAlgorithm<S, X, A, R> createAbstractionDiscoveryAlgorithm(
 		final Configuration config, final Domain<S, X, A, R> domain )
 	{
-		if( "metric".equals( config.abstraction ) ) {
+		if( "random".equals( config.abstraction ) ) {
+			return RandomClusterAbstraction.create( config, domain );
+		}
+		else if( "metric".equals( config.abstraction ) ) {
 			return MetricLearningAbstraction.create( config, domain );
 		}
 		else if( "mahalanobis".equals( config.abstraction ) ) {
@@ -1798,6 +1991,94 @@ public class Experiments
 		public ActionGenerator<BlackjackState, BlackjackAction> getActionGenerator()
 		{
 			return new BlackjackActionGenerator();
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
+	private static class TaxiDomain extends Domain<TaxiState, FactoredRepresentation<TaxiState>,
+														TaxiAction, PrimitiveTaxiRepresenter>
+	{
+		private final Configuration config_;
+		private final TaxiState exemplar_state_;
+		
+		private final int nagents_ = 1;
+		
+		public TaxiDomain( final Configuration config )
+		{
+			config_ = config;
+			final int Nother_taxis = config_.getInt( "taxi.Nother_taxis" );
+			exemplar_state_ = TaxiWorlds.dietterich2000( Nother_taxis );
+		}
+		
+		@Override
+		public UndoSimulator<TaxiState, TaxiAction> createSimulator()
+		{
+			final int Nother_taxis = config_.getInt( "taxi.Nother_taxis" );
+			final TaxiState state = TaxiWorlds.dietterich2000( Nother_taxis );
+			final double slip = config_.getDouble( "taxi.slip" );
+			final int T = config_.getInt( "taxi.T" );
+			final TaxiSimulator sim = new TaxiSimulator( config_.rng, state, slip, T );
+			return sim;
+		}
+
+		@Override
+		public GameTreeFactory<TaxiState, Representation<TaxiState>, TaxiAction> getUctFactory(
+				final UndoSimulator<TaxiState, TaxiAction> sim,
+				final Representer<TaxiState, Representation<TaxiState>> repr,
+				final int Nepisodes )
+		{
+			final double uct_c = config_.uct_c;
+			// Optimistic default value
+			final double[] default_value = new double[] { 20.0 };
+			final BackupRule<Representation<TaxiState>, TaxiAction> train_backup
+				= BackupRule.<Representation<TaxiState>, TaxiAction>MaxQ();
+			final GameTreeFactory<
+				TaxiState, Representation<TaxiState>, TaxiAction
+			> factory
+				= new UctSearch.Factory<TaxiState, Representation<TaxiState>, TaxiAction>(
+					sim, repr.create(), SingleAgentJointActionGenerator.create( getActionGenerator() ),
+					uct_c, Nepisodes, config_.rng,
+					getEvaluator(), train_backup, default_value );
+			return factory;
+		}
+
+		@Override
+		public PrimitiveTaxiRepresenter getBaseRepresenter()
+		{
+			return new PrimitiveTaxiRepresenter( exemplar_state_.Nother_taxis, exemplar_state_.locations.size() );
+		}
+
+//		@Override
+		public EvaluationFunction<TaxiState, TaxiAction> getEvaluator()
+		{
+			final int rollout_width = 1;
+			final int rollout_depth = Integer.MAX_VALUE;
+			final Policy<TaxiState, JointAction<TaxiAction>> rollout_policy
+				= new RandomPolicy<TaxiState, JointAction<TaxiAction>>(
+					0 /*Player*/, config_.rng.nextInt(),
+					SingleAgentJointActionGenerator.create( getActionGenerator() ) );
+			final EvaluationFunction<TaxiState, TaxiAction> rollout_evaluator
+				= RolloutEvaluator.create( rollout_policy, config_.discount,
+										   rollout_width, rollout_depth, new double[] { 0.0 } );
+			return rollout_evaluator;
+		}
+
+		@Override
+		public EpisodeListener<TaxiState, TaxiAction> getVisualization()
+		{
+			final int scale = 20;
+			final TaxiVisualization vis = new TaxiVisualization(
+				null, exemplar_state_.topology, exemplar_state_.locations, scale );
+			return vis.updater( 1000 );
+			
+//			return null;
+		}
+
+		@Override
+		public ActionGenerator<TaxiState, TaxiAction> getActionGenerator()
+		{
+			return new TaxiActionGenerator();
 		}
 	}
 	
@@ -2406,6 +2687,7 @@ public class Experiments
 		public final String abstraction;
 		public final String model;
 		public final String domain;
+		// FIXME: Why is 'root_directory' a String?
 		public final String root_directory;
 		public final String training_data_single;
 		public final String training_data_pair;
@@ -2463,9 +2745,14 @@ public class Experiments
 		
 		public Configuration( final KeyValueStore config )
 		{
+			this( config.get( "root_directory" ), config );
+		}
+		
+		public Configuration( final String root_directory, final String subdir, final KeyValueStore config )
+		{
 			config_ = config;
 			
-			root_directory = config.get( "root_directory" );
+			this.root_directory = root_directory;
 			exclude_.add( "root_directory" );
 			domain = config.get( "domain" );
 			exclude_.add( "domain" );
@@ -2489,6 +2776,7 @@ public class Experiments
 			discount = config.getDouble( "discount" );
 			seed = config.getInt( "seed" );
 			Niterations = config.getInt( "Niterations" );
+			rng = new MersenneTwister( seed );
 			
 			final StringBuilder sb = new StringBuilder();
 			int count = 0;
@@ -2508,21 +2796,22 @@ public class Experiments
 		
 //			training_directory = new File( root_directory + File.separator + domain + File.separator + "train" );
 			
-			final String file_name = root_directory + File.separator
-								   + "results" + File.separator
-					  			   + domain + File.separator
-					  			   + abstraction + File.separator
-					  			   + sb.toString();
+//			final String file_name = root_directory + File.separator
+//								   + "results" + File.separator
+//					  			   + domain + File.separator
+//					  			   + abstraction + File.separator
+//					  			   + sb.toString();
+//			data_directory = new File( file_name );
+//			data_directory.mkdirs();
 			
-			rng = new MersenneTwister( seed );
-			data_directory = new File( file_name );
+			data_directory = new File( root_directory, subdir );
 			data_directory.mkdirs();
 		}
 		
 		public String trainingName( final String keyword, final int iter )
 		{
 			final StringBuilder sb = new StringBuilder();
-			sb.append( "train_" ).append( keyword ).append( "_" ).append( iter )
+			sb.append( domain ).append( "_" ).append( keyword ).append( "_" ).append( iter )
 			  .append( "_" ).append( Ntrain_episodes )
 			  .append( "_" ).append( Ntrain_games )
 			  .append( "_" ).append( getInt( "training.max_per_label" ) );
@@ -2578,6 +2867,11 @@ public class Experiments
 			}
 			else if( "blackjack".equals( config.domain ) ) {
 				final BlackjackDomain domain = new BlackjackDomain( config );
+				runExperiment( config, domain,
+							   createAbstractionDiscoveryAlgorithm( config, domain ) );
+			}
+			else if( "taxi".equals( config.domain ) ) {
+				final TaxiDomain domain = new TaxiDomain( config );
 				runExperiment( config, domain,
 							   createAbstractionDiscoveryAlgorithm( config, domain ) );
 			}

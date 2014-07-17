@@ -34,4 +34,18 @@ public class HilbertSpace
 		}
 		return s;
 	}
+	
+	public static double inner_prod( final RealVector x, final RealVector y )
+	{
+		return x.dotProduct( y );
+	}
+	
+	public static double inner_prod( final double[] x, final double[] y )
+	{
+		double s = 0.0;
+		for( int i = 0; i < x.length; ++i ) {
+			s += x[i]*y[i];
+		}
+		return s;
+	}
 }
