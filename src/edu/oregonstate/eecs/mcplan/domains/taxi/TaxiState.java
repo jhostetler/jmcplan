@@ -34,8 +34,10 @@ public class TaxiState implements State
 	public final int[][] other_taxis;
 	
 	public int t = 0;
-	public final int T = 100000;
+	// FIXME: This should have the same value as it has for TaxiSimulator!
+	public final int T = 100;
 	
+	public boolean pickup_success = false;
 	public boolean illegal_pickup_dropoff = false;
 	public boolean goal = false;
 	
@@ -70,6 +72,7 @@ public class TaxiState implements State
 		destination = s.destination;
 		
 		t = s.t;
+		pickup_success = s.pickup_success;
 		illegal_pickup_dropoff = s.illegal_pickup_dropoff;
 		goal = s.goal;
 	}

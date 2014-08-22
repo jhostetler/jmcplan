@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.abstraction;
 
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import hr.irb.fastRandomForest.FastRandomForest;
 import hr.irb.fastRandomForest.NakedFastRandomForest;
 import hr.irb.fastRandomForest.NakedFastRandomTree;
@@ -27,6 +29,11 @@ import org.apache.commons.math3.linear.RealVector;
 import org.apache.commons.math3.random.RandomAdaptor;
 
 import weka.classifiers.Classifier;
+import weka.classifiers.functions.Logistic;
+import weka.classifiers.meta.LogitBoost;
+import weka.classifiers.trees.J48;
+import weka.classifiers.trees.REPTree;
+import weka.classifiers.trees.RandomForest;
 import weka.core.Attribute;
 import weka.core.DenseInstance;
 import weka.core.Instance;
@@ -40,9 +47,12 @@ import edu.oregonstate.eecs.mcplan.ml.ClusterContingencyTable;
 import edu.oregonstate.eecs.mcplan.ml.InnerProductKernel;
 import edu.oregonstate.eecs.mcplan.ml.KernelPrincipalComponentsAnalysis;
 import edu.oregonstate.eecs.mcplan.ml.LinearDiscriminantAnalysis;
+import edu.oregonstate.eecs.mcplan.ml.LongHashFunction;
 import edu.oregonstate.eecs.mcplan.ml.RadialBasisFunctionKernel;
 import edu.oregonstate.eecs.mcplan.ml.RandomForestKernel;
+import edu.oregonstate.eecs.mcplan.ml.SequentialProjectionHashLearner;
 import edu.oregonstate.eecs.mcplan.ml.StreamingClusterer;
+import edu.oregonstate.eecs.mcplan.ml.WekaGlue;
 import edu.oregonstate.eecs.mcplan.util.Csv;
 import edu.oregonstate.eecs.mcplan.util.CsvConfigurationParser;
 import edu.oregonstate.eecs.mcplan.util.Fn;
@@ -510,7 +520,8 @@ public class EvaluateSimilarityFunction
 	
 	private static CoordinateTransform createCoordinateTransform( final Configuration config, final Instances train )
 	{
-		final String[] stages = config.abstraction.split( "\\+" );
+		final String abstraction = config.get( "abstraction.discovery" );
+		final String[] stages = abstraction.split( "\\+" );
 		final TransformerChain chain = new TransformerChain();
 		
 		Instances current = train;
@@ -538,7 +549,7 @@ public class EvaluateSimilarityFunction
 				next = new LDA_Representer( config, current );
 			}
 			else {
-				throw new IllegalArgumentException( "abstraction = " + config.abstraction );
+				throw new IllegalArgumentException( "abstraction = " + abstraction );
 			}
 			
 			chain.transformers.add( next );
@@ -575,7 +586,7 @@ public class EvaluateSimilarityFunction
 	
 	public static abstract class Evaluator
 	{
-		public abstract Instances prepareTestInstances( final Instances test );
+		public abstract Instances prepareInstances( final Instances test );
 		public abstract ClusterContingencyTable evaluate( final Instances test );
 		public abstract boolean isSensitiveToOrdering();
 	}
@@ -615,7 +626,7 @@ public class EvaluateSimilarityFunction
 		}
 		
 		@Override
-		public Instances prepareTestInstances( final Instances test )
+		public Instances prepareInstances( final Instances test )
 		{
 			final Instances transformed_test = transformInstances( test, transformer );
 			return transformed_test;
@@ -638,11 +649,13 @@ public class EvaluateSimilarityFunction
 	
 	public static class MulticlassEvaluator extends Evaluator
 	{
+		public final Configuration config;
 		public final Classifier classifier;
 		public final int Nclasses;
 		
 		public MulticlassEvaluator( final Configuration config, final Instances train )
 		{
+			this.config = config;
 			try {
 				Nclasses = train.classAttribute().numValues();
 				final String algorithm = config.get( "multiclass.classifier" );
@@ -651,12 +664,31 @@ public class EvaluateSimilarityFunction
 					rf.setNumTrees( config.getInt( "multiclass.random_forest.Ntrees" ) );
 					rf.setMaxDepth( config.getInt( "multiclass.random_forest.max_depth" ) );
 					rf.setNumThreads( 1 );
-					rf.buildClassifier( train );
 					classifier = rf;
+				}
+				else if( "decision_tree".equals( algorithm ) ) {
+					final J48 dt = new J48();
+					classifier = dt;
+				}
+				else if( "logistic_regression".equals( algorithm ) ) {
+					final Logistic lr = new Logistic();
+					lr.setRidge( config.getDouble( "multiclass.logistic_regression.ridge" ) );
+					classifier = lr;
+				}
+				else if( "logit_boost".equals( algorithm ) ) {
+					final LogitBoost lb = new LogitBoost();
+//					final M5P base = new M5P();
+					final REPTree base = new REPTree();
+					base.setMaxDepth( 8 );
+					lb.setClassifier( base );
+					classifier = lb;
 				}
 				else {
 					throw new IllegalArgumentException( "multiclass.classifier = " + algorithm );
 				}
+				
+				final Instances transformed = prepareInstances( train );
+				classifier.buildClassifier( transformed );
 			}
 			catch( final RuntimeException ex ) {
 				throw ex;
@@ -667,9 +699,20 @@ public class EvaluateSimilarityFunction
 		}
 
 		@Override
-		public Instances prepareTestInstances( final Instances test )
+		public Instances prepareInstances( final Instances test )
 		{
-			return test;
+//			final Instances result =
+//				Instances.mergeInstances( WekaUtil.allPairwiseProducts( test, false, false ), test );
+//			result.setClassIndex( result.numAttributes() - 1 );
+//			return result;
+			
+			final String algorithm = config.get( "multiclass.classifier" );
+			if( "logistic_regression".equals( algorithm ) ) {
+				return WekaUtil.powerSet( test, 2 );
+			}
+			else {
+				return test;
+			}
 		}
 
 		@Override
@@ -686,21 +729,237 @@ public class EvaluateSimilarityFunction
 		}
 	}
 	
+	public static class HashEvaluator extends Evaluator
+	{
+		public final Configuration config;
+		public final LongHashFunction<RealVector> hash;
+		
+		public HashEvaluator( final Configuration config, final Instances train )
+		{
+			this.config = config;
+			try {
+				final String algorithm = config.get( "hash.algorithm" );
+				if( "sequential_projection".equals( algorithm ) ) {
+					final int K = config.getInt( "sequential_projection.K" );
+					final double eta = config.getDouble( "sequential_projection.eta" );
+					final double alpha = config.getDouble( "sequential_projection.alpha" );
+					final Instances unlabeled = new Instances( train, 0 );
+					final SequentialProjectionHashLearner sph =	WekaGlue.createSequentialProjectionHashLearner(
+						config.rng, train, unlabeled, K, eta, alpha );
+					sph.run();
+					hash = sph;
+				}
+				else {
+					throw new IllegalArgumentException( "hash.algorithm = " + algorithm );
+				}
+			}
+			catch( final RuntimeException ex ) {
+				throw ex;
+			}
+			catch( final Exception ex ) {
+				throw new RuntimeException( ex );
+			}
+		}
+
+		@Override
+		public Instances prepareInstances( final Instances test )
+		{
+			return test;
+		}
+
+		@Override
+		public ClusterContingencyTable evaluate( final Instances test )
+		{
+			final ArrayList<Set<RealVector>> U = new ArrayList<Set<RealVector>>();
+			final ArrayList<Set<RealVector>> V = new ArrayList<Set<RealVector>>();
+			for( int i = 0; i < test.numClasses(); ++i ) {
+				V.add( new HashSet<RealVector>() );
+			}
+			
+			final int r = 25;
+			final TLongObjectMap<Set<RealVector>> um = new TLongObjectHashMap<Set<RealVector>>();
+			for( final Instance inst : test ) {
+				final RealVector v = new ArrayRealVector( WekaUtil.unlabeledFeatures( inst ), false );
+				final long h = hash.hash( v );
+//				System.out.println( "h = " + h );
+				
+				boolean found = false;
+				for( final Set<RealVector> s : U ) {
+					found = true;
+					for( final RealVector u : s ) {
+						final long uh = hash.hash( u );
+						final int d = Long.bitCount( h ^ uh );
+						if( d > r ) {
+							found = false;
+							break;
+						}
+					}
+					if( found ) {
+						s.add( v );
+						break;
+					}
+				}
+				if( !found ) {
+					final Set<RealVector> s = new HashSet<RealVector>();
+					s.add( v );
+					U.add( s );
+				}
+				
+				// The truth
+				V.get( (int) inst.classValue() ).add( v );
+			}
+			
+			final ClusterContingencyTable ct = new ClusterContingencyTable( U, V );
+			return ct;
+		}
+
+		@Override
+		public boolean isSensitiveToOrdering()
+		{
+			return false;
+		}
+	}
+	
+	public static class PairSimilarityEvaluator extends Evaluator
+	{
+		public final Configuration config;
+		
+		private final Classifier classifier_;
+		
+		// FIXME: Ugh! Ugly hack because we have to return Instances from
+		// prepareInstances()
+		private PairDataset pair_dataset_ = null;
+		
+		public PairSimilarityEvaluator( final Configuration config, final Instances train )
+		{
+			this.config = config;
+			try {
+				final String algorithm = config.get( "pair.algorithm" );
+				final Instances p = prepareInstances( train );
+				if( "decision_tree".equals( algorithm ) ) {
+					final J48 dt = new J48();
+					dt.buildClassifier( p );
+					classifier_ = dt;
+				}
+				else if( "logit_boost".equals( algorithm ) ) {
+					final LogitBoost lb = new LogitBoost();
+//					final M5P base = new M5P();
+					final REPTree base = new REPTree();
+//					base.setMaxDepth( 8 );
+					lb.setSeed( config.rng.nextInt() );
+					lb.setClassifier( base );
+					lb.setNumIterations( 50 );
+					lb.buildClassifier( p );
+					classifier_ = lb;
+				}
+				else if( "random_forest".equals( algorithm ) ) {
+					final RandomForest rf = new RandomForest();
+					final int Ntrees = config.getInt( "pair.random_forest.Ntrees" );
+					rf.setNumTrees( Ntrees );
+					rf.buildClassifier( p );
+					classifier_ = rf;
+				}
+				else {
+					throw new IllegalArgumentException( "pair.algorithm = " + algorithm );
+				}
+			}
+			catch( final RuntimeException ex ) {
+				throw ex;
+			}
+			catch( final Exception ex ) {
+				throw new RuntimeException( ex );
+			}
+		}
+		
+		@Override
+		public Instances prepareInstances( final Instances test )
+		{
+			final PairDataset.InstanceCombiner combiner
+				= new PairDataset.SymmetricFeatures( WekaUtil.extractUnlabeledAttributes( test ) );
+			final int positive_pairs = config.getInt( "training.positive_pairs" );
+			final int negative_pairs = config.getInt( "training.negative_pairs" );
+			pair_dataset_ = PairDataset.makeBalancedPairDataset(
+				config.rng, negative_pairs, positive_pairs, test, combiner );
+			return pair_dataset_.instances;
+		}
+
+		@Override
+		public ClusterContingencyTable evaluate( final Instances test )
+		{
+			final ArrayList<Instance> exemplars = new ArrayList<Instance>();
+			final ArrayList<Set<RealVector>> U = new ArrayList<Set<RealVector>>();
+			final ArrayList<Set<RealVector>> V = new ArrayList<Set<RealVector>>();
+			final int Nclasses = test.numClasses();
+			for( int i = 0; i < Nclasses; ++i ) {
+				V.add( new HashSet<RealVector>() );
+			}
+			
+			final Instances dummy = WekaUtil.createEmptyInstances( "dummy", pair_dataset_.combiner.attributes() );
+			for( final Instance inst : test ) {
+				final int c = (int) inst.classValue();
+				final RealVector v = new ArrayRealVector( inst.toDoubleArray() );
+				V.get( c ).add( v );
+				boolean found = false;
+				final int[] idx = Fn.range( 0, exemplars.size() );
+				Fn.shuffle( config.rng, idx );
+				for( final int i : idx ) {
+					final Instance x = exemplars.get( i );
+					final int xc = (int) x.classValue();
+					final Instance p = pair_dataset_.combiner.apply( inst, x, (c == xc ? 1 : 0) );
+					WekaUtil.addInstance( dummy, p );
+					int prediction;
+					try {
+						prediction = (int) classifier_.classifyInstance( p );
+					}
+					catch( final RuntimeException ex ) { throw ex; }
+					catch( final Exception ex ) { throw new RuntimeException( ex ); }
+					dummy.remove( 0 );
+					if( prediction == 1 ) {
+						U.get( i ).add( v );
+						found = true;
+						break;
+					}
+				}
+				if( !found ) {
+					exemplars.add( inst );
+					final Set<RealVector> s = new HashSet<RealVector>();
+					s.add( v );
+					U.add( s );
+				}
+			}
+
+			return new ClusterContingencyTable( U, V );
+		}
+
+		@Override
+		public boolean isSensitiveToOrdering()
+		{
+			return false;
+		}
+		
+	}
+	
 	public static Evaluator createEvaluator( final Configuration config, final Instances train )
 	{
 		// FIXME: We are checking against a list of names in two places (here and
 		// when creating the CoordinateTransform). The only reason to do it here
 		// is basically because to evaluate a Classifier we need labeled Instance
 		// objects, while to evaluate a clusterer we need unlabeled double[]'s.
-		if( "kpca".equals( config.abstraction ) || "lda".equals( config.abstraction )
-			|| "kpca+lda".equals( config.abstraction ) ) {
+		final String abstraction = config.get( "abstraction.discovery" );
+		if( "kpca".equals( abstraction ) || "lda".equals( abstraction ) || "kpca+lda".equals( abstraction ) ) {
 			return new ClusterEvaluator( config, train );
 		}
-		else if( "multiclass".equals( config.abstraction ) ) {
+		else if( "multiclass".equals( abstraction ) ) {
 			return new MulticlassEvaluator( config, train );
 		}
+		else if( "hash".equals( abstraction ) ) {
+			return new HashEvaluator( config, train );
+		}
+		else if( "pair".equals( abstraction ) ) {
+			return new PairSimilarityEvaluator( config, train );
+		}
 		else {
-			throw new IllegalArgumentException( "abstraction = " + config.abstraction );
+			throw new IllegalArgumentException( "abstraction = " + abstraction );
 		}
 	}
 	
@@ -748,7 +1007,10 @@ public class EvaluateSimilarityFunction
 				final Configuration config = new Configuration(
 					root_directory.getPath(), expr_directory.getName(), expr_config );
 				
-				final Instances single = config.loadSingleInstances();
+				System.out.println( "[Loading '" + config.training_data_single + "']" );
+				final Instances single = WekaUtil.readLabeledDataset(
+					new File( root_directory, config.training_data_single + ".arff" ) );
+				
 				final Instances train = new Instances( single, 0 );
 				final int[] idx = Fn.range( 0, single.size() );
 				int instance_counter = 0;
@@ -780,7 +1042,7 @@ public class EvaluateSimilarityFunction
 				
 				System.out.println( "[Training]" );
 				final Evaluator evaluator = createEvaluator( config, train );
-				final Instances transformed_test = evaluator.prepareTestInstances( test );
+//				final Instances transformed_test = evaluator.prepareInstances( test );
 								
 				System.out.println( "[Evaluating]" );
 	
@@ -788,8 +1050,10 @@ public class EvaluateSimilarityFunction
 				final MeanVarianceAccumulator ami = new MeanVarianceAccumulator();
 				
 				for( int xval = 0; xval < Nxval; ++xval ) {
-					transformed_test.randomize( new RandomAdaptor( config.rng ) );
-					final ClusterContingencyTable ct = evaluator.evaluate( transformed_test );
+//					transformed_test.randomize( new RandomAdaptor( config.rng ) );
+//					final ClusterContingencyTable ct = evaluator.evaluate( transformed_test );
+					test.randomize( new RandomAdaptor( config.rng ) );
+					final ClusterContingencyTable ct = evaluator.evaluate( test );
 					System.out.println( ct );
 					final PrintStream ct_out = new PrintStream( new FileOutputStream(
 						new File( expr_directory, "ct_" + expr + "_" + xval + ".csv" ) ) );
@@ -799,7 +1063,7 @@ public class EvaluateSimilarityFunction
 				}
 				System.out.println( "AMI_max = " + ami.mean() + " (" + ami.confidence() + ")" );
 				
-				csv.cell( config.domain ).cell( config.abstraction );
+				csv.cell( config.domain ).cell( config.get( "abstraction.discovery" ) );
 				for( final String p : parameter_headers ) {
 					csv.cell( config.get( p ) );
 				}

@@ -3,32 +3,29 @@
  */
 package edu.oregonstate.eecs.mcplan.search;
 
+import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.Representation;
+import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
 /**
  * @author jhostetler
  *
  */
-public class LeafStateNode<S, X extends Representation<S>, A extends VirtualConstructor<A>>
-	extends MutableStateNode<S, X, A>
+public class LeafStateNode<S, A extends VirtualConstructor<A>>
+	extends MutableStateNode<S, A>
 {
-	private final double[] v_;
-	
-	public LeafStateNode( final double[] v, final X token, final int nagents, final int[] turn )
+	public LeafStateNode( final Representation<S> x, final int nagents, final int[] turn )
 	{
 		// Note: Passing 'null' for action_gen.
-		super( token, nagents, turn, null );
-		v_ = v;
+		super( x, nagents, turn, null );
 	}
 
-	/* (non-Javadoc)
-	 * @see edu.oregonstate.eecs.mcplan.search.StateNode#v()
-	 */
-//	@Override
-//	public double[] v()
-//	{
-//		return v_;
-//	}
+	@Override
+	public MutableActionNode<S, A> successor( final JointAction<A> a, final int nagents,
+			final Representer<S, ? extends Representation<S>> repr )
+	{
+		throw new UnsupportedOperationException( "LeafStateNode cannot have successors" );
+	}
 
 }

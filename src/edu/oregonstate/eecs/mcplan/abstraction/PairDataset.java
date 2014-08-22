@@ -14,6 +14,7 @@ import weka.core.DenseInstance;
 import weka.core.Instance;
 import weka.core.Instances;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
+import edu.oregonstate.eecs.mcplan.Pair;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 import edu.oregonstate.eecs.mcplan.util.ReservoirSampleAccumulator;
@@ -25,11 +26,14 @@ import edu.oregonstate.eecs.mcplan.util.ReservoirSampleAccumulator;
 public class PairDataset
 {
 	public final Instances instances;
+	public final ArrayList<int[]> matches;
 	public final PairDataset.InstanceCombiner combiner;
 	
-	public PairDataset( final Instances instances, final PairDataset.InstanceCombiner combiner )
+	public PairDataset( final Instances instances, final ArrayList<int[]> matches,
+						final PairDataset.InstanceCombiner combiner )
 	{
 		this.instances = instances;
+		this.matches = matches;
 		this.combiner = combiner;
 	}
 	
@@ -41,6 +45,7 @@ public class PairDataset
 	{
 		public abstract ArrayList<Attribute> attributes();
 		public abstract DenseInstance apply( Instance a, Instance b, final int label );
+		public abstract double[] apply( final double[] a, final double[] b, final double label );
 		public abstract double[] apply( final double[] a, final double[] b );
 		public abstract String keyword();
 	}
@@ -69,6 +74,19 @@ public class PairDataset
 			}
 			phi[phi.length - 1] = pair_label;
 			return new DenseInstance( 1.0, phi );
+		}
+		
+		@Override
+		public double[] apply( final double[] a, final double[] b, final double label )
+		{
+			assert( a.length == b.length );
+			final double[] phi = new double[a.length + 1];
+			
+			for( int i = 0; i < phi.length - 1; ++i ) {
+				phi[i] = a[i] - b[i];
+			}
+			phi[phi.length - 1] = label;
+			return phi;
 		}
 		
 		@Override
@@ -102,6 +120,9 @@ public class PairDataset
 	{
 		private final ArrayList<Attribute> attributes_;
 		
+		/**
+		 * @param attributes Unlabeled attributes of single-instance data.
+		 */
 		public SymmetricFeatures( final ArrayList<Attribute> attributes )
 		{
 			attributes_ = attributes;
@@ -121,14 +142,37 @@ public class PairDataset
 			}
 			phi[idx++] = pair_label;
 			assert( idx == phi.length );
-			return new DenseInstance( 1.0, phi );
+			// FIXME: Make this configurable?
+			final double weight = (pair_label == 1 ? 1.0 : 1.0);
+			return new DenseInstance( weight, phi );
+		}
+		
+		@Override
+		public double[] apply( final double[] a, final double[] b, final double label )
+		{
+			assert( a.length == b.length );
+			final double[] phi = new double[2*a.length + 1];
+			int idx = 0;
+			for( int i = 0; i < a.length; ++i ) {
+				phi[idx++] = a[i] + b[i];
+				phi[idx++] = a[i] * b[i];
+			}
+			phi[idx++] = label;
+			assert( idx == phi.length );
+			return phi;
 		}
 		
 		@Override
 		public double[] apply( final double[] a, final double[] b )
 		{
-			// TODO Auto-generated method stub
-			return null;
+			assert( a.length == b.length );
+			final double[] phi = new double[2*a.length];
+			int idx = 0;
+			for( int i = 0; i < a.length; ++i ) {
+				phi[idx++] = a[i] + b[i];
+				phi[idx++] = a[i] * b[i];
+			}
+			return phi;
 		}
 		
 		@Override
@@ -151,6 +195,8 @@ public class PairDataset
 			result.add( new Attribute( "__label__", nominal ) );
 			return result;
 		}
+
+		
 	}
 	
 	// -----------------------------------------------------------------------
@@ -205,9 +251,9 @@ public class PairDataset
 			= new ReservoirSampleAccumulator<Instance>( rng, max_pairwise_instances );
 		
 		for( int i = 0; i < single.size(); ++i ) {
-			if( i % 100 == 0 ) {
-				System.out.println( "i = " + i );
-			}
+//			if( i % 100 == 0 ) {
+//				System.out.println( "i = " + i );
+//			}
 			for( int j = i + 1; j < single.size(); ++j ) {
 				final Instance ii = single.get( i );
 				final Instance ij = single.get( j );
@@ -242,6 +288,70 @@ public class PairDataset
 		
 		return x;
 //		return new PairDataset( x, combiner );
+	}
+	
+	/**
+	 * Constructs one positive pair and one negative pair involving each
+	 * data point in 'single'.
+	 * @param rng
+	 * @param max_pairwise_instances
+	 * @param single
+	 * @param combiner
+	 * @return
+	 */
+	public static <S, X extends FactoredRepresentation<S>, A extends VirtualConstructor<A>>
+	PairDataset makeBalancedPairDataset( final RandomGenerator rng,
+										 final int negative_per_instance, final int positive_per_instance,
+										 final Instances single, final InstanceCombiner combiner )
+	{
+		final int Nnegative = negative_per_instance * single.size();
+		final int Npositive = positive_per_instance * single.size();
+//		final int max_pairwise = config.getInt( "training.max_pairwise" );
+		final ReservoirSampleAccumulator<Pair<Instance, int[]>> negative
+			= new ReservoirSampleAccumulator<Pair<Instance, int[]>>( rng, Nnegative );
+		final ReservoirSampleAccumulator<Pair<Instance, int[]>> positive
+			= new ReservoirSampleAccumulator<Pair<Instance, int[]>>( rng, Npositive );
+		
+		for( int i = 0; i < single.size(); ++i ) {
+//			if( i % 100 == 0 ) {
+//				System.out.println( "i = " + i );
+//			}
+			for( int j = i + 1; j < single.size(); ++j ) {
+				final Instance ii = single.get( i );
+				final Instance ij = single.get( j );
+				final int label;
+				if( ii.classValue() == ij.classValue() ) {
+					label = 1;
+					if( positive.acceptNext() ) {
+						final Instance pair_instance = combiner.apply( ii, ij, label );
+						positive.addPending( Pair.makePair( pair_instance, new int[] { i, j } ) );
+					}
+				}
+				else {
+					label = 0;
+					if( negative.acceptNext() ) {
+						final Instance pair_instance = combiner.apply( ii, ij, label );
+						negative.addPending( Pair.makePair( pair_instance, new int[] { i, j } ) );
+					}
+				}
+			}
+		}
+		
+		final int N = Math.min( negative.samples().size(), positive.samples().size() );
+		final String dataset_name = "train_" + combiner.keyword() + "_" + Nnegative + "x" + Npositive;
+		final Instances x = new Instances( dataset_name, combiner.attributes(), Nnegative + Npositive );
+		x.setClassIndex( x.numAttributes() - 1 );
+		final ArrayList<int[]> matches = new ArrayList<int[]>();
+		for( final Pair<Instance, int[]> ineg : negative.samples() ) {
+			WekaUtil.addInstance( x, ineg.first );
+			matches.add( ineg.second );
+		}
+		for( final Pair<Instance, int[]> ipos : positive.samples() ) {
+			WekaUtil.addInstance( x, ipos.first );
+			matches.add( ipos.second );
+		}
+		
+		return new PairDataset( x, matches, combiner );
 	}
 	
 	// -----------------------------------------------------------------------

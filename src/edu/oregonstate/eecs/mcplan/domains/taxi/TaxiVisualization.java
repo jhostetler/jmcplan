@@ -122,6 +122,9 @@ public class TaxiVisualization
 		else if( s.illegal_pickup_dropoff ) {
 			System.out.println( "Illegal!" );
 		}
+		else if( s.pickup_success ) {
+			System.out.println( "Pickup success!" );
+		}
 	}
 	
 	public void updateStateOnEDT( final TaxiState s )
@@ -281,7 +284,6 @@ public class TaxiVisualization
 		private final JLabel y_ = new JLabel( "Y: " );
 		private final JLabel pass_ = new JLabel( "Pass: " );
 		private final JLabel dest_ = new JLabel( "Destination: " );
-		private final JLabel in_ = new JLabel( "In taxi? " );
 		private final JLabel goal_ = new JLabel( "Goal? " );
 //		private final JLabel crashed_ = new JLabel( "Crashed? " );
 		
@@ -310,7 +312,6 @@ public class TaxiVisualization
 			telemetry.add( y_ );
 			telemetry.add( pass_ );
 			telemetry.add( dest_ );
-			telemetry.add( in_ );
 			telemetry.add( goal_ );
 //			telemetry.add( laps_to_go_ );
 			add( telemetry, BorderLayout.EAST );

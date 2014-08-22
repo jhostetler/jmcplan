@@ -14,6 +14,7 @@ public class MoveAction extends TaxiAction
 	public final int dx;
 	public final int dy;
 	
+	private final boolean old_pickup_success_ = false;
 	private boolean old_illegal_ = false;
 	private boolean legal_ = false;
 	private boolean done_ = false;
@@ -32,6 +33,7 @@ public class MoveAction extends TaxiAction
 			s.taxi[0] -= dx;
 			s.taxi[1] -= dy;
 		}
+		s.pickup_success = old_pickup_success_;
 		s.illegal_pickup_dropoff = old_illegal_;
 		legal_ = false;
 		done_ = false;
@@ -47,6 +49,7 @@ public class MoveAction extends TaxiAction
 			Fn.memcpy( s.taxi, new_pos, new_pos.length );
 			legal_ = true;
 		}
+		s.pickup_success = false;
 		s.illegal_pickup_dropoff = false;
 		done_ = true;
 	}

@@ -20,7 +20,7 @@ public final class RolloutEvaluator<S extends State, A extends VirtualConstructo
 {
 	public static <S extends State, A extends VirtualConstructor<A>>
 	RolloutEvaluator<S, A> create( final Policy<S, JointAction<A>> policy, final double discount,
-								   final int width, final int depth, final double[] default_value )
+								   final int width, final int depth, final EvaluationFunction<S, A> default_value )
    {
 		return new RolloutEvaluator<S, A>( policy, discount, width, depth, default_value );
    }
@@ -29,10 +29,10 @@ public final class RolloutEvaluator<S extends State, A extends VirtualConstructo
 	public final double discount;
 	public final int width;
 	public final int depth;
-	public final double[] default_value;
+	public final EvaluationFunction<S, A> default_value;
 	
 	public RolloutEvaluator( final Policy<S, JointAction<A>> policy, final double discount,
-							 final int width, final int depth, final double[] default_value )
+							 final int width, final int depth, final EvaluationFunction<S, A> default_value )
 	{
 		this.policy = policy;
 		this.discount = discount;
@@ -63,7 +63,7 @@ public final class RolloutEvaluator<S extends State, A extends VirtualConstructo
 					break;
 				}
 				else if( count == depth ) {
-					Fn.vplus_ax_inplace( q, running_discount, default_value );
+					Fn.vplus_ax_inplace( q, running_discount, default_value.evaluate( sim ) );
 					break;
 				}
 				

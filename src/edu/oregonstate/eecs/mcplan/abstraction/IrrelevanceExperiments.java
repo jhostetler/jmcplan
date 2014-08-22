@@ -367,7 +367,7 @@ public class IrrelevanceExperiments
 						throw new RuntimeException( ex );
 					}
 					final Representer<Irrelevance.State, AggregateState<Irrelevance.State>> repr
-						= new PairwiseClassifierRepresenter<Irrelevance.State, Irrelevance.IdentityRepresentation>( base_repr, attributes, c );
+						= new PairwiseSimilarityRepresenter<Irrelevance.State, Irrelevance.IdentityRepresentation>( base_repr, attributes, c );
 					
 					final Policy<Irrelevance.State, JointAction<Irrelevance.Action>>
 						rollout_policy = new RandomPolicy<Irrelevance.State, JointAction<Irrelevance.Action>>(

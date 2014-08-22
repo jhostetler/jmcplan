@@ -4,6 +4,7 @@
 package edu.oregonstate.eecs.mcplan.search;
 
 import edu.oregonstate.eecs.mcplan.JointAction;
+import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Generator;
 
@@ -14,16 +15,16 @@ import edu.oregonstate.eecs.mcplan.util.Generator;
 public abstract class StateNode<S, A extends VirtualConstructor<A>>
 	extends GameTreeNode<S, A>
 {
-	public final S token;
+	public final Representation<S> x;
 	public final int nagents;
 	public final int[] turn;
 	
 	protected final double[] vhat_;
 	
-	public StateNode( final S token, final int nagents, final int[] turn )
+	public StateNode( final Representation<S> x, final int nagents, final int[] turn )
 	{
 		//assert( nagents == 2 ); // TODO:
-		this.token = token;
+		this.x = x;
 		this.nagents = nagents;
 		this.turn = turn;
 		vhat_ = new double[nagents];

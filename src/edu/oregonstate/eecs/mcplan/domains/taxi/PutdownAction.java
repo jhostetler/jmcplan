@@ -15,6 +15,7 @@ public class PutdownAction extends TaxiAction
 	
 	private int old_passenger_ = -1;
 	private boolean old_goal_ = false;
+	private boolean old_pickup_success_ = false;
 	private boolean old_illegal_ = false;
 	
 	@Override
@@ -24,6 +25,7 @@ public class PutdownAction extends TaxiAction
 		
 		s.passenger = old_passenger_;
 		s.goal = old_goal_;
+		s.pickup_success = old_pickup_success_;
 		s.illegal_pickup_dropoff = old_illegal_;
 		done_ = false;
 	}
@@ -35,16 +37,31 @@ public class PutdownAction extends TaxiAction
 		
 		old_passenger_ = s.passenger;
 		old_goal_ = s.goal;
+		old_pickup_success_ = s.pickup_success;
 		old_illegal_ = s.illegal_pickup_dropoff;
+		
+		s.pickup_success = false;
+		
+//		if( s.passenger == TaxiState.IN_TAXI ) {
+//			for( int loc_i = 0; loc_i < s.locations.size(); ++loc_i ) {
+//				final int[] loc = s.locations.get( loc_i );
+//				if( Arrays.equals( loc, s.taxi ) ) {
+//					s.passenger = loc_i;
+//					if( loc_i == s.destination ) {
+//						s.goal = true;
+//					}
+//					done_ = true;
+//					return;
+//				}
+//			}
+//		}
 		
 		if( s.passenger == TaxiState.IN_TAXI ) {
 			for( int loc_i = 0; loc_i < s.locations.size(); ++loc_i ) {
 				final int[] loc = s.locations.get( loc_i );
-				if( Arrays.equals( loc, s.taxi ) ) {
+				if( Arrays.equals( loc, s.taxi ) && loc_i == s.destination ) {
 					s.passenger = loc_i;
-					if( loc_i == s.destination ) {
-						s.goal = true;
-					}
+					s.goal = true;
 					done_ = true;
 					return;
 				}

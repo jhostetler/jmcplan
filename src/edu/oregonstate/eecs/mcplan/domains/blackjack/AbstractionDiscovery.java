@@ -34,7 +34,7 @@ import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.RandomPolicy;
 import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.abstraction.ClusterAbstraction;
-import edu.oregonstate.eecs.mcplan.abstraction.PairwiseClassifierRepresenter;
+import edu.oregonstate.eecs.mcplan.abstraction.PairwiseSimilarityRepresenter;
 import edu.oregonstate.eecs.mcplan.ml.InformationTheoreticMetricLearner;
 import edu.oregonstate.eecs.mcplan.ml.MetricConstrainedKMeans;
 import edu.oregonstate.eecs.mcplan.ml.VoronoiClassifier;
@@ -500,7 +500,7 @@ public class AbstractionDiscovery
 				writeDataset( root, train );
 				final Classifier classifier = makeClassifier( train );
 				SerializationHelper.write( new File( root, "rf" + iter + ".model" ).getAbsolutePath(), classifier );
-				Crepr = new PairwiseClassifierRepresenter<BlackjackState, HandValueAbstraction>(
+				Crepr = new PairwiseSimilarityRepresenter<BlackjackState, HandValueAbstraction>(
 					repr.create(), new Instances( train ), classifier );
 			}
 			

@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
@@ -18,15 +19,15 @@ import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
  * @author jhostetler
  *
  */
-public class MutableActionNode<S, X extends Representation<S>, A extends VirtualConstructor<A>>
-	extends ActionNode<X, A>
+public abstract class MutableActionNode<S, A extends VirtualConstructor<A>>
+	extends ActionNode<S, A>
 {
-	private static class StateTuple<X>
+	protected static final class StateTuple<S>
 	{
-		public final X x;
+		public final Representation<S> x;
 		public final int[] turn;
 		
-		public StateTuple( final X x, final int[] turn )
+		public StateTuple( final Representation<S> x, final int[] turn )
 		{
 			this.x = x;
 			this.turn = turn;
@@ -49,15 +50,16 @@ public class MutableActionNode<S, X extends Representation<S>, A extends Virtual
 		}
 	}
 	
-	private final Representer<S, X> repr_;
+	protected final Representer<S, ? extends Representation<S>> repr_;
 	
 	protected int n_ = 0;
 	protected final MeanVarianceAccumulator[] qv_;
 	protected final MeanVarianceAccumulator[] rv_;
-	protected final Map<StateTuple<X>, MutableStateNode<S, X, A>> s_
-		= new HashMap<StateTuple<X>, MutableStateNode<S, X, A>>();
+	protected final Map<StateTuple<S>, MutableStateNode<S, A>> s_
+		= new HashMap<StateTuple<S>, MutableStateNode<S, A>>();
 	
-	public MutableActionNode( final JointAction<A> a, final int nagents, final Representer<S, X> repr )
+	public MutableActionNode( final JointAction<A> a, final int nagents,
+							  final Representer<S, ? extends Representation<S>> repr )
 	{
 		super( a, nagents );
 		repr_ = repr;
@@ -69,27 +71,45 @@ public class MutableActionNode<S, X extends Representation<S>, A extends Virtual
 		}
 	}
 	
-	public Representer<S, X> repr()
+	@Override
+	public String toString()
 	{
-		return repr_;
+		return "ActionNode[" + a() + "]";
 	}
 	
-	public void attachSuccessor( final X token, final int[] turn, final MutableStateNode<S, X, A> node )
+	public abstract MutableActionNode<S, A> create();
+	
+	/**
+	 * @param token
+	 * @param nagents
+	 * @param turn
+	 * @param action_gen Will be copied if it is needed.
+	 * @return
+	 */
+	public abstract MutableStateNode<S, A> successor(
+			final S s, final int nagents, final int[] turn, final ActionGenerator<S, JointAction<A>> action_gen );
+	
+//	public Representer<S, ? extends Representation<S>> repr()
+//	{
+//		return repr_;
+//	}
+	
+	protected void attachSuccessor( final Representation<S> x, final int[] turn, final MutableStateNode<S, A> node )
 	{
-		s_.put( new StateTuple<X>( token, turn ), node );
+		s_.put( new StateTuple<S>( x, turn ), node );
 	}
 	
 	public void visit()
 	{ n_ += 1; }
 	
 	@Override
-	public MutableStateNode<S, X, A> getStateNode( final X token, final int[] turn )
+	public MutableStateNode<S, A> getStateNode( final Representation<S> x, final int[] turn )
 	{
-		return s_.get( new StateTuple<X>( token, turn ) );
+		return s_.get( new StateTuple<S>( x, turn ) );
 	}
 	
 	@Override
-	public Generator<MutableStateNode<S, X, A>> successors()
+	public Generator<MutableStateNode<S, A>> successors()
 	{
 		return Generator.fromIterator( s_.values().iterator() );
 	}

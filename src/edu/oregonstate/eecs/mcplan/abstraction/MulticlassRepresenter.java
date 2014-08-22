@@ -11,48 +11,49 @@ import weka.core.Instance;
 import weka.core.Instances;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
+import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
 
 /**
  * @author jhostetler
  *
  */
-public class MulticlassRepresenter<S, X extends FactoredRepresentation<S>>
-	implements Representer<S, ClusterAbstraction<S>>
+public class MulticlassRepresenter<S>
+	implements Representer<FactoredRepresentation<S>, Representation<S>>
 {
 	private final Classifier classifier_;
 	private final Instances headers_;
-	private final FactoredRepresenter<S, X> base_repr_;
 	
 	public final int Nclasses;
 	
 	public MulticlassRepresenter( final Classifier classifier, final int Nclasses,
-								  final FactoredRepresenter<S, X> base_repr )
+								  final FactoredRepresenter<S, ? extends FactoredRepresentation<S>> base_repr )
 	{
 		classifier_ = classifier;
-		base_repr_ = base_repr;
 		this.Nclasses = Nclasses;
-		final ArrayList<Attribute> labeled = new ArrayList<Attribute>( base_repr_.attributes() );
+		final ArrayList<Attribute> labeled = new ArrayList<Attribute>( base_repr.attributes() );
 		labeled.add( WekaUtil.createNominalAttribute( "__label__", Nclasses ) );
 		headers_ = new Instances( "dummy", labeled, 0 );
+		headers_.setClassIndex( labeled.size() - 1 );
 	}
 	
-	private MulticlassRepresenter( final MulticlassRepresenter<S, X> that )
+	private MulticlassRepresenter( final MulticlassRepresenter<S> that )
 	{
-		this( that.classifier_, that.Nclasses, that.base_repr_.create() );
+		classifier_ = that.classifier_;
+		headers_ = new Instances( that.headers_, 0 );
+		this.Nclasses = that.Nclasses;
 	}
 	
 	@Override
-	public Representer<S, ClusterAbstraction<S>> create()
+	public MulticlassRepresenter<S> create()
 	{
-		return new MulticlassRepresenter<S, X>( this );
+		return new MulticlassRepresenter<S>( this );
 	}
 
 	@Override
-	public ClusterAbstraction<S> encode( final S s )
+	public Representation<S> encode( final FactoredRepresentation<S> x )
 	{
 		try {
-			final X x = base_repr_.encode( s );
 			final Instance i = WekaUtil.labeledInstanceFromUnlabeledFeatures( headers_, x.phi() );
 			headers_.add( i );
 			i.setDataset( headers_ );

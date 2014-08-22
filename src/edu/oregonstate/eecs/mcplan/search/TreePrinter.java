@@ -47,9 +47,11 @@ public class TreePrinter<S, A extends VirtualConstructor<A>>
 		out_.print( ": n = " );
 		out_.print( s.n() );
 		out_.print( ": " );
-		out_.print( s.token );
-		out_.print( ": v = " );
-		out_.print( Arrays.toString( s.v() ) ); // FIXME: NP exception in v() due to no children
+		out_.print( s.x );
+		out_.print( ": r = " );
+		out_.print( Arrays.toString( s.r() ) );
+//		out_.print( ": v = " );
+//		out_.print( Arrays.toString( s.v() ) ); // FIXME: NP exception in v() due to no children
 		out_.println();
 		d_ += 1;
 		final int[] old_turn = turn_;

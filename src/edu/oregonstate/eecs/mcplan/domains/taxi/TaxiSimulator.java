@@ -171,6 +171,9 @@ public class TaxiSimulator implements UndoSimulator<TaxiState, TaxiAction>
 		if( s_.illegal_pickup_dropoff ) {
 			return new double[] { step_cost - 10 };
 		}
+		else if( s_.pickup_success ) {
+			return new double[] { step_cost + 5 };
+		}
 		else if( s_.goal ) {
 			return new double[] { step_cost + 20 };
 		}

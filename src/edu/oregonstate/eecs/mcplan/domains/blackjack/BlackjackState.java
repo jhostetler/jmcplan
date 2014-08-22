@@ -90,7 +90,13 @@ public class BlackjackState implements State
 	@Override
 	public String toString()
 	{
-		return "STRING NOT IMPLEMENTED!"; //token().toString();
+		final StringBuilder sb = new StringBuilder();
+		sb.append( "d: " ).append( dealer_hand_ );
+		for( int i = 0; i < hands_.size(); ++i ) {
+			sb.append( ", " ).append( i ).append( ": " ).append( hands_.get( i ) );
+		}
+		return sb.toString();
+//		return "STRING NOT IMPLEMENTED!"; //token().toString();
 	}
 
 	@Override

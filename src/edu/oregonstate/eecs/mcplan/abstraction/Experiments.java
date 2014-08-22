@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.CholeskyDecomposition;
 import org.apache.commons.math3.linear.MatrixUtils;
@@ -26,6 +27,10 @@ import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.DefaultEdge;
 
 import weka.classifiers.Classifier;
+import weka.classifiers.meta.LogitBoost;
+import weka.classifiers.trees.J48;
+import weka.classifiers.trees.REPTree;
+import weka.classifiers.trees.RandomForest;
 import weka.core.Attribute;
 import weka.core.DenseInstance;
 import weka.core.Instance;
@@ -42,6 +47,7 @@ import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.SingleAgentJointActionGenerator;
 import edu.oregonstate.eecs.mcplan.State;
+import edu.oregonstate.eecs.mcplan.TrivialRepresenter;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.domains.blackjack.BlackjackAction;
 import edu.oregonstate.eecs.mcplan.domains.blackjack.BlackjackActionGenerator;
@@ -57,7 +63,7 @@ import edu.oregonstate.eecs.mcplan.domains.frogger.FroggerParameters;
 import edu.oregonstate.eecs.mcplan.domains.frogger.FroggerSimulator;
 import edu.oregonstate.eecs.mcplan.domains.frogger.FroggerState;
 import edu.oregonstate.eecs.mcplan.domains.frogger.LanesToGoHeuristic;
-import edu.oregonstate.eecs.mcplan.domains.frogger.RelativeFroggerRepresenter;
+import edu.oregonstate.eecs.mcplan.domains.frogger.PrimitiveFroggerRepresenter;
 import edu.oregonstate.eecs.mcplan.domains.racegrid.PrimitiveRacegridRepresenter;
 import edu.oregonstate.eecs.mcplan.domains.racegrid.RacegridAction;
 import edu.oregonstate.eecs.mcplan.domains.racegrid.RacegridActionGenerator;
@@ -85,7 +91,6 @@ import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiAction;
 import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiActionGenerator;
 import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiSimulator;
 import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiState;
-import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiVisualization;
 import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiWorlds;
 import edu.oregonstate.eecs.mcplan.domains.toy.ChainWalk;
 import edu.oregonstate.eecs.mcplan.domains.toy.Irrelevance;
@@ -99,11 +104,12 @@ import edu.oregonstate.eecs.mcplan.ml.ClassifierSimilarityFunction;
 import edu.oregonstate.eecs.mcplan.ml.HilbertSpace;
 import edu.oregonstate.eecs.mcplan.ml.InformationTheoreticMetricLearner;
 import edu.oregonstate.eecs.mcplan.ml.MatrixAlgorithms;
+import edu.oregonstate.eecs.mcplan.ml.Memorizer;
 import edu.oregonstate.eecs.mcplan.ml.MetricConstrainedKMeans;
 import edu.oregonstate.eecs.mcplan.ml.SimilarityFunction;
 import edu.oregonstate.eecs.mcplan.ml.VoronoiClassifier;
 import edu.oregonstate.eecs.mcplan.search.ActionNode;
-import edu.oregonstate.eecs.mcplan.search.BackupRule;
+import edu.oregonstate.eecs.mcplan.search.AggregatingActionNode;
 import edu.oregonstate.eecs.mcplan.search.BackupRules;
 import edu.oregonstate.eecs.mcplan.search.DefaultMctsVisitor;
 import edu.oregonstate.eecs.mcplan.search.EvaluationFunction;
@@ -113,13 +119,14 @@ import edu.oregonstate.eecs.mcplan.search.GameTreeVisitor;
 import edu.oregonstate.eecs.mcplan.search.MctsVisitor;
 import edu.oregonstate.eecs.mcplan.search.RolloutEvaluator;
 import edu.oregonstate.eecs.mcplan.search.SearchPolicy;
+import edu.oregonstate.eecs.mcplan.search.SimpleMutableActionNode;
 import edu.oregonstate.eecs.mcplan.search.StateNode;
 import edu.oregonstate.eecs.mcplan.search.TreeStatisticsRecorder;
 import edu.oregonstate.eecs.mcplan.search.UctSearch;
-import edu.oregonstate.eecs.mcplan.sim.DefaultEpisodeListener;
 import edu.oregonstate.eecs.mcplan.sim.Episode;
 import edu.oregonstate.eecs.mcplan.sim.EpisodeListener;
 import edu.oregonstate.eecs.mcplan.sim.RewardAccumulator;
+import edu.oregonstate.eecs.mcplan.sim.Simulator;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 import edu.oregonstate.eecs.mcplan.util.Csv;
 import edu.oregonstate.eecs.mcplan.util.CsvConfigurationParser;
@@ -181,8 +188,7 @@ public class Experiments
 		{ }
 
 		@Override
-		public
-		void postGetAction( final JointAction<A> a )
+		public void postGetAction( final JointAction<A> a )
 		{
 			states_.add( x_ );
 			Phi_.add( Arrays.copyOf( x_.phi(), x_.phi().length ) );
@@ -586,10 +592,12 @@ public class Experiments
 		
 		final TIntArrayList counts = new TIntArrayList();
 		final int max_per_label = config.getInt( "training.max_per_label" );
+		final int max_instances = config.getInt( "training.max_single" );
 		
 		final ArrayList<DenseInstance> instance_list = new ArrayList<DenseInstance>();
-		for( final int i : ii ) {
-			final A a = labels.get( i );
+		for( int i = 0; i < Math.min( data.size(), max_instances ); ++i ) {
+			final int idx = ii[i];
+			final A a = labels.get( idx );
 			final Integer idx_obj = action_to_int.get( a );
 			final int label;
 			if( idx_obj == null ) {
@@ -605,9 +613,9 @@ public class Experiments
 			}
 			
 			final int c = counts.get( label );
-			if( c < max_per_label ) {
+			if( max_per_label <= 0 || c < max_per_label ) {
 //				System.out.println( "Adding " + label );
-				final double[] phi = Fn.append( data.get( i ), label );
+				final double[] phi = Fn.append( data.get( idx ), label );
 				final DenseInstance instance = new DenseInstance( 1.0, phi );
 				instance_list.add( instance );
 				counts.set( label, c + 1 );
@@ -618,7 +626,7 @@ public class Experiments
 		final ArrayList<Attribute> labeled_attributes = addLabelToAttributes( attributes, Nlabels );
 		
 		final Instances instances = new Instances(
-			config.trainingName( "single", iter ), labeled_attributes, counts.sum() );
+			deriveDatasetName( config.training_data_single, iter ), labeled_attributes, counts.sum() );
 		instances.setClassIndex( instances.numAttributes() - 1 );
 		for( final DenseInstance instance : instance_list ) {
 			instances.add( instance );
@@ -630,7 +638,7 @@ public class Experiments
 	
 	private static <A> void writeActionKey( final Configuration config, final SingleInstanceDataset<A> data, final int iter )
 	{
-		final File f = new File( config.data_directory, config.trainingName( "single", iter ) + "_action-key.csv" );
+		final File f = new File( config.data_directory, data.instances.relationName() + "_action-key.csv" );
 		try {
 			final Csv.Writer writer = new Csv.Writer( new PrintStream( f ) );
 			writer.cell( "key" ).cell( "action" ).newline();
@@ -643,6 +651,32 @@ public class Experiments
 		}
 	}
 	
+	private static <A> SingleInstanceDataset<A> combineInstances( final RandomGenerator rng,
+		final SingleInstanceDataset<A> running, final SingleInstanceDataset<A> new_, final double discount )
+	{
+//		final int[] idx = Fn.range( 0, running.size() );
+//		Fn.shuffle( rng, idx );
+//
+//		for( int i = 0; i < running.size(); ++i ) {
+//			final double p = rng.nextDouble();
+//			if( p < discount ) {
+//				running.set( i, new_.get( idx[i] ) );
+//			}
+//		}
+//
+//		return running;
+		
+		// TODO: This is the "right" thing to do, but the dataset might get
+		// unmanageable quickly
+		
+		for( final Instance inst : new_.instances ) {
+			inst.setValue( inst.classIndex(),
+						   running.action_to_int.get( new_.int_to_action.get( (int) inst.classValue() ) ) );
+			running.instances.add( inst );
+		}
+		return running;
+	}
+	
 	// -----------------------------------------------------------------------
 	// Abstraction algorithms
 	// -----------------------------------------------------------------------
@@ -650,18 +684,24 @@ public class Experiments
 	private static abstract class AbstractionDiscoveryAlgorithm<S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
 	{
-		public abstract MctsVisitor<S, A> getTrainingMctsVisitor();
-		public abstract SolvedStateGapRecorder<Representation<S>, A> getGapRecorder();
-		public abstract EpisodeListener<S, A> getTrainingEpisodeListener();
-		public abstract ArrayList<double[]> getTrainingVectors();
-		public abstract ArrayList<A> getTrainingLabels();
-		public abstract Instances makePairwiseInstances(
-			final Instances single, final FactoredRepresenter<S, X> repr );
 		public abstract void writeModel( final int iter );
-		public abstract Representer<S, Representation<S>> loadModel(
-			final File dir, final FactoredRepresenter<S, X> base_repr, final int iter );
-		public abstract Representer<S, Representation<S>> trainRepresenter(
+		public abstract void loadModel(
+			final FactoredRepresenter<S, X> base_repr, final int iter );
+		public abstract void trainRepresenter(
 			final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter );
+		
+		public UctSearch.Factory<S, A> getUctFactory(
+			final Configuration config, final Domain<S, X, A, R> domain, final UndoSimulator<S, A> sim, final int Nepisodes )
+		{
+			final UctSearch.Factory<S, A> f = createUctFactory( config, domain, sim, Nepisodes );
+			if( config.getInt( "max_action_visits" ) > 0 ) {
+				f.setMaxActionVisits( config.getInt( "max_action_visits" ) );
+			}
+			return f;
+		}
+		
+		protected abstract UctSearch.Factory<S, A> createUctFactory(
+			final Configuration config, final Domain<S, X, A, R> domain, final UndoSimulator<S, A> sim, final int Nepisodes );
 	}
 	
 	private static class NoneAbstractionDiscovery<S extends State, X extends FactoredRepresentation<S>,
@@ -675,61 +715,26 @@ public class Experiments
 			return new NoneAbstractionDiscovery<S, X, A, R>( config, domain );
 		}
 		
-		private final SolvedStateAccumulator<S, X, A> labeled_;
+		private Representer<S, Representation<S>> repr_ = null;
 		
 		public NoneAbstractionDiscovery( final Configuration config, final Domain<S, X, A, R> domain )
 		{
 //			config_ = config;
 //			base_repr_ = domain.getBaseRepresenter();
-			labeled_ = new SolvedStateAccumulator<S, X, A>( domain.getBaseRepresenter().create() );
+//			labeled_ = new SolvedStateAccumulator<S, X, A>( domain.getBaseRepresenter().create() );
 //			unlabeled_ = new UnlabeledStateAccumulator<S, A>( base_repr_.create() );
 		}
 		
 		@Override
-		public MctsVisitor<S, A> getTrainingMctsVisitor()
+		public void trainRepresenter( final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter )
 		{
-			return new DefaultMctsVisitor<S, A>();
-		}
-		
-		@Override
-		public EpisodeListener<S, A> getTrainingEpisodeListener()
-		{
-//			return new DefaultEpisodeListener<S, A>();
-			return labeled_;
-		}
-		
-		@Override
-		public Representer<S, Representation<S>> trainRepresenter(
-			final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter )
-		{
-			return new ReprWrapper<S>( base_repr.create() );
+			repr_ = new ReprWrapper<S>( base_repr.create() );
 		}
 
 		@Override
-		public SolvedStateGapRecorder<Representation<S>, A> getGapRecorder()
+		public void loadModel( final FactoredRepresenter<S, X> base_repr, final int iter )
 		{
-			return null;
-		}
-
-		@Override
-		public ArrayList<double[]> getTrainingVectors()
-		{
-//			return new ArrayList<double[]>();
-			return labeled_.Phi_;
-		}
-
-		@Override
-		public ArrayList<A> getTrainingLabels()
-		{
-//			return new ArrayList<A>();
-			return labeled_.actions_;
-		}
-
-		@Override
-		public Representer<S, Representation<S>> loadModel(
-			final File dir, final FactoredRepresenter<S, X> base_repr, final int iter )
-		{
-			return new ReprWrapper<S>( base_repr.create() );
+			repr_ = new ReprWrapper<S>( base_repr.create() );
 		}
 
 		@Override
@@ -737,11 +742,50 @@ public class Experiments
 		{ }
 
 		@Override
-		public Instances makePairwiseInstances(
-			final Instances single, final FactoredRepresenter<S, X> repr )
+		public UctSearch.Factory<S, A> createUctFactory(
+				final Configuration config, final Domain<S, X, A, R> domain, final UndoSimulator<S, A> sim,
+				final int Nepisodes )
 		{
-			return null;
+			return new UctSearch.Factory<S, A>(
+				sim, domain.getBaseRepresenter(),
+				SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
+				config.uct_c, Nepisodes, config.rng, domain.getEvaluator(),
+				new SimpleMutableActionNode<S, A>( null, 0, domain.getBaseRepresenter().create() ) );
 		}
+
+	}
+	
+	private static class TrivialAbstraction<S extends State, X extends FactoredRepresentation<S>,
+					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
+		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
+	{
+		final TrivialRepresenter<S> repr_ = new TrivialRepresenter<S>();
+
+		@Override
+		public void writeModel( final int iter )
+		{ }
+
+		@Override
+		public void loadModel( final FactoredRepresenter<S, X> base_repr, final int iter )
+		{ }
+
+		@Override
+		public void trainRepresenter( final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter )
+		{ }
+
+		@Override
+		public UctSearch.Factory<S, A> createUctFactory( final Configuration config,
+				final Domain<S, X, A, R> domain, final UndoSimulator<S, A> sim,
+				final int Nepisodes )
+		{
+//			System.out.println( "Trivial.createUctFactory()" );
+			return new UctSearch.Factory<S, A>(
+				sim, repr_.create(),
+				SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
+				config.uct_c, Nepisodes, config.rng, domain.getEvaluator(),
+				new SimpleMutableActionNode<S, A>( null, 0, repr_.create() ) );
+		}
+		
 	}
 	
 	// -----------------------------------------------------------------------
@@ -767,40 +811,10 @@ public class Experiments
 		}
 		
 		@Override
-		public MctsVisitor<S, A> getTrainingMctsVisitor()
-		{
-			return new DefaultMctsVisitor<S, A>();
-		}
-		
-		@Override
-		public EpisodeListener<S, A> getTrainingEpisodeListener()
-		{
-			return new DefaultEpisodeListener<S, A>();
-		}
-		
-		@Override
 		public Representer<S, Representation<S>> trainRepresenter(
 			final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter )
 		{
 			return new ReprWrapper<S>( new RandomClusterRepresenter<S>( config_.rng, max_branching_ ) );
-		}
-
-		@Override
-		public SolvedStateGapRecorder<Representation<S>, A> getGapRecorder()
-		{
-			return null;
-		}
-
-		@Override
-		public ArrayList<double[]> getTrainingVectors()
-		{
-			return new ArrayList<double[]>();
-		}
-
-		@Override
-		public ArrayList<A> getTrainingLabels()
-		{
-			return new ArrayList<A>();
 		}
 
 		@Override
@@ -813,13 +827,6 @@ public class Experiments
 		@Override
 		public void writeModel( final int iter )
 		{ }
-
-		@Override
-		public Instances makePairwiseInstances(
-			final Instances single, final FactoredRepresenter<S, X> repr )
-		{
-			return null;
-		}
 	}
 	
 	// -----------------------------------------------------------------------
@@ -844,18 +851,6 @@ public class Experiments
 		{
 			config_ = config;
 			base_repr_ = domain.getBaseRepresenter();
-		}
-		
-		@Override
-		public MctsVisitor<S, A> getTrainingMctsVisitor()
-		{
-			return new DefaultMctsVisitor<S, A>();
-		}
-		
-		@Override
-		public EpisodeListener<S, A> getTrainingEpisodeListener()
-		{
-			return new DefaultEpisodeListener<S, A>();
 		}
 		
 		private int hammingDistance( final double[] diff )
@@ -896,27 +891,9 @@ public class Experiments
 				q.add( hammingDistance( phi ) );
 			}
 			decision_threshold_ = -q.estimates[0];
-			return new ReprWrapper<S>( new PairwiseClassifierRepresenter<S, X>(
+			return new ReprWrapper<S>( new PairwiseSimilarityRepresenter<S, X>(
 				base_repr.create(),	new HammingSimilarity(),
 				decision_threshold_, max_branching ) );
-		}
-
-		@Override
-		public SolvedStateGapRecorder<Representation<S>, A> getGapRecorder()
-		{
-			return null;
-		}
-
-		@Override
-		public ArrayList<double[]> getTrainingVectors()
-		{
-			return null;
-		}
-
-		@Override
-		public ArrayList<A> getTrainingLabels()
-		{
-			return null;
 		}
 
 		@Override
@@ -939,7 +916,7 @@ public class Experiments
 			decision_threshold_ = -q.estimates[0];
 			System.out.println( "decision_threshold = " + decision_threshold_ );
 			
-			return new ReprWrapper<S>( new PairwiseClassifierRepresenter<S, X>(
+			return new ReprWrapper<S>( new PairwiseSimilarityRepresenter<S, X>(
 				base_repr.create(), new HammingSimilarity(),
 				decision_threshold_,
 				config_.getInt( "pairwise_classifier.max_branching" ) ) );
@@ -1004,19 +981,6 @@ public class Experiments
 		}
 		
 		@Override
-		public MctsVisitor<S, A> getTrainingMctsVisitor()
-		{
-//			return unlabeled_;
-			return new DefaultMctsVisitor<S, A>();
-		}
-		
-		@Override
-		public EpisodeListener<S, A> getTrainingEpisodeListener()
-		{
-			return labeled_;
-		}
-		
-		@Override
 		public Representer<S, Representation<S>> trainRepresenter(
 			final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter )
 		{
@@ -1042,7 +1006,7 @@ public class Experiments
 //			ell_ = itml.ell;
 //			final double decision_threshold = decisionThreshold( itml.u, itml.ell );
 			
-			return new ReprWrapper<S>( new PairwiseClassifierRepresenter<S, X>(
+			return new ReprWrapper<S>( new PairwiseSimilarityRepresenter<S, X>(
 				base_repr.create(),
 				new MetricSimilarityFunction( itml.A() ), decision_threshold_, max_branching ) );
 		}
@@ -1050,24 +1014,6 @@ public class Experiments
 		private double decisionThreshold( final double u, final double ell )
 		{
 			return -(u + ell) / 2.0;
-		}
-
-		@Override
-		public SolvedStateGapRecorder<Representation<S>, A> getGapRecorder()
-		{
-			return gaps_;
-		}
-
-		@Override
-		public ArrayList<double[]> getTrainingVectors()
-		{
-			return labeled_.Phi_;
-		}
-
-		@Override
-		public ArrayList<A> getTrainingLabels()
-		{
-			return labeled_.actions_;
 		}
 
 		@Override
@@ -1095,7 +1041,7 @@ public class Experiments
 			decision_threshold_ = -q.estimates[0];
 			System.out.println( "decision_threshold = " + decision_threshold_ );
 			
-			return new ReprWrapper<S>( new PairwiseClassifierRepresenter<S, X>(
+			return new ReprWrapper<S>( new PairwiseSimilarityRepresenter<S, X>(
 				base_repr.create(), new MetricSimilarityFunction( M_ ),
 				decision_threshold_, config_.getInt( "pairwise_classifier.max_branching" ) ) );
 		}
@@ -1158,18 +1104,6 @@ public class Experiments
 		}
 		
 		@Override
-		public MctsVisitor<S, A> getTrainingMctsVisitor()
-		{
-			return new DefaultMctsVisitor<S, A>();
-		}
-		
-		@Override
-		public EpisodeListener<S, A> getTrainingEpisodeListener()
-		{
-			return labeled_;
-		}
-		
-		@Override
 		public Representer<S, Representation<S>> trainRepresenter(
 			final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter )
 		{
@@ -1191,27 +1125,9 @@ public class Experiments
 				q.add( Math.sqrt( HilbertSpace.inner_prod( phi, M_, phi ) ) );
 			}
 			decision_threshold_ = -q.estimates[0];
-			return new ReprWrapper<S>( new PairwiseClassifierRepresenter<S, X>(
+			return new ReprWrapper<S>( new PairwiseSimilarityRepresenter<S, X>(
 				base_repr.create(),	new MetricSimilarityFunction( M_ ),
 				decision_threshold_, max_branching ) );
-		}
-
-		@Override
-		public SolvedStateGapRecorder<Representation<S>, A> getGapRecorder()
-		{
-			return gaps_;
-		}
-
-		@Override
-		public ArrayList<double[]> getTrainingVectors()
-		{
-			return labeled_.Phi_;
-		}
-
-		@Override
-		public ArrayList<A> getTrainingLabels()
-		{
-			return labeled_.actions_;
 		}
 
 		@Override
@@ -1236,7 +1152,7 @@ public class Experiments
 			decision_threshold_ = -q.estimates[0];
 			System.out.println( "decision_threshold = " + decision_threshold_ );
 			
-			return new ReprWrapper<S>( new PairwiseClassifierRepresenter<S, X>(
+			return new ReprWrapper<S>( new PairwiseSimilarityRepresenter<S, X>(
 				base_repr.create(), new MetricSimilarityFunction( M_ ),
 				decision_threshold_,
 				config_.getInt( "pairwise_classifier.max_branching" ) ) );
@@ -1277,7 +1193,7 @@ public class Experiments
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
 		MulticlassAbstraction<S, X, A, R> create( final Configuration config, final Domain<S, X, A, R> domain )
 		{
-			return new MahalanobisDistanceAbstraction<S, X, A, R>( config, domain );
+			return new MulticlassAbstraction<S, X, A, R>( config, domain );
 		}
 		
 		private final Configuration config_;
@@ -1288,28 +1204,20 @@ public class Experiments
 			= new SolvedStateGapRecorder<Representation<S>, A>();
 		
 		private Classifier classifier_ = null;
+		private final int Nclasses;
+		
+		private MulticlassRepresenter<S> abstract_repr_ = null;
 		
 		public MulticlassAbstraction( final Configuration config, final Domain<S, X, A, R> domain )
 		{
 			config_ = config;
+			Nclasses = domain.getActionGenerator().size();
 			base_repr_ = domain.getBaseRepresenter();
 			labeled_ = new SolvedStateAccumulator<S, X, A>( base_repr_.create() );
 		}
 		
 		@Override
-		public MctsVisitor<S, A> getTrainingMctsVisitor()
-		{
-			return new DefaultMctsVisitor<S, A>();
-		}
-		
-		@Override
-		public EpisodeListener<S, A> getTrainingEpisodeListener()
-		{
-			return labeled_;
-		}
-		
-		@Override
-		public Representer<S, Representation<S>> trainRepresenter(
+		public void trainRepresenter(
 			final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter )
 		{
 			try {
@@ -1322,11 +1230,21 @@ public class Experiments
 					rf.buildClassifier( train.single );
 					classifier_ = rf;
 				}
+				else if( "decision_tree".equals( algorithm ) ) {
+					final J48 dt = new J48();
+					dt.buildClassifier( train.single );
+					classifier_ = dt;
+				}
+				else if( "memorize".equals( algorithm ) ) {
+					final Memorizer memorizer = new Memorizer();
+					memorizer.buildClassifier( train.single );
+					classifier_ = memorizer;
+				}
 				else {
 					throw new IllegalArgumentException( "multiclass.classifier = " + algorithm );
 				}
-				return new ReprWrapper<S>( new MulticlassRepresenter<S, X>(
-					classifier_, train.single.numClasses(), base_repr ) );
+				abstract_repr_ = new MulticlassRepresenter<S>(
+					classifier_, train.single.numClasses(), base_repr );
 			}
 			catch( final RuntimeException ex ) {
 				throw ex;
@@ -1334,24 +1252,6 @@ public class Experiments
 			catch( final Exception ex ) {
 				throw new RuntimeException( ex );
 			}
-		}
-
-		@Override
-		public SolvedStateGapRecorder<Representation<S>, A> getGapRecorder()
-		{
-			return gaps_;
-		}
-
-		@Override
-		public ArrayList<double[]> getTrainingVectors()
-		{
-			return labeled_.Phi_;
-		}
-
-		@Override
-		public ArrayList<A> getTrainingLabels()
-		{
-			return labeled_.actions_;
 		}
 
 		private String modelFilename()
@@ -1361,24 +1261,14 @@ public class Experiments
 		}
 		
 		@Override
-		public Representer<S, Representation<S>> loadModel(
-			final File dir, final FactoredRepresenter<S, X> base_repr, final int iter )
-		{
-			classifier_ = (Classifier) SerializationHelper.read(
-				new File( config_.data_directory, modelFilename() ).getPath() );
-
-			return new ReprWrapper<S>( new PairwiseClassifierRepresenter<S, X>(
-				base_repr.create(), new MetricSimilarityFunction( M_ ),
-				decision_threshold_,
-				config_.getInt( "pairwise_classifier.max_branching" ) ) );
-		}
-
-		@Override
-		public void writeModel( final int iter )
+		public void loadModel( final FactoredRepresenter<S, X> base_repr, final int iter )
 		{
 			try {
-				SerializationHelper.write(
-					new File( config_.data_directory, modelFilename() ).getPath(), classifier_ );
+//				classifier_ = (Classifier) SerializationHelper.read(
+//					new File( config_.data_directory, deriveDatasetName( modelFilename(), iter ) ).getPath() );
+				classifier_ = (Classifier) SerializationHelper.read(
+					new File( config_.root_directory, config_.model ).getPath() );
+				abstract_repr_ = new MulticlassRepresenter<S>( classifier_, Nclasses, base_repr );
 			}
 			catch( final RuntimeException ex ) {
 				throw ex;
@@ -1389,13 +1279,171 @@ public class Experiments
 		}
 
 		@Override
-		public Instances makePairwiseInstances(
-			final Instances single, final FactoredRepresenter<S, X> repr )
+		public void writeModel( final int iter )
 		{
-			final int max_pairwise_instances = config_.getInt( "training.max_pairwise" );
-			final PairDataset.InstanceCombiner combiner = new PairDataset.DifferenceFeatures( repr.attributes() );
-			return PairDataset.makePairDataset(
-				config_.rng, max_pairwise_instances, single, combiner );
+			try {
+				SerializationHelper.write(
+					new File( config_.data_directory, deriveDatasetName( modelFilename(), iter ) ).getPath(), classifier_ );
+			}
+			catch( final RuntimeException ex ) {
+				throw ex;
+			}
+			catch( final Exception ex ) {
+				throw new RuntimeException( ex );
+			}
+		}
+		
+		@Override
+		public UctSearch.Factory<S, A> createUctFactory(
+				final Configuration config, final Domain<S, X, A, R> domain,
+				final UndoSimulator<S, A> sim, final int Nepisodes )
+		{
+			return new UctSearch.Factory<S, A>(
+				sim, domain.getBaseRepresenter(),
+				SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
+				config.uct_c, Nepisodes, config.rng, domain.getEvaluator(),
+				new AggregatingActionNode<S, A>( null, 0, domain.getBaseRepresenter().create(),
+												 abstract_repr_.create() ) );
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
+	private static class PairwiseClassifierAbstraction<S extends State, X extends FactoredRepresentation<S>,
+					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
+		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
+	{
+		public static <S extends State, X extends FactoredRepresentation<S>,
+					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
+		PairwiseClassifierAbstraction<S, X, A, R> create( final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			return new PairwiseClassifierAbstraction<S, X, A, R>( config, domain );
+		}
+		
+		private final Configuration config_;
+		private final R base_repr_;
+		
+		private final SolvedStateAccumulator<S, X, A> labeled_;
+		private final SolvedStateGapRecorder<Representation<S>, A> gaps_
+			= new SolvedStateGapRecorder<Representation<S>, A>();
+		
+		private final PairDataset.InstanceCombiner combiner_;
+		
+		private Classifier classifier_ = null;
+		private final int Nclasses;
+		
+		private PairwiseClassifierRepresenter<S> abstract_repr_ = null;
+		
+		public PairwiseClassifierAbstraction( final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			config_ = config;
+			Nclasses = domain.getActionGenerator().size();
+			base_repr_ = domain.getBaseRepresenter();
+			labeled_ = new SolvedStateAccumulator<S, X, A>( base_repr_.create() );
+			combiner_ = new PairDataset.SymmetricFeatures( base_repr_.attributes() );
+		}
+		
+		public PairDataset prepareInstances( final Instances test )
+		{
+			final int positive_pairs = config_.getInt( "training.positive_pairs" );
+			final int negative_pairs = config_.getInt( "training.negative_pairs" );
+			return PairDataset.makeBalancedPairDataset(
+				config_.rng, negative_pairs, positive_pairs, test, combiner_ );
+		}
+		
+		@Override
+		public void trainRepresenter(
+			final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter )
+		{
+			try {
+				final String algorithm = config_.get( "pair.algorithm" );
+				final PairDataset p = prepareInstances( train.single );
+				if( "decision_tree".equals( algorithm ) ) {
+					final J48 dt = new J48();
+					dt.buildClassifier( p.instances );
+					classifier_ = dt;
+				}
+				else if( "logit_boost".equals( algorithm ) ) {
+					final LogitBoost lb = new LogitBoost();
+//					final M5P base = new M5P();
+					final REPTree base = new REPTree();
+//					base.setMaxDepth( 8 );
+					lb.setSeed( config_.rng.nextInt() );
+					lb.setClassifier( base );
+					lb.setNumIterations( 50 );
+					lb.buildClassifier( p.instances );
+					classifier_ = lb;
+				}
+				else if( "random_forest".equals( algorithm ) ) {
+					final RandomForest rf = new RandomForest();
+					final int Ntrees = config_.getInt( "pair.random_forest.Ntrees" );
+					rf.setNumTrees( Ntrees );
+					rf.buildClassifier( p.instances );
+					classifier_ = rf;
+				}
+				else {
+					throw new IllegalArgumentException( "pair.algorithm = " + algorithm );
+				}
+				abstract_repr_ = new PairwiseClassifierRepresenter<S>( p.combiner, classifier_ );
+			}
+			catch( final RuntimeException ex ) {
+				throw ex;
+			}
+			catch( final Exception ex ) {
+				throw new RuntimeException( ex );
+			}
+		}
+
+		private String modelFilename()
+		{
+			final String algorithm = config_.get( "multiclass.classifier" );
+			return "multiclass." + algorithm + ".model";
+		}
+		
+		@Override
+		public void loadModel( final FactoredRepresenter<S, X> base_repr, final int iter )
+		{
+			try {
+//				classifier_ = (Classifier) SerializationHelper.read(
+//					new File( config_.data_directory, deriveDatasetName( modelFilename(), iter ) ).getPath() );
+				classifier_ = (Classifier) SerializationHelper.read(
+					new File( config_.root_directory, config_.model ).getPath() );
+				abstract_repr_ = new PairwiseClassifierRepresenter<S>( combiner_, classifier_ );
+			}
+			catch( final RuntimeException ex ) {
+				throw ex;
+			}
+			catch( final Exception ex ) {
+				throw new RuntimeException( ex );
+			}
+		}
+
+		@Override
+		public void writeModel( final int iter )
+		{
+			try {
+				SerializationHelper.write(
+					new File( config_.data_directory, deriveDatasetName( modelFilename(), iter ) ).getPath(), classifier_ );
+			}
+			catch( final RuntimeException ex ) {
+				throw ex;
+			}
+			catch( final Exception ex ) {
+				throw new RuntimeException( ex );
+			}
+		}
+		
+		@Override
+		public UctSearch.Factory<S, A> createUctFactory(
+				final Configuration config, final Domain<S, X, A, R> domain,
+				final UndoSimulator<S, A> sim, final int Nepisodes )
+		{
+			return new UctSearch.Factory<S, A>(
+				sim, domain.getBaseRepresenter(),
+				SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
+				config.uct_c, Nepisodes, config.rng, domain.getEvaluator(),
+				new AggregatingActionNode<S, A>( null, 0, domain.getBaseRepresenter().create(),
+												 abstract_repr_.create() ) );
 		}
 	}
 	
@@ -1429,19 +1477,6 @@ public class Experiments
 			base_repr_ = domain.getBaseRepresenter();
 			labeled_ = new SolvedStateAccumulator<S, X, A>( base_repr_.create() );
 //			unlabeled_ = new UnlabeledStateAccumulator<S, A>( base_repr_.create() );
-		}
-		
-		@Override
-		public MctsVisitor<S, A> getTrainingMctsVisitor()
-		{
-//			return unlabeled_;
-			return new DefaultMctsVisitor<S, A>();
-		}
-		
-		@Override
-		public EpisodeListener<S, A> getTrainingEpisodeListener()
-		{
-			return labeled_;
 		}
 		
 		@Override
@@ -1488,24 +1523,6 @@ public class Experiments
 		}
 
 		@Override
-		public SolvedStateGapRecorder<Representation<S>, A> getGapRecorder()
-		{
-			return gaps_;
-		}
-
-		@Override
-		public ArrayList<double[]> getTrainingVectors()
-		{
-			return labeled_.Phi_;
-		}
-
-		@Override
-		public ArrayList<A> getTrainingLabels()
-		{
-			return labeled_.actions_;
-		}
-
-		@Override
 		public Representer<S, Representation<S>> loadModel(
 			final File dir, final FactoredRepresenter<S, X> base_repr, final int iter )
 		{
@@ -1518,13 +1535,6 @@ public class Experiments
 		{
 			// TODO Auto-generated method stub
 			
-		}
-
-		@Override
-		public Instances makePairwiseInstances( final Instances single, final FactoredRepresenter<S, X> repr )
-		{
-			// TODO Auto-generated method stub
-			return null;
 		}
 	}
 	
@@ -1553,18 +1563,6 @@ public class Experiments
 			config_ = config;
 			base_repr_ = domain.getBaseRepresenter();
 			labeled_ = new SolvedStateAccumulator<S, X, A>( base_repr_.create() );
-		}
-		
-		@Override
-		public MctsVisitor<S, A> getTrainingMctsVisitor()
-		{
-			return new DefaultMctsVisitor<S, A>();
-		}
-		
-		@Override
-		public EpisodeListener<S, A> getTrainingEpisodeListener()
-		{
-			return labeled_;
 		}
 		
 		@Override
@@ -1662,7 +1660,7 @@ public class Experiments
 			
 			final double decision_threshold = config_.getDouble( "pairwise_classifier.decision_threshold" );
 			final int max_branching = config_.getInt( "pairwise_classifier.max_branching" );
-			return new ReprWrapper<S>( new PairwiseClassifierRepresenter<S, X>(
+			return new ReprWrapper<S>( new PairwiseSimilarityRepresenter<S, X>(
 				base_repr.create(),
 				new ClassifierSimilarityFunction( classifier, new Instances( train ) ) {
 					@Override
@@ -1673,24 +1671,6 @@ public class Experiments
 					}
 				},
 				decision_threshold, max_branching ) );
-		}
-
-		@Override
-		public SolvedStateGapRecorder<Representation<S>, A> getGapRecorder()
-		{
-			return gaps_;
-		}
-
-		@Override
-		public ArrayList<double[]> getTrainingVectors()
-		{
-			return labeled_.Phi_;
-		}
-
-		@Override
-		public ArrayList<A> getTrainingLabels()
-		{
-			return labeled_.actions_;
 		}
 
 		@Override
@@ -1707,13 +1687,6 @@ public class Experiments
 			// TODO Auto-generated method stub
 			
 		}
-
-		@Override
-		public Instances makePairwiseInstances( final Instances single, final FactoredRepresenter<S, X> repr )
-		{
-			// TODO Auto-generated method stub
-			return null;
-		}
 	}
 	
 	// -----------------------------------------------------------------------
@@ -1721,25 +1694,37 @@ public class Experiments
 	public static <S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
 	AbstractionDiscoveryAlgorithm<S, X, A, R> createAbstractionDiscoveryAlgorithm(
-		final Configuration config, final Domain<S, X, A, R> domain )
+		final String name, final Configuration config, final Domain<S, X, A, R> domain )
 	{
-		if( "random".equals( config.abstraction ) ) {
+		if( "none".equals( name ) ) {
+			return NoneAbstractionDiscovery.create( config, domain );
+		}
+		else if( "random".equals( name ) ) {
 			return RandomClusterAbstraction.create( config, domain );
 		}
-		else if( "metric".equals( config.abstraction ) ) {
+		else if( "trivial".equals( name ) ) {
+			return new TrivialAbstraction<S, X, A, R>();
+		}
+		else if( "metric".equals( name ) ) {
 			return MetricLearningAbstraction.create( config, domain );
 		}
-		else if( "mahalanobis".equals( config.abstraction ) ) {
+		else if( "mahalanobis".equals( name ) ) {
 			return MahalanobisDistanceAbstraction.create( config, domain );
 		}
-		else if( "kmeans".equals( config.abstraction ) ) {
+		else if( "multiclass".equals( name ) ) {
+			return MulticlassAbstraction.create( config, domain );
+		}
+		else if( "pair".equals( name ) ) {
+			return new PairwiseClassifierAbstraction<S, X, A, R>( config, domain );
+		}
+		else if( "kmeans".equals( name ) ) {
 			return KMeansAbstraction.create( config, domain );
 		}
-		else if( "random_forest".equals( config.abstraction ) ) {
+		else if( "random_forest".equals( name ) ) {
 			return RandomForestAbstractionDiscovery.create( config, domain );
 		}
 		else {
-			return NoneAbstractionDiscovery.create( config, domain );
+			throw new IllegalArgumentException( "name = " + name );
 		}
 	}
 	
@@ -1748,16 +1733,14 @@ public class Experiments
 	// -----------------------------------------------------------------------
 	
 	private static abstract class Domain<S extends State, X extends FactoredRepresentation<S>,
-					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, ? extends FactoredRepresentation<S>>>
+					A extends VirtualConstructor<A>, R extends Representer<S, ? extends Representation<S>>>
 	{
 		public abstract UndoSimulator<S, A> createSimulator();
-		public abstract GameTreeFactory<S, Representation<S>, A> getUctFactory(
-			final UndoSimulator<S, A> sim, final Representer<S, Representation<S>> repr, final int Nepisodes );
 		public abstract R getBaseRepresenter();
 		public abstract ActionGenerator<S, A> getActionGenerator();
-//		public abstract EvaluationFunction<S, A> getEvaluator();
-		
+		public abstract EvaluationFunction<S, A> getEvaluator();
 		public abstract EpisodeListener<S, A> getVisualization();
+		public abstract String name();
 	}
 	
 	// -----------------------------------------------------------------------
@@ -1779,27 +1762,6 @@ public class Experiments
 		{
 			return irrelevance_.new Simulator();
 		}
-		
-		@Override
-		public GameTreeFactory<Irrelevance.State, Representation<Irrelevance.State>, Irrelevance.Action>
-		getUctFactory( final UndoSimulator<Irrelevance.State, Irrelevance.Action> sim,
-					   final Representer<Irrelevance.State, Representation<Irrelevance.State>> repr,
-					   final int Nepisodes )
-		{
-			final double uct_c = config_.uct_c;
-			// Optimistic default value
-			final double[] default_value = new double[] { 1.0 };
-			final BackupRule<Representation<Irrelevance.State>, Irrelevance.Action> train_backup
-				= BackupRule.<Representation<Irrelevance.State>, Irrelevance.Action>MaxQ();
-			final GameTreeFactory<
-				Irrelevance.State, Representation<Irrelevance.State>, Irrelevance.Action
-			> factory
-				= new UctSearch.Factory<Irrelevance.State, Representation<Irrelevance.State>, Irrelevance.Action>(
-					sim, repr.create(), SingleAgentJointActionGenerator.create( getActionGenerator() ),
-					uct_c, Nepisodes, config_.rng,
-					getEvaluator(), train_backup, default_value );
-			return factory;
-		}
 
 		@Override
 		public Irrelevance.IdentityRepresenter getBaseRepresenter()
@@ -1808,6 +1770,7 @@ public class Experiments
 		}
 
 //		@Override
+		@Override
 		public EvaluationFunction<Irrelevance.State, Irrelevance.Action> getEvaluator()
 		{
 			final int rollout_width = 1;
@@ -1816,9 +1779,17 @@ public class Experiments
 				= new RandomPolicy<Irrelevance.State, JointAction<Irrelevance.Action>>(
 					0 /*Player*/, config_.rng.nextInt(),
 					SingleAgentJointActionGenerator.create( getActionGenerator() ) );
+			final EvaluationFunction<Irrelevance.State, Irrelevance.Action> heuristic
+				= new EvaluationFunction<Irrelevance.State, Irrelevance.Action>() {
+				@Override
+				public double[] evaluate( final Simulator<Irrelevance.State, Irrelevance.Action> sim )
+				{
+					return new double[] { 0.0 };
+				}
+			};
 			final EvaluationFunction<Irrelevance.State, Irrelevance.Action> rollout_evaluator
 				= RolloutEvaluator.create( rollout_policy, config_.discount,
-										   rollout_width, rollout_depth, new double[] { 0.0 } );
+										   rollout_width, rollout_depth, heuristic );
 			return rollout_evaluator;
 		}
 
@@ -1832,6 +1803,12 @@ public class Experiments
 		public ActionGenerator<Irrelevance.State, Irrelevance.Action> getActionGenerator()
 		{
 			return irrelevance_.new ActionGen( config_.rng );
+		}
+
+		@Override
+		public String name()
+		{
+			return "irrelevance_" + irrelevance_;
 		}
 	}
 	
@@ -1858,27 +1835,6 @@ public class Experiments
 		{
 			return world_.new Simulator();
 		}
-		
-		@Override
-		public GameTreeFactory<ChainWalk.State, Representation<ChainWalk.State>, ChainWalk.Action>
-		getUctFactory( final UndoSimulator<ChainWalk.State, ChainWalk.Action> sim,
-					   final Representer<ChainWalk.State, Representation<ChainWalk.State>> repr,
-					   final int Nepisodes )
-		{
-			final double uct_c = config_.uct_c;
-			// Optimistic default value
-			final double[] default_value = new double[] { 1.0 };
-			final BackupRule<Representation<ChainWalk.State>, ChainWalk.Action> train_backup
-				= BackupRule.<Representation<ChainWalk.State>, ChainWalk.Action>MaxQ();
-			final GameTreeFactory<
-				ChainWalk.State, Representation<ChainWalk.State>, ChainWalk.Action
-			> factory
-				= new UctSearch.Factory<ChainWalk.State, Representation<ChainWalk.State>, ChainWalk.Action>(
-					sim, repr.create(), SingleAgentJointActionGenerator.create( getActionGenerator() ),
-					uct_c, Nepisodes, config_.rng,
-					getEvaluator(), train_backup, default_value );
-			return factory;
-		}
 
 		@Override
 		public FactoredRepresenter<ChainWalk.State, FactoredRepresentation<ChainWalk.State>> getBaseRepresenter()
@@ -1888,6 +1844,7 @@ public class Experiments
 		}
 
 //		@Override
+		@Override
 		public EvaluationFunction<ChainWalk.State, ChainWalk.Action> getEvaluator()
 		{
 			final int rollout_width = 1;
@@ -1896,9 +1853,17 @@ public class Experiments
 				= new RandomPolicy<ChainWalk.State, JointAction<ChainWalk.Action>>(
 					0 /*Player*/, config_.rng.nextInt(),
 					SingleAgentJointActionGenerator.create( getActionGenerator() ) );
+			final EvaluationFunction<ChainWalk.State, ChainWalk.Action> heuristic
+				= new EvaluationFunction<ChainWalk.State, ChainWalk.Action>() {
+				@Override
+				public double[] evaluate( final Simulator<ChainWalk.State, ChainWalk.Action> sim )
+				{
+					return new double[] { 0.0 };
+				}
+			};
 			final EvaluationFunction<ChainWalk.State, ChainWalk.Action> rollout_evaluator
 				= RolloutEvaluator.create( rollout_policy, config_.discount,
-										   rollout_width, rollout_depth, new double[] { 0.0 } );
+										   rollout_width, rollout_depth, heuristic );
 			return rollout_evaluator;
 		}
 
@@ -1913,13 +1878,19 @@ public class Experiments
 		{
 			return world_.new ActionGen( config_.rng );
 		}
+
+		@Override
+		public String name()
+		{
+			return "chain_walk_" + world_;
+		}
 		
 	}
 	
 	// -----------------------------------------------------------------------
 	
 	private static class BlackjackDomain extends Domain<BlackjackState, FactoredRepresentation<BlackjackState>,
-														BlackjackAction, BlackjackPrimitiveRepresenter>
+														BlackjackAction, FactoredRepresenter<BlackjackState, FactoredRepresentation<BlackjackState>>>
 	{
 		private final Configuration config_;
 		private final BlackjackParameters params_;
@@ -1940,33 +1911,13 @@ public class Experiments
 		}
 
 		@Override
-		public GameTreeFactory<BlackjackState, Representation<BlackjackState>, BlackjackAction> getUctFactory(
-				final UndoSimulator<BlackjackState, BlackjackAction> sim,
-				final Representer<BlackjackState, Representation<BlackjackState>> repr,
-				final int Nepisodes )
+		public FactoredRepresenter<BlackjackState, FactoredRepresentation<BlackjackState>> getBaseRepresenter()
 		{
-			final double uct_c = config_.uct_c;
-			// Optimistic default value
-			final double[] default_value = new double[] { 1.0 };
-			final BackupRule<Representation<BlackjackState>, BlackjackAction> train_backup
-				= BackupRule.<Representation<BlackjackState>, BlackjackAction>MaxQ();
-			final GameTreeFactory<
-				BlackjackState, Representation<BlackjackState>, BlackjackAction
-			> factory
-				= new UctSearch.Factory<BlackjackState, Representation<BlackjackState>, BlackjackAction>(
-					sim, repr.create(), SingleAgentJointActionGenerator.create( getActionGenerator() ),
-					uct_c, Nepisodes, config_.rng,
-					getEvaluator(), train_backup, default_value );
-			return factory;
+			return new BlackjackPrimitiveRepresenter( nagents_ );
+//			return new BlackjackAggregator();
 		}
 
 		@Override
-		public BlackjackPrimitiveRepresenter getBaseRepresenter()
-		{
-			return new BlackjackPrimitiveRepresenter( nagents_ );
-		}
-
-//		@Override
 		public EvaluationFunction<BlackjackState, BlackjackAction> getEvaluator()
 		{
 			final int rollout_width = 1;
@@ -1975,9 +1926,17 @@ public class Experiments
 				= new RandomPolicy<BlackjackState, JointAction<BlackjackAction>>(
 					0 /*Player*/, config_.rng.nextInt(),
 					SingleAgentJointActionGenerator.create( getActionGenerator() ) );
+			final EvaluationFunction<BlackjackState, BlackjackAction> heuristic
+				= new EvaluationFunction<BlackjackState, BlackjackAction>() {
+				@Override
+				public double[] evaluate( final Simulator<BlackjackState, BlackjackAction> sim )
+				{
+					return new double[] { 0.0 };
+				}
+			};
 			final EvaluationFunction<BlackjackState, BlackjackAction> rollout_evaluator
 				= RolloutEvaluator.create( rollout_policy, config_.discount,
-										   rollout_width, rollout_depth, new double[] { 0.0 } );
+										   rollout_width, rollout_depth, heuristic );
 			return rollout_evaluator;
 		}
 
@@ -1991,6 +1950,12 @@ public class Experiments
 		public ActionGenerator<BlackjackState, BlackjackAction> getActionGenerator()
 		{
 			return new BlackjackActionGenerator();
+		}
+
+		@Override
+		public String name()
+		{
+			return "blackjack_" + params_.max_score;
 		}
 	}
 	
@@ -2023,62 +1988,65 @@ public class Experiments
 		}
 
 		@Override
-		public GameTreeFactory<TaxiState, Representation<TaxiState>, TaxiAction> getUctFactory(
-				final UndoSimulator<TaxiState, TaxiAction> sim,
-				final Representer<TaxiState, Representation<TaxiState>> repr,
-				final int Nepisodes )
-		{
-			final double uct_c = config_.uct_c;
-			// Optimistic default value
-			final double[] default_value = new double[] { 20.0 };
-			final BackupRule<Representation<TaxiState>, TaxiAction> train_backup
-				= BackupRule.<Representation<TaxiState>, TaxiAction>MaxQ();
-			final GameTreeFactory<
-				TaxiState, Representation<TaxiState>, TaxiAction
-			> factory
-				= new UctSearch.Factory<TaxiState, Representation<TaxiState>, TaxiAction>(
-					sim, repr.create(), SingleAgentJointActionGenerator.create( getActionGenerator() ),
-					uct_c, Nepisodes, config_.rng,
-					getEvaluator(), train_backup, default_value );
-			return factory;
-		}
-
-		@Override
 		public PrimitiveTaxiRepresenter getBaseRepresenter()
 		{
 			return new PrimitiveTaxiRepresenter( exemplar_state_.Nother_taxis, exemplar_state_.locations.size() );
 		}
 
-//		@Override
+		@Override
 		public EvaluationFunction<TaxiState, TaxiAction> getEvaluator()
 		{
 			final int rollout_width = 1;
-			final int rollout_depth = Integer.MAX_VALUE;
+			final int rollout_depth = 10; //Integer.MAX_VALUE;
 			final Policy<TaxiState, JointAction<TaxiAction>> rollout_policy
 				= new RandomPolicy<TaxiState, JointAction<TaxiAction>>(
 					0 /*Player*/, config_.rng.nextInt(),
 					SingleAgentJointActionGenerator.create( getActionGenerator() ) );
+			final EvaluationFunction<TaxiState, TaxiAction> heuristic = new EvaluationFunction<TaxiState, TaxiAction>() {
+				@Override
+				public double[] evaluate( final Simulator<TaxiState, TaxiAction> sim )
+				{
+					final TaxiState s = sim.state();
+					double d = 0.0;
+					final int[] p;
+					if( s.passenger != TaxiState.IN_TAXI ) {
+						p = s.locations.get( s.passenger );
+						d += Fn.distance_l1( s.taxi, p );
+					}
+					else {
+						p = s.taxi;
+					}
+					d += Fn.distance_l1( p, s.locations.get( s.destination ) );
+					return new double[] { -d };
+				}
+			};
 			final EvaluationFunction<TaxiState, TaxiAction> rollout_evaluator
 				= RolloutEvaluator.create( rollout_policy, config_.discount,
-										   rollout_width, rollout_depth, new double[] { 0.0 } );
+										   rollout_width, rollout_depth, heuristic );
 			return rollout_evaluator;
 		}
 
 		@Override
 		public EpisodeListener<TaxiState, TaxiAction> getVisualization()
 		{
-			final int scale = 20;
-			final TaxiVisualization vis = new TaxiVisualization(
-				null, exemplar_state_.topology, exemplar_state_.locations, scale );
-			return vis.updater( 1000 );
+//			final int scale = 20;
+//			final TaxiVisualization vis = new TaxiVisualization(
+//				null, exemplar_state_.topology, exemplar_state_.locations, scale );
+//			return vis.updater( 10 );
 			
-//			return null;
+			return null;
 		}
 
 		@Override
 		public ActionGenerator<TaxiState, TaxiAction> getActionGenerator()
 		{
 			return new TaxiActionGenerator();
+		}
+
+		@Override
+		public String name()
+		{
+			return "taxi_" + config_.getInt( "taxi.Nother_taxis" );
 		}
 	}
 	
@@ -2099,27 +2067,6 @@ public class Experiments
 		{
 			return new YahtzeeSimulator( config_.rng );
 		}
-		
-		@Override
-		public GameTreeFactory<YahtzeeState, Representation<YahtzeeState>, YahtzeeAction>
-		getUctFactory( final UndoSimulator<YahtzeeState, YahtzeeAction> sim,
-					   final Representer<YahtzeeState, Representation<YahtzeeState>> repr,
-					   final int Nepisodes )
-		{
-			final double uct_c = config_.uct_c;
-			// Optimistic default value
-			final double[] default_value = new double[] { 1.0 };
-			final BackupRule<Representation<YahtzeeState>, YahtzeeAction> train_backup
-				= BackupRule.<Representation<YahtzeeState>, YahtzeeAction>MaxQ();
-			final GameTreeFactory<
-				YahtzeeState, Representation<YahtzeeState>, YahtzeeAction
-			> factory
-				= new UctSearch.Factory<YahtzeeState, Representation<YahtzeeState>, YahtzeeAction>(
-					sim, repr.create(), SingleAgentJointActionGenerator.create( getActionGenerator() ),
-					uct_c, Nepisodes, config_.rng,
-					getEvaluator(), train_backup, default_value );
-			return factory;
-		}
 
 		@Override
 		public PrimitiveYahtzeeRepresenter getBaseRepresenter()
@@ -2127,7 +2074,7 @@ public class Experiments
 			return new PrimitiveYahtzeeRepresenter();
 		}
 
-//		@Override
+		@Override
 		public EvaluationFunction<YahtzeeState, YahtzeeAction> getEvaluator()
 		{
 			final int rollout_width = 1;
@@ -2136,9 +2083,17 @@ public class Experiments
 				= new RandomPolicy<YahtzeeState, JointAction<YahtzeeAction>>(
 					0 /*Player*/, config_.rng.nextInt(),
 					SingleAgentJointActionGenerator.create( getActionGenerator() ) );
+			final EvaluationFunction<YahtzeeState, YahtzeeAction> heuristic
+				= new EvaluationFunction<YahtzeeState, YahtzeeAction>() {
+				@Override
+				public double[] evaluate( final Simulator<YahtzeeState, YahtzeeAction> sim )
+				{
+					return new double[] { 0.0 };
+				}
+			};
 			final EvaluationFunction<YahtzeeState, YahtzeeAction> rollout_evaluator
 				= RolloutEvaluator.create( rollout_policy, config_.discount,
-										   rollout_width, rollout_depth, new double[] { 0.0 } );
+										   rollout_width, rollout_depth, heuristic );
 			return rollout_evaluator;
 		}
 
@@ -2155,12 +2110,18 @@ public class Experiments
 			return new SmartActionGenerator();
 //			return new YahtzeeActionGenerator();
 		}
+
+		@Override
+		public String name()
+		{
+			return "yahtzee_" + getActionGenerator();
+		}
 	}
 	
 	// -----------------------------------------------------------------------
 	
 	private static class FroggerDomain extends Domain<FroggerState, FactoredRepresentation<FroggerState>,
-													  FroggerAction, RelativeFroggerRepresenter>
+													  FroggerAction, PrimitiveFroggerRepresenter>
 	{
 		private final Configuration config_;
 		
@@ -2179,37 +2140,16 @@ public class Experiments
 			final FroggerSimulator sim = new FroggerSimulator( config_.rng, s );
 			return sim;
 		}
-		
+
 		@Override
-		public GameTreeFactory<FroggerState, Representation<FroggerState>, FroggerAction>
-		getUctFactory( final UndoSimulator<FroggerState, FroggerAction> sim,
-					   final Representer<FroggerState, Representation<FroggerState>> repr,
-					   final int Nepisodes )
+		public PrimitiveFroggerRepresenter getBaseRepresenter()
 		{
-			final double uct_c = config_.uct_c;
-			// Optimistic default value
-			final double[] default_value = new double[] { 1.0 };
-			final BackupRule<Representation<FroggerState>, FroggerAction> train_backup
-				= BackupRule.<Representation<FroggerState>, FroggerAction>MaxQ();
-			final GameTreeFactory<
-				FroggerState, Representation<FroggerState>, FroggerAction
-			> factory
-				= new UctSearch.Factory<FroggerState, Representation<FroggerState>, FroggerAction>(
-					sim, repr.create(), SingleAgentJointActionGenerator.create( getActionGenerator() ),
-					uct_c, Nepisodes, config_.rng,
-					getEvaluator( sim.state() ), train_backup, default_value );
-			return factory;
+			return new PrimitiveFroggerRepresenter( params_ );
+//			return new RelativeFroggerRepresenter( params_ );
 		}
 
 		@Override
-		public RelativeFroggerRepresenter getBaseRepresenter()
-		{
-//			return new PrimitiveFroggerRepresenter( params_ );
-			return new RelativeFroggerRepresenter( params_ );
-		}
-
-//		@Override
-		public EvaluationFunction<FroggerState, FroggerAction> getEvaluator( final FroggerState s )
+		public EvaluationFunction<FroggerState, FroggerAction> getEvaluator()
 		{
 			return heuristic_;
 		}
@@ -2227,9 +2167,13 @@ public class Experiments
 		public ActionGenerator<FroggerState, FroggerAction> getActionGenerator()
 		{
 			final FroggerActionGenerator g = new FroggerActionGenerator();
-//			g.print();
-//			System.exit( 0 );
 			return g;
+		}
+		
+		@Override
+		public String name()
+		{
+			return "frogger_" + getBaseRepresenter();
 		}
 	}
 	
@@ -2240,20 +2184,22 @@ public class Experiments
 	{
 		private final Configuration config_;
 		
+		private final String circuit_name_;
 		private final TerrainType[][] circuit_;
 		private ShortestPathHeuristic heuristic_ = null;
 		
 		public RacegridDomain( final Configuration config )
 		{
 			config_ = config;
-			if( "bbs_small".equals( config.get( "racegrid.circuit" ) ) ) {
+			circuit_name_ = config.get( "racegrid.circuit" );
+			if( "bbs_small".equals( circuit_name_ ) ) {
 				circuit_ = RacegridCircuits.barto_bradke_singh_SmallTrack();
 			}
-			else if( "bbs_large".equals( config.get( "racegrid.circuit" ) ) ) {
+			else if( "bbs_large".equals( circuit_name_ ) ) {
 				circuit_ = RacegridCircuits.barto_bradke_singh_LargeTrack();
 			}
 			else {
-				throw new IllegalArgumentException( "racegrid.circuit = " + config.get( "racegrid.circuit" ) );
+				throw new IllegalArgumentException( "racegrid.circuit = " + circuit_name_ );
 			}
 		}
 		
@@ -2266,27 +2212,6 @@ public class Experiments
 				config_.rng, s, config_.getDouble( "racegrid.slip" ) );
 			return sim;
 		}
-		
-		@Override
-		public GameTreeFactory<RacegridState, Representation<RacegridState>, RacegridAction>
-		getUctFactory( final UndoSimulator<RacegridState, RacegridAction> sim,
-					   final Representer<RacegridState, Representation<RacegridState>> repr,
-					   final int Nepisodes )
-		{
-			final double uct_c = config_.uct_c;
-			// Optimistic default value
-			final double[] default_value = new double[] { 1.0 };
-			final BackupRule<Representation<RacegridState>, RacegridAction> train_backup
-				= BackupRule.<Representation<RacegridState>, RacegridAction>MaxQ();
-			final GameTreeFactory<
-				RacegridState, Representation<RacegridState>, RacegridAction
-			> factory
-				= new UctSearch.Factory<RacegridState, Representation<RacegridState>, RacegridAction>(
-					sim, repr.create(), SingleAgentJointActionGenerator.create( getActionGenerator() ),
-					uct_c, Nepisodes, config_.rng,
-					getEvaluator( sim.state() ), train_backup, default_value );
-			return factory;
-		}
 
 		@Override
 		public PrimitiveRacegridRepresenter getBaseRepresenter()
@@ -2294,8 +2219,8 @@ public class Experiments
 			return new PrimitiveRacegridRepresenter();
 		}
 
-//		@Override
-		public EvaluationFunction<RacegridState, RacegridAction> getEvaluator( final RacegridState s )
+		@Override
+		public EvaluationFunction<RacegridState, RacegridAction> getEvaluator()
 		{
 			return heuristic_.create();
 		}
@@ -2313,6 +2238,12 @@ public class Experiments
 		public ActionGenerator<RacegridState, RacegridAction> getActionGenerator()
 		{
 			return new RacegridActionGenerator();
+		}
+
+		@Override
+		public String name()
+		{
+			return "racegrid_" + circuit_name_;
 		}
 	}
 	
@@ -2339,27 +2270,6 @@ public class Experiments
 				config_.rng, s, config_.getDouble( "race_car.control_noise" ), 0.0 );
 			return sim;
 		}
-		
-		@Override
-		public GameTreeFactory<RacetrackState, Representation<RacetrackState>, RacetrackAction>
-		getUctFactory( final UndoSimulator<RacetrackState, RacetrackAction> sim,
-					   final Representer<RacetrackState, Representation<RacetrackState>> repr,
-					   final int Nepisodes )
-		{
-			final double uct_c = config_.uct_c;
-			// Optimistic default value
-			final double[] default_value = new double[] { 1.0 };
-			final BackupRule<Representation<RacetrackState>, RacetrackAction> train_backup
-				= BackupRule.<Representation<RacetrackState>, RacetrackAction>MaxQ();
-			final GameTreeFactory<
-				RacetrackState, Representation<RacetrackState>, RacetrackAction
-			> factory
-				= new UctSearch.Factory<RacetrackState, Representation<RacetrackState>, RacetrackAction>(
-					sim, repr.create(), SingleAgentJointActionGenerator.create( getActionGenerator() ),
-					uct_c, Nepisodes, config_.rng,
-					getEvaluator( sim.state() ), train_backup, default_value );
-			return factory;
-		}
 
 		@Override
 		public PrimitiveRacetrackRepresenter getBaseRepresenter()
@@ -2370,8 +2280,8 @@ public class Experiments
 //				base_repr, new double[] { scale*1.0, scale*1.0, Math.PI / 8, 1.0 } );
 		}
 
-//		@Override
-		public EvaluationFunction<RacetrackState, RacetrackAction> getEvaluator( final RacetrackState s )
+		@Override
+		public EvaluationFunction<RacetrackState, RacetrackAction> getEvaluator()
 		{
 			return new SectorEvaluator( s.terminal_velocity() );
 		}
@@ -2390,6 +2300,12 @@ public class Experiments
 		{
 			return new RacetrackActionGenerator();
 		}
+
+		@Override
+		public String name()
+		{
+			return "racecar";
+		}
 	}
 	
 	// -----------------------------------------------------------------------
@@ -2399,42 +2315,22 @@ public class Experiments
 	{
 		private final Configuration config_;
 		private final TamariskParameters params_;
+		private final int branching_;
 		
 		public TamariskDomain( final Configuration config )
 		{
 			config_ = config;
 			params_ = new TamariskParameters(
 				config_.rng, config_.getInt( "tamarisk.Nreaches" ), config_.getInt( "tamarisk.Nhabitats" ) );
+			branching_ = config_.getInt( "tamarisk.branching" );
 		}
 		
 		@Override
 		public UndoSimulator<TamariskState, TamariskAction> createSimulator()
 		{
-			final int branching = config_.getInt( "tamarisk.branching" );
-			final DirectedGraph<Integer, DefaultEdge> g = params_.createBalancedGraph( branching );
+			final DirectedGraph<Integer, DefaultEdge> g = params_.createBalancedGraph( branching_ );
 			final TamariskState s = new TamariskState( config_.rng, params_, g );
 			return new TamariskSimulator( s );
-		}
-		
-		@Override
-		public GameTreeFactory<TamariskState, Representation<TamariskState>, TamariskAction>
-		getUctFactory( final UndoSimulator<TamariskState, TamariskAction> sim,
-					   final Representer<TamariskState, Representation<TamariskState>> repr,
-					   final int Nepisodes )
-		{
-			final double uct_c = config_.uct_c;
-			// Optimistic default value
-			final double[] default_value = new double[] { 1.0 };
-			final BackupRule<Representation<TamariskState>, TamariskAction> train_backup
-				= BackupRule.<Representation<TamariskState>, TamariskAction>MaxQ();
-			final GameTreeFactory<
-				TamariskState, Representation<TamariskState>, TamariskAction
-			> factory
-				= new UctSearch.Factory<TamariskState, Representation<TamariskState>, TamariskAction>(
-					sim, repr.create(), SingleAgentJointActionGenerator.create( getActionGenerator() ),
-					uct_c, Nepisodes, config_.rng,
-					getEvaluator(), train_backup, default_value );
-			return factory;
 		}
 
 		@Override
@@ -2443,7 +2339,7 @@ public class Experiments
 			return new IndicatorTamariskRepresenter( params_ );
 		}
 
-//		@Override
+		@Override
 		public EvaluationFunction<TamariskState, TamariskAction> getEvaluator()
 		{
 			final int rollout_width = 1;
@@ -2452,9 +2348,17 @@ public class Experiments
 				= new RandomPolicy<TamariskState, JointAction<TamariskAction>>(
 					0 /*Player*/, config_.rng.nextInt(),
 					SingleAgentJointActionGenerator.create( getActionGenerator() ) );
+			final EvaluationFunction<TamariskState, TamariskAction> heuristic
+				= new EvaluationFunction<TamariskState, TamariskAction>() {
+				@Override
+				public double[] evaluate( final Simulator<TamariskState, TamariskAction> sim )
+				{
+					return new double[] { 0.0 };
+				}
+			};
 			final EvaluationFunction<TamariskState, TamariskAction> rollout_evaluator
 				= RolloutEvaluator.create( rollout_policy, config_.discount,
-										   rollout_width, rollout_depth, new double[] { 0.0 } );
+										   rollout_width, rollout_depth, heuristic );
 			return rollout_evaluator;
 		}
 
@@ -2469,118 +2373,170 @@ public class Experiments
 		{
 			return new TamariskActionGenerator();
 		}
+
+		@Override
+		public String name()
+		{
+			return "tamarisk_" + params_.Nreaches + "_" + params_.Nhabitats + "_" + branching_;
+		}
 	}
 	
 	// -----------------------------------------------------------------------
 	
+	private static String deriveDatasetName( final String base, final int iter )
+	{
+		if( iter == -1 ) {
+			return base;
+		}
+		
+		final String basename = FilenameUtils.getBaseName( base );
+		final String ext = FilenameUtils.getExtension( base );
+		return basename + "_" + iter + (ext.isEmpty() ? "" : FilenameUtils.EXTENSION_SEPARATOR + ext);
+	}
+	
 	private static <S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
-	void runExperiment( final Configuration config,
-						final Domain<S, X, A, R> domain,
-						final AbstractionDiscoveryAlgorithm<S, X, A, R> discovery ) throws Exception
+	void runExperiment( final Configuration config,	final Domain<S, X, A, R> domain ) throws Exception
 	{
+		
+		final AbstractionDiscoveryAlgorithm<S, X, A, R> bootstrap
+			= createAbstractionDiscoveryAlgorithm( config.get( "abstraction.bootstrap" ), config, domain );
+		final AbstractionDiscoveryAlgorithm<S, X, A, R> discovery
+			= createAbstractionDiscoveryAlgorithm( config.get( "abstraction.discovery" ), config, domain );
+		
 		System.out.println( "****************************************" );
 		System.out.println( "game = x ("
 							+ config.Ntrain_games + "(" + config.Ntrain_episodes + ")"
 							+ " / " + config.Ntest_games
 							+ "(" + config.Ntest_episodes_order_min + " - " + config.Ntest_episodes_order_max + ")) "
-							+ ": " + domain.getBaseRepresenter() );
+							+ ": " + config.get( "abstraction.bootstrap" ) + " -> "
+							+ config.get( "abstraction.discovery" ) + "." + config.get( "multiclass.classifier" )
+							+ " / " + domain.getBaseRepresenter() );
+
+		final Representer<S, Representation<S>> Crepr = new ReprWrapper<S>( domain.getBaseRepresenter() );
 		
-		final Csv.Writer data_out = createDataWriter( config );
-		
-		Representer<S, Representation<S>> Crepr = new ReprWrapper<S>( domain.getBaseRepresenter() );
+		SingleInstanceDataset<A> running_dataset = null;
 		
 		for( int iter = 0; iter < config.Niterations; ++iter ) {
 			System.out.println( "Iteration " + iter );
 			
-			final Dataset<A> training_data = new Dataset<A>();
-			if( "create".equals( config.training_data_single ) ) {
-				// Gather training examples
-				System.out.println( "[Gathering training_data.single]" );
-				
-				runGames( "train", config, domain, discovery, config.Ntrain_episodes, config.Ntrain_games,
-						  discovery.getTrainingMctsVisitor(), discovery.getTrainingEpisodeListener(), Crepr, data_out, iter );
-				
-				final SingleInstanceDataset<A> single = makeSingleInstanceDataset(
-						config, domain.getBaseRepresenter().attributes(),
-						discovery.getTrainingVectors(), discovery.getTrainingLabels(), iter );
-				training_data.single = single.instances;
-				
-				WekaUtil.writeDataset( config.data_directory, single.instances );
-				writeActionKey( config, single, iter );
-			}
-			if( "create".equals( config.training_data_pair ) ) {
-				if( training_data.single == null ) {
-					System.out.println( "[Loading training_data.single]" );
-					training_data.single = config.loadSingleInstances();
-				}
-				System.out.println( "[Constructing training_data.pair]" );
-				training_data.pair = discovery.makePairwiseInstances(
-					training_data.single, domain.getBaseRepresenter() );
-				
-				WekaUtil.writeDataset( config.data_directory, training_data.pair );
-			}
+			final Csv.Writer data_out = createDataWriter( config, iter );
 			
-			if( !"none".equals( config.abstraction ) ) {
-				if( "create".equals( config.model ) ) {
-					if( training_data.single == null ) {
-						System.out.println( "[Loading training_data.single]" );
-						training_data.single = config.loadSingleInstances();
-					}
-					if( training_data.pair == null ) {
-						System.out.println( "[Loading training_data.pair]" );
-						training_data.pair = config.loadPairInstances();
-					}
+			final AbstractionDiscoveryAlgorithm<S, X, A, R> algorithm;
+			if( "create".equals( config.model ) ) {
+				if( iter > 0 ) {
+					final String f = deriveDatasetName( config.training_data_single, iter - 1 );
+					System.out.println( "[Loading '" + f + "']" );
+					final Dataset<A> training_data = new Dataset<A>();
+					training_data.single = WekaUtil.readLabeledDataset(
+						new File( config.data_directory, f + ".arff" ) );
+					
 					// Train classifier
 					System.out.println( "[Training classifier]" );
-					Crepr = discovery.trainRepresenter( training_data, domain.getBaseRepresenter(), iter );
+					discovery.trainRepresenter( training_data, domain.getBaseRepresenter(), iter );
 					discovery.writeModel( iter );
+					algorithm = discovery;
 				}
-				else if( !"none".equals( config.model ) ) {
-					Crepr = discovery.loadModel( new File( config.modelDirectory(), config.model ),
-												 domain.getBaseRepresenter(), iter );
+				else if( iter == 0 ) {
+					if( !"none".equals( config.training_data_single ) ) {
+						System.out.println( "[Loading '" + config.training_data_single + "']" );
+						final Dataset<A> training_data = new Dataset<A>();
+						training_data.single = WekaUtil.readLabeledDataset(
+							new File( config.root_directory, config.training_data_single + ".arff" ) );
+						
+						// Train classifier
+						System.out.println( "[Training classifier]" );
+						bootstrap.trainRepresenter( training_data, domain.getBaseRepresenter(), iter );
+						bootstrap.writeModel( iter );
+					}
+					// Use flat reprentation
+					algorithm = bootstrap;
 				}
+				else {
+					throw new IllegalStateException(
+						"Missing training data '" + deriveDatasetName( config.training_data_single, iter - 1 ) + "'" );
+				}
+				
+//						if( !"none".equals( config.training_data_pair ) ) {
+//							final String f = config.training_data_pair;
+//							System.out.println( "[Loading '" + f + "']" );
+//							training_data.pair = WekaUtil.readLabeledDataset( new File( config.data_directory, f ) );
+//						}
+			}
+			else if( !"none".equals( config.model ) ) {
+				System.out.println( "[Loading model '" + config.model + "']" );
+				assert( config.Niterations == 1 );
+				// FIXME: Is this right, given the new bootstrap/discovery distinction?
+				bootstrap.loadModel( domain.getBaseRepresenter(), iter );
+				algorithm = bootstrap;
+			}
+			else {
+				algorithm = bootstrap;
 			}
 			
+			
+			final SolvedStateAccumulator<S, X, A> labeled_states
+				= new SolvedStateAccumulator<S, X, A>( domain.getBaseRepresenter() );
+			
 			// Test
-			if( config.Ntest_games > 0 ) {
-				System.out.println( "[Testing]" );
-				final int order_min = config.Ntest_episodes_order_min;
-				final int order_max = config.Ntest_episodes_order_max;
-				for( int order = order_min; order <= order_max; ++order ) {
-					final int Ntest_episodes = (int) Math.pow( 2, order );
-					System.out.println( "Ntest_episodes = " + Ntest_episodes );
-					final MctsVisitor<S, A> test_visitor = new DefaultMctsVisitor<S, A>();
-					
-					runGames( "test", config, domain, discovery, Ntest_episodes, config.Ntest_games,
-							  test_visitor, null /*no EpisodeListener*/, Crepr, data_out, iter );
+			System.out.println( "[Running tree search]" );
+			final int order_min = config.Ntest_episodes_order_min;
+			final int order_max = config.Ntest_episodes_order_max;
+			for( int order = order_min; order <= order_max; ++order ) {
+				final int Ntest_episodes = (int) Math.pow( 2, order );
+				System.out.println( "Ntest_episodes = " + Ntest_episodes );
+				final MctsVisitor<S, A> test_visitor = new DefaultMctsVisitor<S, A>();
+				
+				runGames( "test", config, domain, algorithm, Ntest_episodes, config.Ntest_games,
+						  test_visitor, labeled_states, Crepr, data_out, iter );
+				
+				// Gather training examples
+				// TODO: Should we have a switch to disable this?
+				System.out.println( "[Gathering training_data.single]" );
+
+				final SingleInstanceDataset<A> single = makeSingleInstanceDataset(
+						config, domain.getBaseRepresenter().attributes(),
+						labeled_states.Phi_, labeled_states.actions_, iter );
+				
+				if( running_dataset == null ) {
+					System.out.println( "[Storing initial training data]" );
+					running_dataset = single;
 				}
+				else {
+					System.out.println( "[Merging new training data]" );
+					final double training_instance_discount = 0.5; // TODO: Make it a parameter
+					combineInstances( config.rng, running_dataset, single, training_instance_discount );
+					running_dataset.instances.setRelationName( single.instances.relationName() );
+					System.out.println( "New dataset size = " + running_dataset.instances.size() );
+				}
+				
+				WekaUtil.writeDataset( config.data_directory, running_dataset.instances );
+				writeActionKey( config, running_dataset, iter );
+				
+//				WekaUtil.writeDataset( config.data_directory, single.instances );
+//				writeActionKey( config, single, iter );
 			}
+			
+							
+//				runGames( "train", config, domain, discovery, config.Ntrain_episodes, config.Ntrain_games,
+//						  discovery.getTrainingMctsVisitor(), discovery.getTrainingEpisodeListener(), Crepr, data_out, iter );
+				
+				
+			if( "create".equals( config.training_data_pair ) ) {
+				throw new UnsupportedOperationException( "Look for regressions in this code before using it" );
+//				if( training_data.single == null ) {
+//					System.out.println( "[Loading training_data.single]" );
+//					training_data.single = config.loadSingleInstances();
+//				}
+//				System.out.println( "[Constructing training_data.pair]" );
+//				training_data.pair = discovery.makePairwiseInstances(
+//					training_data.single, domain.getBaseRepresenter() );
+//
+//				WekaUtil.writeDataset( config.data_directory, training_data.pair );
+			}
+			
+			
 		}
-	}
-	
-	private static Csv.Writer createDataWriter( final Configuration config )
-	{
-		Csv.Writer data_out;
-		try {
-			data_out = new Csv.Writer( new PrintStream( new File( config.data_directory, "data.csv" ) ) );
-		}
-		catch( final FileNotFoundException ex ) {
-			throw new RuntimeException( ex );
-		}
-		data_out.cell( "phase" ).cell( "abstraction" ).cell( "actions" ).cell( "iteration" )
-				.cell( "Nepisodes" ).cell( "Ngames" )
-				.cell( "mean" ).cell( "var" ).cell( "conf" )
-				.cell( "state_branching_mean" ).cell( "state_branching_var" )
-				.cell( "action_branching_mean" ).cell( "action_branching_var" )
-				.cell( "tree_depth_mean" ).cell( "tree_depth_var" )
-				.cell( "steps_mean" ).cell( "steps_var" ).cell( "steps_min" ).cell( "steps_max" );
-		for( final String k : config.keys() ) {
-			data_out.cell( k );
-		}
-		data_out.newline();
-		
-		return data_out;
 	}
 	
 	private static <S extends State, X extends FactoredRepresentation<S>,
@@ -2599,8 +2555,8 @@ public class Experiments
 		final MeanVarianceAccumulator ret = new MeanVarianceAccumulator();
 		final MeanVarianceAccumulator steps = new MeanVarianceAccumulator();
 		final MinMaxAccumulator steps_minmax = new MinMaxAccumulator();
-		final TreeStatisticsRecorder<Representation<S>, A> tree_stats
-			= new TreeStatisticsRecorder<Representation<S>, A>();
+		final TreeStatisticsRecorder<S, A> tree_stats = new TreeStatisticsRecorder<S, A>();
+		final MeanVarianceAccumulator elapsed_time = new MeanVarianceAccumulator();
 		
 		for( int i = 0; i < Ngames; ++i ) {
 			if( i % print_interval == 0 ) {
@@ -2609,16 +2565,19 @@ public class Experiments
 			
 			final UndoSimulator<S, A> sim = domain.createSimulator();
 			
-			final GameTreeFactory<S, Representation<S>, A> factory
-				= domain.getUctFactory( sim, Crepr.create(), Nepisodes );
+			final GameTreeFactory<S, A> factory
+				= discovery.getUctFactory( config, domain, sim, Nepisodes );
 			
-			final SearchPolicy<S, Representation<S>, A>
-				search_policy = new SearchPolicy<S, Representation<S>, A>( factory, mcts_visitor, null ) {
+			final SearchPolicy<S, A>
+				search_policy = new SearchPolicy<S, A>( factory, mcts_visitor, null ) {
 					@Override
-					protected JointAction<A> selectAction( final GameTree<Representation<S>, A> tree )
+					protected JointAction<A> selectAction( final GameTree<S, A> tree )
 					{
+//						tree.root().accept( new TreePrinter<S, A>() );
+						final JointAction<A> astar = BackupRules.MaxAction( tree.root() ).a();
+//						System.out.println( "[a* = " + astar + "]" );
 						tree.root().accept( tree_stats );
-						return BackupRules.MaxAction( tree.root() ).a();
+						return astar;
 					}
 
 					@Override
@@ -2633,6 +2592,8 @@ public class Experiments
 			final Episode<S, A> episode	= new Episode<S, A>( sim, search_policy );
 			final RewardAccumulator<S, A> racc = new RewardAccumulator<S, A>( sim.nagents(), config.discount );
 			episode.addListener( racc );
+//			final LoggingEpisodeListener<S, A> epi_log = new LoggingEpisodeListener<S, A>();
+//			episode.addListener( epi_log );
 			if( listener != null ) {
 				episode.addListener( listener );
 			}
@@ -2640,7 +2601,12 @@ public class Experiments
 			if( vis != null ) {
 				episode.addListener( vis );
 			}
+			
+			final long tstart = System.nanoTime();
 			episode.run();
+			final long tend = System.nanoTime();
+			final double elapsed_ms = (tend - tstart) * 1e-6;
+			elapsed_time.add( elapsed_ms );
 			
 			ret.add( racc.v()[0] );
 			steps.add( racc.steps() );
@@ -2652,39 +2618,79 @@ public class Experiments
 		System.out.println( "****************************************" );
 		System.out.println( "Average return: " + ret.mean() );
 		System.out.println( "Return variance: " + ret.variance() );
-		final double conf = config.Ntest_games > 0
-							? 1.96 * Math.sqrt( ret.variance() ) / Math.sqrt( config.Ntest_games )
-							: 0;
-		System.out.println( "Confidence: " + conf );
+		System.out.println( "Confidence: " + ret.confidence() );
 		System.out.println( "State branching (mean): " + tree_stats.state_branching.mean() );
 		System.out.println( "State branching (var): " + tree_stats.state_branching.variance() );
 		System.out.println( "Action branching (mean): " + tree_stats.action_branching.mean() );
 		System.out.println( "Action branching (var): " + tree_stats.action_branching.variance() );
 		System.out.println( "Depth (mean): " + tree_stats.depth.mean() );
 		System.out.println( "Depth (var): " + tree_stats.depth.variance() );
+		System.out.println( "Avg. Depth (mean): " + tree_stats.avg_depth.mean() );
+		System.out.println( "Avg. Depth (var): " + tree_stats.avg_depth.variance() );
 		System.out.println( "Steps (mean): " + steps.mean() );
 		System.out.println( "Steps (var): " + steps.variance() );
 		System.out.println( "Steps (min/max): " + steps_minmax.min() + " -- " + steps_minmax.max() );
+		System.out.println( "Time (ms) (mean): " + elapsed_time.mean() );
+		System.out.println( "Time (ms) (var): " + elapsed_time.variance() );
+		System.out.println( "Time (ms) (conf): " + elapsed_time.confidence() );
+		System.out.println( "Action visits (mean): " + tree_stats.action_visits.mean() );
+		System.out.println( "Action visits (var): " + tree_stats.action_visits.variance() );
+		System.out.println( "Action visits (conf): " + tree_stats.action_visits.confidence() );
+		System.out.println( "Action visits per millisecond: " + tree_stats.action_visits.mean() / elapsed_time.mean() );
 		System.out.println();
 		// See: createDataWriter for correct column order
 		data_out.cell( phase ).cell( domain.getBaseRepresenter() ).cell( domain.getActionGenerator() )
 				.cell( iter ).cell( Nepisodes ).cell( Ngames )
-				.cell( ret.mean() ).cell( ret.variance() ).cell( conf )
+				.cell( ret.mean() ).cell( ret.variance() ).cell( ret.confidence() )
 				.cell( tree_stats.state_branching.mean() ).cell( tree_stats.state_branching.variance() )
 				.cell( tree_stats.action_branching.mean() ).cell( tree_stats.action_branching.variance() )
 				.cell( tree_stats.depth.mean() ).cell( tree_stats.depth.variance() )
-				.cell( steps.mean() ).cell( steps.variance() ).cell( steps_minmax.min() ).cell( steps_minmax.max() );
+				.cell( tree_stats.avg_depth.mean() ).cell( tree_stats.avg_depth.variance() )
+				.cell( steps.mean() ).cell( steps.variance() ).cell( steps_minmax.min() ).cell( steps_minmax.max() )
+				.cell( elapsed_time.mean() ).cell( elapsed_time.variance() ).cell( elapsed_time.confidence() )
+				.cell( tree_stats.action_visits.mean() ).cell( tree_stats.action_visits.variance() ).cell( tree_stats.action_visits.confidence() )
+				.cell( tree_stats.action_visits.mean() / elapsed_time.mean() );
 		for( final String k : config.keys() ) {
 			data_out.cell( config.get( k ) );
 		}
 		data_out.newline();
 	}
+	
+	private static Csv.Writer createDataWriter( final Configuration config, final int iter )
+	{
+		Csv.Writer data_out;
+		try {
+			data_out = new Csv.Writer( new PrintStream( new File( config.data_directory, "data_" + iter + ".csv" ) ) );
+		}
+		catch( final FileNotFoundException ex ) {
+			throw new RuntimeException( ex );
+		}
+		data_out.cell( "phase" ).cell( "abstraction" ).cell( "actions" ).cell( "iteration" )
+				.cell( "Nepisodes" ).cell( "Ngames" )
+				.cell( "mean" ).cell( "var" ).cell( "conf" )
+				.cell( "state_branching_mean" ).cell( "state_branching_var" )
+				.cell( "action_branching_mean" ).cell( "action_branching_var" )
+				.cell( "tree_depth_mean" ).cell( "tree_depth_var" )
+				.cell( "tree_avg_depth_mean" ).cell( "tree_avg_depth_var" )
+				.cell( "steps_mean" ).cell( "steps_var" ).cell( "steps_min" ).cell( "steps_max" )
+				.cell( "time_mean" ).cell( "time_var" ).cell( "time_conf" )
+				.cell( "action_visits_mean" ).cell( "action_visits_var" ).cell( "action_visits_conf" )
+				.cell( "action_visits_per_ms" );
+		for( final String k : config.keys() ) {
+			data_out.cell( k );
+		}
+		data_out.newline();
+		
+		return data_out;
+	}
+	
+	// -----------------------------------------------------------------------
 
 	public static class Configuration implements KeyValueStore
 	{
 		private final KeyValueStore config_;
 		
-		public final String abstraction;
+//		public final String abstraction;
 		public final String model;
 		public final String domain;
 		// FIXME: Why is 'root_directory' a String?
@@ -2731,22 +2737,22 @@ public class Experiments
 			return new File( root_directory, "test" );
 		}
 		
-		public Instances loadSingleInstances()
-		{
-			return WekaUtil.readLabeledDataset(
-				new File( trainSingleDirectory(), get( "training_data.single" ) ) );
-		}
+//		public Instances loadSingleInstances()
+//		{
+//			return WekaUtil.readLabeledDataset(
+//				new File( trainSingleDirectory(), get( "training_data.single" ) ) );
+//		}
+
+//		public Instances loadPairInstances()
+//		{
+//			return WekaUtil.readLabeledDataset(
+//				new File( trainPairDirectory(), get( "training_data.pair" ) ) );
+//		}
 		
-		public Instances loadPairInstances()
-		{
-			return WekaUtil.readLabeledDataset(
-				new File( trainPairDirectory(), get( "training_data.pair" ) ) );
-		}
-		
-		public Configuration( final KeyValueStore config )
-		{
-			this( config.get( "root_directory" ), config );
-		}
+//		public Configuration( final KeyValueStore config )
+//		{
+//			this( config.get( "root_directory" ), config );
+//		}
 		
 		public Configuration( final String root_directory, final String subdir, final KeyValueStore config )
 		{
@@ -2756,7 +2762,7 @@ public class Experiments
 			exclude_.add( "root_directory" );
 			domain = config.get( "domain" );
 			exclude_.add( "domain" );
-			abstraction = config.get( "abstraction" );
+//			abstraction = config.get( "abstraction" );
 			exclude_.add( "abstraction" );
 			model = config.get( "model" );
 			exclude_.add( "model" );
@@ -2849,56 +2855,63 @@ public class Experiments
 	 */
 	public static void main( final String[] args ) throws Exception
 	{
-		final String experiment = args[0];
-		final CsvConfigurationParser csv = new CsvConfigurationParser( new FileReader( experiment ) );
-		for( int expr = 0; expr < csv.size(); ++expr ) {
-			final KeyValueStore expr_config = csv.get( expr );
-			final Configuration config = new Configuration( expr_config );
+		final String experiment_file = args[0];
+		final File root_directory;
+		if( args.length > 1 ) {
+			root_directory = new File( args[1] );
+		}
+		else {
+			root_directory = new File( "." );
+		}
+		final CsvConfigurationParser csv_config = new CsvConfigurationParser( new FileReader( experiment_file ) );
+		final String experiment_name = FilenameUtils.getBaseName( experiment_file );
+		
+		final File expr_directory = new File( root_directory, experiment_name );
+		expr_directory.mkdirs();
+		
+		for( int expr = 0; expr < csv_config.size(); ++expr ) {
+			final KeyValueStore expr_config = csv_config.get( expr );
+			final Configuration config = new Configuration(
+					root_directory.getPath(), expr_directory.getName(), expr_config );
 			
 			if( "irrelevance".equals( config.domain ) ) {
 				final IrrelevanceDomain domain = new IrrelevanceDomain( config, 10 );
-				runExperiment( config, domain,
-							   createAbstractionDiscoveryAlgorithm( config, domain ) );
+				runExperiment( config, domain );
 			}
 			else if( "chain_walk".equals( config.domain ) ) {
 				final ChainWalkDomain domain = new ChainWalkDomain( config );
-				runExperiment( config, domain,
-							   createAbstractionDiscoveryAlgorithm( config, domain ) );
+				runExperiment( config, domain );
 			}
 			else if( "blackjack".equals( config.domain ) ) {
 				final BlackjackDomain domain = new BlackjackDomain( config );
-				runExperiment( config, domain,
-							   createAbstractionDiscoveryAlgorithm( config, domain ) );
+				runExperiment( config, domain );
 			}
 			else if( "taxi".equals( config.domain ) ) {
 				final TaxiDomain domain = new TaxiDomain( config );
-				runExperiment( config, domain,
-							   createAbstractionDiscoveryAlgorithm( config, domain ) );
+				runExperiment( config, domain );
 			}
 			else if( "yahtzee".equals( config.domain ) ) {
 				final YahtzeeDomain domain = new YahtzeeDomain( config );
-				runExperiment( config, domain,
-							   createAbstractionDiscoveryAlgorithm( config, domain ) );
+				runExperiment( config, domain );
 			}
 			else if( "frogger".equals( config.domain ) ) {
 				final FroggerDomain domain = new FroggerDomain( config );
-				runExperiment( config, domain,
-							   createAbstractionDiscoveryAlgorithm( config, domain ) );
+				runExperiment( config, domain );
 			}
 			else if( "racegrid".equals( config.domain ) ) {
 				final RacegridDomain domain = new RacegridDomain( config );
-				runExperiment( config, domain,
-							   createAbstractionDiscoveryAlgorithm( config, domain ) );
+				runExperiment( config, domain );
 			}
 			else if( "race_car".equals( config.domain ) ) {
 				final RaceCarDomain domain = new RaceCarDomain( config );
-				runExperiment( config, domain,
-							   createAbstractionDiscoveryAlgorithm( config, domain ) );
+				runExperiment( config, domain );
 			}
 			else if( "tamarisk".equals( config.domain ) ) {
 				final TamariskDomain domain = new TamariskDomain( config );
-				runExperiment( config, domain,
-							   createAbstractionDiscoveryAlgorithm( config, domain ) );
+				runExperiment( config, domain );
+			}
+			else {
+				throw new IllegalArgumentException( "domain = " + config.domain );
 			}
 		}
 	}

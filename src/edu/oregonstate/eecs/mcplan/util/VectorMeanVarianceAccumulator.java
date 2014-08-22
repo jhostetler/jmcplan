@@ -1,5 +1,7 @@
 package edu.oregonstate.eecs.mcplan.util;
 
+import org.apache.commons.math3.linear.RealVector;
+
 public class VectorMeanVarianceAccumulator
 {
 	public final int Ndim;
@@ -19,6 +21,13 @@ public class VectorMeanVarianceAccumulator
 	{
 		for( int i = 0; i < Ndim; ++i ) {
 			mv_[i].add( x[i] );
+		}
+	}
+	
+	public void add( final RealVector x )
+	{
+		for( int i = 0; i < Ndim; ++i ) {
+			mv_[i].add( x.getEntry( i ) );
 		}
 	}
 	

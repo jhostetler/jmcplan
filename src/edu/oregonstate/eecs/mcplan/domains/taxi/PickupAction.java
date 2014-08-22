@@ -15,12 +15,14 @@ public class PickupAction extends TaxiAction
 	
 	private int old_passenger_ = -1;
 	private boolean old_illegal_ = false;
+	private boolean old_pickup_success_ = false;
 	
 	@Override
 	public void undoAction( final TaxiState s )
 	{
 		assert( done_ );
 		s.passenger = old_passenger_;
+		s.pickup_success = old_pickup_success_;
 		s.illegal_pickup_dropoff = old_illegal_;
 		done_ = false;
 	}
@@ -30,9 +32,11 @@ public class PickupAction extends TaxiAction
 	{
 		assert( !done_ );
 		old_passenger_ = s.passenger;
+		old_pickup_success_ = s.pickup_success;
 		old_illegal_ = s.illegal_pickup_dropoff;
 		if( s.passenger != TaxiState.IN_TAXI && Arrays.equals( s.taxi, s.locations.get( s.passenger ) ) ) {
 			s.passenger = TaxiState.IN_TAXI;
+			s.pickup_success = true;
 		}
 		else {
 			s.illegal_pickup_dropoff = true;

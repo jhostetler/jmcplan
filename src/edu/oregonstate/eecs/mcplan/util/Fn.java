@@ -1355,6 +1355,17 @@ public final class Fn
 		return d;
 	}
 	
+	public static int distance_l1( final int[] x, final int[] y )
+	{
+		assert( x.length == y.length );
+		int d = 0;
+		for( int i = 0; i < x.length; ++i ) {
+			final int diff = Math.abs( x[i] - y[i] );
+			d += diff*diff;
+		}
+		return d;
+	}
+	
 	/**
 	 * Returns a new vector containing a - b.
 	 * @param a

@@ -1,118 +1,82 @@
+/**
+ * 
+ */
 package edu.oregonstate.eecs.mcplan.abstraction;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 
+import weka.classifiers.Classifier;
+import weka.core.DenseInstance;
 import weka.core.Instance;
+import weka.core.Instances;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
+import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.State;
-import edu.oregonstate.eecs.mcplan.ml.SimilarityFunction;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 import gnu.trove.list.array.TIntArrayList;
 
 /**
- * Represents states by comparing them to the means of clusters created online
- * using a user-specified SimilarityFunction.
- * 
- * Because it constructs partitions online, the resulting representation will
- * depend on the order of samples presented.
- * 
  * @author jhostetler
  *
- * @param <S>
- * @param <X>
  */
-public final class PairwiseClassifierRepresenter<S extends State, X extends FactoredRepresentation<S>>
-	implements Representer<S, ClusterAbstraction<S>>
+public class PairwiseClassifierRepresenter<S extends State>
+	implements Representer<FactoredRepresentation<S>, Representation<S>>
 {
-	public static abstract class FeatureBuilder
-	{
-		public abstract Instance makeFeatures( final double[] phi_i, final double[] phi_j );
-	}
-	
-	private final Representer<S, X> repr_;
-	private final SimilarityFunction sf_;
-	private final double decision_threshold_;
-	private final int max_branching_;
+	private final PairDataset.InstanceCombiner combiner_;
+	private final Classifier classifier_;
 	
 	private final ArrayList<ClusterAbstraction<S>> clusters_ = new ArrayList<ClusterAbstraction<S>>();
 	private final ArrayList<double[]> exemplars_ = new ArrayList<double[]>();
 	private final TIntArrayList n_ = new TIntArrayList();
 	
-	private final HashMap<X, ClusterAbstraction<S>> cache_;
-	private final boolean use_cache_ = false;
-	
-	public PairwiseClassifierRepresenter( final Representer<S, X> repr,
-										  final SimilarityFunction sf,
-										  final double decision_threshold,
-										  final int max_branching )
+	public PairwiseClassifierRepresenter(
+		final PairDataset.InstanceCombiner combiner, final Classifier classifier )
 	{
-		repr_ = repr;
-		sf_ = sf;
-		decision_threshold_ = decision_threshold;
-		max_branching_ = max_branching;
-		
-		if( use_cache_ ) {
-			cache_ = new HashMap<X, ClusterAbstraction<S>>();
-		}
-		else {
-			cache_ = null;
-		}
+		combiner_ = combiner;
+		classifier_ = classifier;
 	}
 	
 	@Override
-	public PairwiseClassifierRepresenter<S, X> create()
+	public PairwiseClassifierRepresenter<S> create()
 	{
-		// Note: It is *very* important to call the two-argument
-		// Instances constructor, otherwise it takes *forever* even
-		// though the Instances object is empty!
-		return new PairwiseClassifierRepresenter<S, X>(
-			repr_.create(), sf_, decision_threshold_, max_branching_ );
+		return new PairwiseClassifierRepresenter<S>( combiner_, classifier_ );
 	}
 	
 	public ClusterAbstraction<S> clusterState( final double[] phi )
 	{
 //		System.out.println( "\tcluster " + (count_++) +": size = " + clusters_.size() );
 		
+		final int none = -1;
+		final Instances dummy = WekaUtil.createEmptyInstances( "dummy", combiner_.attributes() );
 		try { // try-block for the sake of Weka
-			// TODO: How to do this step is a big design decision. We might
-			// eventually like something formally justified, e.g. the
-			// "Chinese restaurant process" approach.
-			int best_cluster = -1;
-			double best_similarity = -Double.MAX_VALUE;
-			for( int i = 0; i < clusters_.size(); ++i ) {
-				final double[] ex = exemplars_.get( i );
-				final double s = sf_.similarity( phi, ex );
-//				System.out.println( "similarity: " + s );
-				if( s > best_similarity ) {
-					best_similarity = s;
-					best_cluster = i;
+			final int[] idx = Fn.range( 0, exemplars_.size() );
+			int cluster = none;
+			for( final int i : idx ) {
+				final double[] x = exemplars_.get( i );
+				if( Arrays.equals( x, phi ) ) {
+					cluster = i;
+					break;
+				}
+				// NaN for "unknown label"
+				final Instance p = new DenseInstance( 1.0, combiner_.apply( phi, x, Double.NaN ) );
+				WekaUtil.addInstance( dummy, p );
+				final int prediction = (int) classifier_.classifyInstance( p );
+				dummy.remove( 0 );
+				if( prediction == 1 ) {
+					cluster = i;
+					break;
 				}
 			}
 			
-//			System.out.println( "*****" );
-//			System.out.println( clusters_.size() );
-//			System.out.println( max_branching_ );
-			if( clusters_.size() == max_branching_ || best_similarity > decision_threshold_ ) {
-				final ClusterAbstraction<S> c = clusters_.get( best_cluster );
-				final int ni = 1 + n_.get( best_cluster );
-				n_.set( best_cluster, ni );
-				final double[] ex = exemplars_.get( best_cluster );
-				
-				// TODO: Debugging
-//				System.out.println( Arrays.toString( phi ) + " ~ " + Arrays.toString( ex ) + " (" + c.cluster_ + ")" );
-				
-				// Modify exemplar to be cluster mean.
-				// TODO: Customizable metric / distance calculation?
-				for( int j = 0; j < ex.length; ++j ) {
-					ex[j] += (phi[j] - ex[j]) / ni;
-				}
+			if( cluster != none ) {
+				final ClusterAbstraction<S> c = clusters_.get( cluster );
+				final int ni = 1 + n_.get( cluster );
+				n_.set( cluster, ni );
 				return c;
 			}
 			else {
-//				System.out.println( "! " + Arrays.toString( phi ) + " is novel" );
-				
 				// No match found in loop -> Make new cluster
 				final ClusterAbstraction<S> c = new ClusterAbstraction<S>( clusters_.size() );
 				clusters_.add( c );
@@ -121,30 +85,14 @@ public final class PairwiseClassifierRepresenter<S extends State, X extends Fact
 				return c;
 			}
 		}
-		catch( final Exception ex ) {
-			throw new RuntimeException( ex );
-		}
+		catch( final RuntimeException ex ) 	{ throw ex; }
+		catch( final Exception ex ) 		{ throw new RuntimeException( ex ); }
 	}
 	
 	@Override
-	public ClusterAbstraction<S> encode( final S s )
+	public Representation<S> encode( final FactoredRepresentation<S> x )
 	{
-		if( s.isTerminal() ) {
-			return new ClusterAbstraction<S>( -1 );
-		}
-		
-		// TODO: This needs to know the tree depth, or else you're building a DAG!
-		final X x = repr_.encode( s );
-		if( use_cache_ ) {
-			ClusterAbstraction<S> c = cache_.get( x );
-			if( c == null ) {
-				c = clusterState( x.phi() );
-				cache_.put( x, c );
-			}
-			return c;
-		}
-		else {
-			return clusterState( x.phi() );
-		}
+		final Representation<S> c = clusterState( x.phi() );
+		return c;
 	}
 }

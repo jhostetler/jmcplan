@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.commons.math3.linear.ArrayRealVector;
 import org.apache.commons.math3.linear.RealVector;
@@ -19,6 +20,10 @@ import weka.core.Instances;
 import weka.core.converters.ArffSaver;
 import weka.core.converters.ConverterUtils.DataSource;
 import weka.core.converters.Saver;
+
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
+
 import edu.oregonstate.eecs.mcplan.Pair;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
@@ -185,6 +190,24 @@ public class WekaUtil
 	}
 	
 	/**
+	 * Returns a list of all Attributes, *excluding* the class attribute if
+	 * it is set.
+	 * @param instances
+	 * @return
+	 */
+	public static ArrayList<Attribute> extractUnlabeledAttributes( final Instances instances )
+	{
+		final ArrayList<Attribute> attributes = new ArrayList<Attribute>( instances.numAttributes() );
+		for( int i = 0; i < instances.numAttributes(); ++i ) {
+			if( i == instances.classIndex() ) {
+				continue;
+			}
+			attributes.add( instances.attribute( i ) );
+		}
+		return attributes;
+	}
+	
+	/**
 	 * Load an ARFF dataset.
 	 *
 	 * Adapted from:
@@ -271,5 +294,133 @@ public class WekaUtil
 		}
 		
 		return Pair.makePair( X, Y );
+	}
+	
+	public static Instances powerSet( final Instances D, final int n )
+	{
+		final Attribute class_attr = D.classAttribute();
+		
+		final ImmutableSet.Builder<Integer> b = new ImmutableSet.Builder<Integer>();
+		final int Nattr = class_attr != null ? D.numAttributes() - 1 : D.numAttributes();
+		for( final int i : Fn.range( 1, Nattr ) ) {
+			b.add( i );
+		}
+		final Set<Set<Integer>> index = Sets.powerSet( b.build() );
+		
+		final ArrayList<Attribute> attributes = new ArrayList<Attribute>();
+		for( final Set<Integer> subset : index ) {
+			if( subset.isEmpty() || subset.size() > n ) {
+				continue;
+			}
+			
+			final StringBuilder attr_name = new StringBuilder();
+			int count = 0;
+			for( final Integer i : subset ) {
+				if( count++ > 0 ) {
+					attr_name.append( "_x_" );
+				}
+				attr_name.append( D.attribute( i ).name() );
+			}
+			
+			attributes.add( new Attribute( attr_name.toString() ) );
+		}
+		if( class_attr != null ) {
+			assert( class_attr.isNominal() );
+			attributes.add( WekaUtil.createNominalAttribute( class_attr.name(), class_attr.numValues() ) );
+		}
+		
+		final String Pname = "P" + n + "_" + D.relationName();
+		final Instances P = new Instances( Pname, attributes, 0 );
+		if( class_attr != null ) {
+			P.setClassIndex( attributes.size() - 1 );
+		}
+		
+		for( final Instance inst : D ) {
+			final double[] xp = new double[attributes.size()];
+			int idx = 0;
+			for( final Set<Integer> subset : index ) {
+				if( subset.isEmpty() || subset.size() > n ) {
+					continue;
+				}
+				
+				double p = 1.0;
+				for( final Integer i : subset ) {
+					p *= inst.value( i );
+				}
+				xp[idx++] = p;
+			}
+			if( class_attr != null ) {
+				xp[idx++] = inst.classValue();
+			}
+			
+			WekaUtil.addInstance( P, new DenseInstance( inst.weight(), xp ) );
+		}
+		
+		return P;
+	}
+	
+	public static Instances allPairwiseProducts( final Instances single, final boolean reflexive, final boolean symmetric )
+	{
+		final int c = single.classIndex();
+		System.out.println( "Class attribute = " + c );
+		
+		final ArrayList<Attribute> pair_attributes = new ArrayList<Attribute>();
+		for( int i = 0; i < single.numAttributes(); ++i ) {
+			if( i == c ) {
+				continue;
+			}
+			final Attribute ai = single.attribute( i );
+			final int j0 = (symmetric ? 0 : i);
+			for( int j = j0; j < single.numAttributes(); ++j ) {
+				if( j == c ) {
+					continue;
+				}
+				if( !reflexive && i == j ) {
+					continue;
+				}
+				
+				final Attribute aj = single.attribute( j );
+				
+				final String name = ai.name() + "_x_" + aj.name();
+				pair_attributes.add( new Attribute( name ) );
+			}
+		}
+		
+		String pair_name = single.relationName();
+		pair_name += "_x";
+		if( reflexive ) {
+			pair_name += "r";
+		}
+		if( symmetric ) {
+			pair_name += "s";
+		}
+		pair_name += "_";
+		pair_name += single.relationName();
+		final Instances result = new Instances( pair_name, pair_attributes, 0 );
+		
+		for( final Instance inst : single ) {
+			final double[] xp = new double[pair_attributes.size()];
+			int idx = 0;
+			for( int i = 0; i < single.numAttributes(); ++i ) {
+				if( i == c ) {
+					continue;
+				}
+				final double xi = inst.value( i );
+				final int j0 = (symmetric ? 0 : i);
+				for( int j = j0; j < single.numAttributes(); ++j ) {
+					if( j == c ) {
+						continue;
+					}
+					if( !reflexive && i == j ) {
+						continue;
+					}
+					final double xj = inst.value( j );
+					xp[idx++] = xi * xj;
+				}
+			}
+			WekaUtil.addInstance( result, new DenseInstance( inst.weight(), xp ) );
+		}
+		
+		return result;
 	}
 }

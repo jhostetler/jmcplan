@@ -37,7 +37,7 @@ import edu.oregonstate.eecs.mcplan.SingleStepAdapter;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.abstraction.AbstractionBuilder;
 import edu.oregonstate.eecs.mcplan.abstraction.AggregateState;
-import edu.oregonstate.eecs.mcplan.abstraction.PairwiseClassifierRepresenter;
+import edu.oregonstate.eecs.mcplan.abstraction.PairwiseSimilarityRepresenter;
 import edu.oregonstate.eecs.mcplan.abstraction.WekaUtil;
 import edu.oregonstate.eecs.mcplan.domains.toy.Irrelevance;
 import edu.oregonstate.eecs.mcplan.domains.toy.Irrelevance.Action;
@@ -468,7 +468,7 @@ public class AbstractionExperiments
 						throw new RuntimeException( ex );
 					}
 					final Representer<VoyagerState, AggregateState<VoyagerState>> repr
-						= new PairwiseClassifierRepresenter<VoyagerState, VoyagerStateToken>( base_repr, attributes, c );
+						= new PairwiseSimilarityRepresenter<VoyagerState, VoyagerStateToken>( base_repr, attributes, c );
 					
 					final Policy<VoyagerState, JointAction<Option<VoyagerState, VoyagerAction>>>
 						rollout_policy = new RandomPolicy<VoyagerState, JointAction<Option<VoyagerState, VoyagerAction>>>(
@@ -760,7 +760,7 @@ public class AbstractionExperiments
 						throw new RuntimeException( ex );
 					}
 					final Representer<Irrelevance.State, AggregateState<Irrelevance.State>> repr
-						= new PairwiseClassifierRepresenter<Irrelevance.State, Irrelevance.IdentityRepresentation>( base_repr, attributes, c );
+						= new PairwiseSimilarityRepresenter<Irrelevance.State, Irrelevance.IdentityRepresentation>( base_repr, attributes, c );
 					
 					final Policy<Irrelevance.State, JointAction<Irrelevance.Action>>
 						rollout_policy = new RandomPolicy<Irrelevance.State, JointAction<Irrelevance.Action>>(

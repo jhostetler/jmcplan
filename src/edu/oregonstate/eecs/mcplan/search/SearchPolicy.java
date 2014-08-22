@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
 import edu.oregonstate.eecs.mcplan.JointAction;
-import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Countdown;
 
@@ -21,19 +20,19 @@ import edu.oregonstate.eecs.mcplan.util.Countdown;
  * 
  * @author jhostetler
  */
-public abstract class SearchPolicy<S, X extends Representation<S>, A extends VirtualConstructor<A>>
+public abstract class SearchPolicy<S, A extends VirtualConstructor<A>>
 	extends AnytimePolicy<S, JointAction<A>>
 {
 	private static final Logger log = LoggerFactory.getLogger( SearchPolicy.class );
 	
-	private final GameTreeFactory<S, X, A> factory_;
+	private final GameTreeFactory<S, A> factory_;
 	private final MctsVisitor<S, A> visitor_;
 	private final PrintStream log_stream_;
 	
 	private S s_ = null;
 	private long t_ = 0L;
 	
-	public SearchPolicy( final GameTreeFactory<S, X, A> factory,
+	public SearchPolicy( final GameTreeFactory<S, A> factory,
 						 final MctsVisitor<S, A> visitor,
 						 final PrintStream log_stream )
 	{
@@ -42,19 +41,21 @@ public abstract class SearchPolicy<S, X extends Representation<S>, A extends Vir
 		log_stream_ = log_stream;
 	}
 	
-	public SearchPolicy( final GameTreeFactory<S, X, A> factory,
+	public SearchPolicy( final GameTreeFactory<S, A> factory,
 						 final MctsVisitor<S, A> visitor )
 	{
 		this( factory, visitor, System.out );
 	}
 	
-	protected abstract JointAction<A> selectAction( final GameTree<X, A> tree );
+	protected abstract JointAction<A> selectAction( final GameTree<S, A> tree );
 	
 	@Override
 	public void setState( final S s, final long t )
 	{
 		s_ = s;
 		t_ = t;
+		
+//		System.out.println( "SearchPolicy.setState( " + s + " )" );
 	}
 
 	@Override
@@ -94,7 +95,7 @@ public abstract class SearchPolicy<S, X extends Representation<S>, A extends Vir
 //		log.info( "getAction( {} )", control );
 		final MctsVisitor<S, A> time_limit
 			= new TimeLimitMctsVisitor<S, A>( visitor_, new Countdown( control ) );
-		final GameTree<X, A> search = factory_.create( time_limit );
+		final GameTree<S, A> search = factory_.create( time_limit );
 //		final long start = System.currentTimeMillis();
 		search.run();
 //		final long stop = System.currentTimeMillis();
@@ -102,7 +103,7 @@ public abstract class SearchPolicy<S, X extends Representation<S>, A extends Vir
 		
 		if( log_stream_ != null ) {
 			log_stream_.println( "[t = " + t_ + "]" );
-			search.root().accept( new TreePrinter<X, A>( log_stream_ ) );
+			search.root().accept( new TreePrinter<S, A>( log_stream_ ) );
 		}
 
 		return selectAction( search );
