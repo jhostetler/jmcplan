@@ -5,6 +5,8 @@ package edu.oregonstate.eecs.mcplan.domains.taxi;
 
 import java.util.Arrays;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 /**
  * @author jhostetler
  *
@@ -28,7 +30,7 @@ public class PickupAction extends TaxiAction
 	}
 
 	@Override
-	public void doAction( final TaxiState s )
+	public void doAction( final TaxiState s, final RandomGenerator rng_unused )
 	{
 		assert( !done_ );
 		old_passenger_ = s.passenger;

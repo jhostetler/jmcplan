@@ -21,5 +21,6 @@ public abstract class MarkovDecisionProblem<S, A>
 	public abstract double[] P( final S s, final A a );
 	public abstract double P( final S s, final A a, final S sprime );
 	
+	public abstract double R( final S s );
 	public abstract double R( final S s, final A a );
 }

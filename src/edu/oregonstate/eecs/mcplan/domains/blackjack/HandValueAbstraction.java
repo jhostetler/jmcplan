@@ -9,7 +9,6 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import weka.core.Attribute;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
-import edu.oregonstate.eecs.mcplan.Representation;
 
 /**
  * @author jhostetler
@@ -130,7 +129,7 @@ public class HandValueAbstraction extends FactoredRepresentation<BlackjackState>
 	}
 
 	@Override
-	public Representation<BlackjackState> copy()
+	public HandValueAbstraction copy()
 	{
 		return new HandValueAbstraction( this );
 	}

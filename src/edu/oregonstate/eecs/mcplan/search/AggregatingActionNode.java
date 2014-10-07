@@ -9,7 +9,6 @@ import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.State;
-import edu.oregonstate.eecs.mcplan.TrivialRepresentation;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
 /**
@@ -50,7 +49,7 @@ public class AggregatingActionNode<S extends State, A extends VirtualConstructor
 //			final MutableStateNode<S, A> leaf = new LeafStateNode<S, A>( x, nagents, turn );
 //			attachSuccessor( x, turn, leaf );
 			
-			final TrivialRepresentation<S> x = new TrivialRepresentation<S>();
+			final LeafRepresentation<S> x = new LeafRepresentation<S>();
 			MutableStateNode<S, A> leaf = getStateNode( x, turn );
 			if( leaf == null ) {
 				leaf = new LeafStateNode<S, A>( x, nagents, turn );

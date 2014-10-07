@@ -42,12 +42,12 @@ public class TreePrinter<S, A extends VirtualConstructor<A>>
 			out_.print( "  " );
 		}
 		out_.print( "S" );
-		out_.print( s.getClass() );
+//		out_.print( s.getClass() );
 		out_.print( d_ / 2 );
 		out_.print( ": n = " );
 		out_.print( s.n() );
 		out_.print( ": " );
-		out_.print( s.x );
+		out_.print( s );
 		out_.print( ": r = " );
 		out_.print( Arrays.toString( s.r() ) );
 //		out_.print( ": v = " );

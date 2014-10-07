@@ -187,8 +187,13 @@ public class ChainWalk
 	
 	public class Simulator implements UndoSimulator<State, Action>
 	{
-		private final State s_ = new State();
+		private final State s_;
 		private final Deque<Action> h_ = new ArrayDeque<Action>();
+		
+		public Simulator( final State s )
+		{
+			s_ = s;
+		}
 		
 		@Override
 		public State state()
@@ -453,7 +458,7 @@ public class ChainWalk
 	{
 		final MersenneTwister rng = new MersenneTwister( 42 );
 		final ChainWalk domain = new ChainWalk( 4, 0.1, 100 );
-		final Simulator sim = domain.new Simulator();
+		final Simulator sim = domain.new Simulator( domain.new State() );
 		final ResetAdapter<State, Action> resetable = new ResetAdapter<State, Action>( sim );
 		
 		final MeanVarianceAccumulator vbar = new MeanVarianceAccumulator();

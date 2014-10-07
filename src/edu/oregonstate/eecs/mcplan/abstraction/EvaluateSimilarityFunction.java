@@ -16,7 +16,9 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -38,11 +40,16 @@ import weka.core.Attribute;
 import weka.core.DenseInstance;
 import weka.core.Instance;
 import weka.core.Instances;
+import weka.filters.Filter;
 import weka.filters.unsupervised.attribute.Remove;
 import edu.oregonstate.eecs.mcplan.Pair;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.abstraction.Experiments.Configuration;
+import edu.oregonstate.eecs.mcplan.domains.fuelworld.FuelWorldState;
+import edu.oregonstate.eecs.mcplan.domains.tamarisk.IndicatorTamariskRepresenter;
+import edu.oregonstate.eecs.mcplan.domains.tamarisk.TamariskParameters;
+import edu.oregonstate.eecs.mcplan.domains.yahtzee2.PrimitiveYahtzeeRepresenter;
 import edu.oregonstate.eecs.mcplan.ml.ClusterContingencyTable;
 import edu.oregonstate.eecs.mcplan.ml.InnerProductKernel;
 import edu.oregonstate.eecs.mcplan.ml.KernelPrincipalComponentsAnalysis;
@@ -826,15 +833,23 @@ public class EvaluateSimilarityFunction
 		
 		private final Classifier classifier_;
 		
+		private Filter filter_ = null;
+		
 		// FIXME: Ugh! Ugly hack because we have to return Instances from
 		// prepareInstances()
 		private PairDataset pair_dataset_ = null;
 		
-		public PairSimilarityEvaluator( final Configuration config, final Instances train )
+		private final Fn.Function2<Boolean, Instance, Instance> plausible_p_;
+		
+		public PairSimilarityEvaluator( final Configuration config, final Instances train,
+										final Fn.Function2<Boolean, Instance, Instance> plausible_p )
 		{
 			this.config = config;
+			plausible_p_ = plausible_p;
 			try {
 				final String algorithm = config.get( "pair.algorithm" );
+				
+				System.out.println( "[Building classifier]" );
 				final Instances p = prepareInstances( train );
 				if( "decision_tree".equals( algorithm ) ) {
 					final J48 dt = new J48();
@@ -848,7 +863,7 @@ public class EvaluateSimilarityFunction
 //					base.setMaxDepth( 8 );
 					lb.setSeed( config.rng.nextInt() );
 					lb.setClassifier( base );
-					lb.setNumIterations( 50 );
+					lb.setNumIterations( 20 );
 					lb.buildClassifier( p );
 					classifier_ = lb;
 				}
@@ -862,6 +877,8 @@ public class EvaluateSimilarityFunction
 				else {
 					throw new IllegalArgumentException( "pair.algorithm = " + algorithm );
 				}
+				
+				classifier_.buildClassifier( p );
 			}
 			catch( final RuntimeException ex ) {
 				throw ex;
@@ -874,12 +891,64 @@ public class EvaluateSimilarityFunction
 		@Override
 		public Instances prepareInstances( final Instances test )
 		{
-			final PairDataset.InstanceCombiner combiner
-				= new PairDataset.SymmetricFeatures( WekaUtil.extractUnlabeledAttributes( test ) );
+			final Instances D;
+			final PairDataset.InstanceCombiner combiner;
+			
+			if( "yahtzee".equals( config.domain ) ) {
+				System.out.println( "[Building feature selection filter]" );
+				try {
+	//				final ASEvaluation fs_evaluator = new GainRatioAttributeEval();
+	//				fs_evaluator.buildEvaluator( train );
+	//				final Ranker fs_search = new Ranker();
+	//				fs_search.setThreshold( 0.05 );
+	//
+	//				final AttributeSelection as = new AttributeSelection();
+	//				as.setEvaluator( fs_evaluator );
+	//				as.setSearch( fs_search );
+	//				filter_ = as;
+					
+					final Remove rm = new Remove();
+					rm.setAttributeIndicesArray( Fn.range( 20, 33 ) );
+					filter_ = rm;
+					filter_.setInputFormat( test );
+					final Instances filtered = Filter.useFilter( test, filter_ );
+					WekaUtil.writeDataset( new File( config.root_directory ), "filtered", filtered );
+					D = filtered;
+					combiner = new PrimitiveYahtzeeRepresenter.SmartPairFeatures();
+				}
+				catch( final RuntimeException ex ) { throw ex; }
+				catch( final Exception ex ) { throw new RuntimeException( ex ); }
+			}
+			else if( "tamarisk".equals( config.domain ) ) {
+				D = test;
+				combiner = new IndicatorTamariskRepresenter.SmartPairFeatures(
+					new TamariskParameters( null, config.getInt( "tamarisk.Nreaches" ), config.getInt( "tamarisk.Nhabitats" ) ) );
+			}
+			else {
+				D = test;
+				combiner = new PairDataset.ExtendedSymmetricFeatures( WekaUtil.extractUnlabeledAttributes( test ) );
+			}
+				
 			final int positive_pairs = config.getInt( "training.positive_pairs" );
 			final int negative_pairs = config.getInt( "training.negative_pairs" );
-			pair_dataset_ = PairDataset.makeBalancedPairDataset(
-				config.rng, negative_pairs, positive_pairs, test, combiner );
+//			pair_dataset_ = PairDataset.makePlausiblePairDataset(
+//				config.rng, negative_pairs, positive_pairs, D, combiner, plausible_p_ );
+			pair_dataset_ = PairDataset.makePlausiblePairDataset(
+				config.rng, negative_pairs, positive_pairs, D, combiner,
+			new Fn.Function2<Boolean, Instance, Instance>() {
+				@Override
+				public Boolean apply( final Instance a, final Instance b )
+				{ return true; }
+			} );
+			final double negative_weight = config.getDouble( "pair.negative_weight" );
+			for( final Instance i : pair_dataset_.instances ) {
+				if( (int) i.classValue() == 0 ) {
+					i.setWeight( negative_weight );
+				}
+			}
+			
+			System.out.println( "=== training set size: " + pair_dataset_.instances.size() );
+			
 			return pair_dataset_.instances;
 		}
 
@@ -894,41 +963,50 @@ public class EvaluateSimilarityFunction
 				V.add( new HashSet<RealVector>() );
 			}
 			
-			final Instances dummy = WekaUtil.createEmptyInstances( "dummy", pair_dataset_.combiner.attributes() );
-			for( final Instance inst : test ) {
-				final int c = (int) inst.classValue();
-				final RealVector v = new ArrayRealVector( inst.toDoubleArray() );
-				V.get( c ).add( v );
-				boolean found = false;
-				final int[] idx = Fn.range( 0, exemplars.size() );
-				Fn.shuffle( config.rng, idx );
-				for( final int i : idx ) {
-					final Instance x = exemplars.get( i );
-					final int xc = (int) x.classValue();
-					final Instance p = pair_dataset_.combiner.apply( inst, x, (c == xc ? 1 : 0) );
-					WekaUtil.addInstance( dummy, p );
-					int prediction;
-					try {
-						prediction = (int) classifier_.classifyInstance( p );
+			try {
+				final Instances dummy = WekaUtil.createEmptyInstances( "dummy", pair_dataset_.combiner.attributes() );
+				for( final Instance raw : test ) {
+					final Instance inst;
+					if( filter_ != null ) {
+						filter_.input( raw );
+						filter_.batchFinished();
+						inst = filter_.output();
 					}
-					catch( final RuntimeException ex ) { throw ex; }
-					catch( final Exception ex ) { throw new RuntimeException( ex ); }
-					dummy.remove( 0 );
-					if( prediction == 1 ) {
-						U.get( i ).add( v );
-						found = true;
-						break;
+					else {
+						inst = raw;
 					}
-				}
-				if( !found ) {
-					exemplars.add( inst );
-					final Set<RealVector> s = new HashSet<RealVector>();
-					s.add( v );
-					U.add( s );
-				}
-			}
+					final int c = (int) inst.classValue();
+					final RealVector v = new ArrayRealVector( inst.toDoubleArray() );
+					V.get( c ).add( v );
+					boolean found = false;
+					final int[] idx = Fn.range( 0, exemplars.size() );
+					Fn.shuffle( config.rng, idx );
+					for( final int i : idx ) {
+						final Instance x = exemplars.get( i );
+						final int xc = (int) x.classValue();
+						final Instance p = pair_dataset_.combiner.apply( inst, x, (c == xc ? 1 : 0) );
+						WekaUtil.addInstance( dummy, p );
+						final int prediction = (int) classifier_.classifyInstance( p );
 
-			return new ClusterContingencyTable( U, V );
+						dummy.remove( 0 );
+						if( Arrays.equals( x.toDoubleArray(), inst.toDoubleArray() ) || prediction == 1 ) {
+							U.get( i ).add( v );
+							found = true;
+							break;
+						}
+					}
+					if( !found ) {
+						exemplars.add( inst );
+						final Set<RealVector> s = new HashSet<RealVector>();
+						s.add( v );
+						U.add( s );
+					}
+				}
+	
+				return new ClusterContingencyTable( U, V );
+			}
+			catch( final RuntimeException ex ) { throw ex; }
+			catch( final Exception ex ) { throw new RuntimeException( ex ); }
 		}
 
 		@Override
@@ -956,10 +1034,68 @@ public class EvaluateSimilarityFunction
 			return new HashEvaluator( config, train );
 		}
 		else if( "pair".equals( abstraction ) ) {
-			return new PairSimilarityEvaluator( config, train );
+			final Fn.Function2<Boolean, Instance, Instance> plausible_p = createPlausiblePredicate( config );
+			return new PairSimilarityEvaluator( config, train, plausible_p );
 		}
 		else {
 			throw new IllegalArgumentException( "abstraction = " + abstraction );
+		}
+	}
+	
+	// FIXME: All of these predicates contain hardcoded characteristics of
+	// particular domains and/or Representations. Check back here if you change
+	// any of that stuff!
+	private static Fn.Function2<Boolean, Instance, Instance>
+	createPlausiblePredicate( final Configuration config )
+	{
+		if( "fuelworld".equals( config.domain ) ) {
+			return new Fn.Function2<Boolean, Instance, Instance>() {
+				final FuelWorldState s = FuelWorldState.createDefaultWithChoices( null );
+				@Override
+				public Boolean apply( final Instance a, final Instance b )
+				{
+					// The same action can't put you in two different locations
+					if( a.value( 0 ) != b.value( 0 ) ) {
+						return false;
+					}
+					else if( Math.abs( a.value( 1 ) - b.value( 1 ) ) > s.fuel_consumption
+							 && !s.fuel_depots.contains( (int) a.value( 0 ) ) ) {
+						return false;
+					}
+					
+					return true;
+				}
+			};
+		}
+		else if( "tamarisk".equals( config.domain ) ) {
+			return new Fn.Function2<Boolean, Instance, Instance>() {
+				@Override
+				public Boolean apply( final Instance a, final Instance b )
+				{ return true; }
+			};
+		}
+		else if( "yahtzee".equals( config.domain ) ) {
+			return new Fn.Function2<Boolean, Instance, Instance>() {
+				@Override
+				public Boolean apply( final Instance a, final Instance b )
+				{
+					final int reroll_diff = (int) (a.value( 6 ) - b.value( 6 ));
+					if( reroll_diff != 0 ) {
+						return false;
+					}
+
+					for( final int i : Fn.range( 7, 19 ) ) {
+						if( a.value( i ) != b.value( i ) ) {
+							return false;
+						}
+					}
+					
+					return true;
+				}
+			};
+		}
+		else {
+			throw new IllegalArgumentException( "domain = " + config.domain );
 		}
 	}
 	
@@ -1015,7 +1151,7 @@ public class EvaluateSimilarityFunction
 				final int[] idx = Fn.range( 0, single.size() );
 				int instance_counter = 0;
 				Fn.shuffle( config.rng, idx );
-				final int Ntrain = config.Ntrain_games;
+				final int Ntrain = config.getInt( "Ntrain_games" ); // TODO: Rename?
 				final double label_noise = config.getDouble( "training.label_noise" );
 				final int Nlabels = train.classAttribute().numValues();
 				assert( Nlabels > 0 );
@@ -1032,13 +1168,45 @@ public class EvaluateSimilarityFunction
 					train.add( inst );
 					inst.setDataset( train );
 				}
+				
+				final Fn.Function2<Boolean, Instance, Instance> plausible_p
+					= createPlausiblePredicate( config );
+				
 				final int Ntest = config.Ntest_games;
-				final Instances test = new Instances( single, 0 );
-				while( instance_counter < single.size() && test.size() < Ntest ) {
+				int Ntest_added = 0;
+				final ArrayList<Instances> tests = new ArrayList<Instances>();
+				while( instance_counter < single.size() && Ntest_added < Ntest ) {
 					final Instance inst = single.get( idx[instance_counter++] );
-					test.add( inst );
-					inst.setDataset( test );
+					boolean found = false;
+					for( final Instances test : tests ) {
+						// Note that 'plausible_p' should be transitive
+						if( plausible_p.apply( inst, test.get( 0 ) ) ) {
+							WekaUtil.addInstance( test, inst );
+							if( test.size() == 30 ) {
+								Ntest_added += test.size();
+							}
+							else if( test.size() > 30 ) {
+								Ntest_added += 1;
+							}
+							found = true;
+							break;
+						}
+					}
+					
+					if( !found ) {
+						final Instances test = new Instances( single, 0 );
+						WekaUtil.addInstance( test, inst );
+						tests.add( test );
+					}
 				}
+				final Iterator<Instances> test_itr = tests.iterator();
+				while( test_itr.hasNext() ) {
+					if( test_itr.next().size() < 30 ) {
+						test_itr.remove();
+					}
+				}
+				System.out.println( "=== tests.size() = " + tests.size() );
+				System.out.println( "=== Ntest_added = " + Ntest_added );
 				
 				System.out.println( "[Training]" );
 				final Evaluator evaluator = createEvaluator( config, train );
@@ -1049,18 +1217,50 @@ public class EvaluateSimilarityFunction
 				final int Nxval = evaluator.isSensitiveToOrdering() ? 10 : 1;
 				final MeanVarianceAccumulator ami = new MeanVarianceAccumulator();
 				
+				final MeanVarianceAccumulator errors = new MeanVarianceAccumulator();
+				final MeanVarianceAccumulator relative_error = new MeanVarianceAccumulator();
+				
+				int c = 0;
 				for( int xval = 0; xval < Nxval; ++xval ) {
-//					transformed_test.randomize( new RandomAdaptor( config.rng ) );
-//					final ClusterContingencyTable ct = evaluator.evaluate( transformed_test );
-					test.randomize( new RandomAdaptor( config.rng ) );
-					final ClusterContingencyTable ct = evaluator.evaluate( test );
-					System.out.println( ct );
-					final PrintStream ct_out = new PrintStream( new FileOutputStream(
-						new File( expr_directory, "ct_" + expr + "_" + xval + ".csv" ) ) );
-					ct.writeCsv( ct_out );
-					ct_out.close();
-					ami.add( ct.adjustedMutualInformation_max() );
+					for( final Instances test : tests ) {
+						// TODO: Debugging
+						WekaUtil.writeDataset( new File( config.root_directory ), "test_" + (c++), test );
+						
+	//					transformed_test.randomize( new RandomAdaptor( config.rng ) );
+	//					final ClusterContingencyTable ct = evaluator.evaluate( transformed_test );
+						test.randomize( new RandomAdaptor( config.rng ) );
+						final ClusterContingencyTable ct = evaluator.evaluate( test );
+						System.out.println( ct );
+						
+						int Nerrors = 0;
+						final MeanVarianceAccumulator mv = new MeanVarianceAccumulator();
+						for( int i = 0; i < ct.R; ++i ) {
+							final int max = Fn.max( ct.n[i] );
+							Nerrors += (ct.a[i] - max);
+							mv.add( ((double) ct.a[i]) / ct.N
+									* Nerrors / ct.a[i] );
+						}
+						errors.add( Nerrors );
+						relative_error.add( mv.mean() );
+						
+						System.out.println( "exemplar: " + test.get( 0 ) );
+						System.out.println( "Nerrors = " + Nerrors );
+						final PrintStream ct_out = new PrintStream( new FileOutputStream(
+							new File( expr_directory, "ct_" + expr + "_" + xval + ".csv" ) ) );
+						ct.writeCsv( ct_out );
+						ct_out.close();
+						final double ct_ami = ct.adjustedMutualInformation_max();
+						if( Double.isNaN( ct_ami ) ) {
+							System.out.println( "! ct_ami = NaN" );
+						}
+						else {
+							ami.add( ct_ami );
+						}
+						System.out.println();
+					}
 				}
+				System.out.println( "errors = " + errors.mean() + " (" + errors.confidence() + ")" );
+				System.out.println( "relative_error = " + relative_error.mean() + " (" + relative_error.confidence() + ")" );
 				System.out.println( "AMI_max = " + ami.mean() + " (" + ami.confidence() + ")" );
 				
 				csv.cell( config.domain ).cell( config.get( "abstraction.discovery" ) );

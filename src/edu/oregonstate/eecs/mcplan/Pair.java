@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan;
 
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+
 /**
  * @author jhostetler
  *
@@ -47,5 +49,32 @@ public final class Pair<T, U>
 	public static <T, U> Pair<T, U> makePair( final T t, final U u )
 	{
 		return new Pair<T, U>( t, u );
+	}
+	
+	@Override
+	public int hashCode()
+	{
+		final HashCodeBuilder hb = new HashCodeBuilder();
+		hb.append( first );
+		hb.append( second );
+		return hb.toHashCode();
+	}
+	
+	@Override
+	public boolean equals( final Object obj )
+	{
+		if( !(obj instanceof Pair<?, ?>) ) {
+			return false;
+		}
+		
+		final Pair<T, U> that = (Pair<T, U>) obj;
+		return ((first == null && that.first == null) || first.equals( that.first ))
+				&& ((second == null && that.second == null) || second.equals( that.second ));
+	}
+	
+	@Override
+	public String toString()
+	{
+		return "{" + first + ", " + second + "}";
 	}
 }

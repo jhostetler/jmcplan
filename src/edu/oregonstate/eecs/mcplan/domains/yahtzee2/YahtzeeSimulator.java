@@ -6,10 +6,10 @@ package edu.oregonstate.eecs.mcplan.domains.yahtzee2;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-import org.apache.commons.math3.random.RandomGenerator;
-
 import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
+import gnu.trove.stack.TIntStack;
+import gnu.trove.stack.array.TIntArrayStack;
 
 /**
  * @author jhostetler
@@ -24,15 +24,12 @@ public class YahtzeeSimulator implements UndoSimulator<YahtzeeState, YahtzeeActi
 	private final Deque<JointAction<YahtzeeAction>> action_history_
 		= new ArrayDeque<JointAction<YahtzeeAction>>();
 	
-	public YahtzeeSimulator( final RandomGenerator rng )
+	private final TIntStack scores_ = new TIntArrayStack();
+	
+	public YahtzeeSimulator( final YahtzeeState s )
 	{
-		s_ = new YahtzeeState( rng );
-		
-		// We roll an initial hand, so that rolling dice can be the last step
-		// of KeepAction and ScoreAction, and thus we don't need a 'RollDice'
-		// action, which would be the only action available whenever it is
-		// legal.
-		s_.setHand( new Hand( s_.roll( Hand.Ndice ) ), Hand.Nrerolls );
+		s_ = s;
+		scores_.push( s_.score() );
 	}
 	
 	@Override
@@ -45,6 +42,7 @@ public class YahtzeeSimulator implements UndoSimulator<YahtzeeState, YahtzeeActi
 	public void takeAction( final JointAction<YahtzeeAction> a )
 	{
 		assert( a.nagents == 1 );
+		scores_.push( s_.score() );
 		a.get( 0 ).doAction( s_ );
 		action_history_.push( a );
 	}
@@ -54,6 +52,7 @@ public class YahtzeeSimulator implements UndoSimulator<YahtzeeState, YahtzeeActi
 	{
 		final JointAction<YahtzeeAction> a = action_history_.pop();
 		a.get( 0 ).undoAction( s_ );
+		scores_.pop();
 	}
 
 	@Override
@@ -83,6 +82,8 @@ public class YahtzeeSimulator implements UndoSimulator<YahtzeeState, YahtzeeActi
 	@Override
 	public double[] reward()
 	{
+//		return new double[] { s_.score() - scores_.peek() };
+		
 		if( s_.isTerminal() ) {
 			return new double[] { s_.score() };
 		}

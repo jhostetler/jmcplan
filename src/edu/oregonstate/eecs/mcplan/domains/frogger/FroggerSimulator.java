@@ -214,7 +214,11 @@ public class FroggerSimulator implements UndoSimulator<FroggerState, FroggerActi
 	public double[] reward()
 	{
 		if( s_.squashed ) {
-			return new double[] { -20 };
+			// Getting squashed gives a penalty and causes the agent to be
+			// unable to move. The additional penalty for time remaining
+			// prevents the agent from wanting to get squashed faster in order
+			// to avoid per-move penalties.
+			return new double[] { -20 - (s_.T - s_.t) };
 		}
 		else
 		if( s_.goal ) {

@@ -4,7 +4,6 @@
 package edu.oregonstate.eecs.mcplan.search;
 
 import edu.oregonstate.eecs.mcplan.JointAction;
-import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Generator;
 
@@ -29,7 +28,7 @@ public abstract class ActionNode<S, A extends VirtualConstructor<A>>
 		nagents = a_.size();
 	}
 	
-	// FIXME: THis is a temporary fix
+	// FIXME: This is a temporary fix
 	protected ActionNode( final JointAction<A> a, final int nagents )
 	{
 		a_ = a;
@@ -42,7 +41,7 @@ public abstract class ActionNode<S, A extends VirtualConstructor<A>>
 	public final JointAction<A> a()
 	{ return a_; }
 	
-	public abstract StateNode<S, A> getStateNode( final Representation<S> x, final int[] turn );
+//	public abstract StateNode<S, A> getStateNode( final Representation<S> x, final int[] turn );
 	
 	@Override
 	public abstract Generator<? extends StateNode<S, A>> successors();

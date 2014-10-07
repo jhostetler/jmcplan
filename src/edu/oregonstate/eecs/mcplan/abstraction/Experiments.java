@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.PrintStream;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -40,12 +41,16 @@ import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
 import edu.oregonstate.eecs.mcplan.JointAction;
+import edu.oregonstate.eecs.mcplan.JointPolicy;
 import edu.oregonstate.eecs.mcplan.Pair;
 import edu.oregonstate.eecs.mcplan.Policy;
+import edu.oregonstate.eecs.mcplan.QFunction;
+import edu.oregonstate.eecs.mcplan.QGreedyPolicy;
 import edu.oregonstate.eecs.mcplan.RandomPolicy;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.SingleAgentJointActionGenerator;
+import edu.oregonstate.eecs.mcplan.SingleAgentPolicyAdapter;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.TrivialRepresenter;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
@@ -63,7 +68,12 @@ import edu.oregonstate.eecs.mcplan.domains.frogger.FroggerParameters;
 import edu.oregonstate.eecs.mcplan.domains.frogger.FroggerSimulator;
 import edu.oregonstate.eecs.mcplan.domains.frogger.FroggerState;
 import edu.oregonstate.eecs.mcplan.domains.frogger.LanesToGoHeuristic;
-import edu.oregonstate.eecs.mcplan.domains.frogger.PrimitiveFroggerRepresenter;
+import edu.oregonstate.eecs.mcplan.domains.frogger.RelativeFroggerRepresenter;
+import edu.oregonstate.eecs.mcplan.domains.fuelworld.FuelWorldAction;
+import edu.oregonstate.eecs.mcplan.domains.fuelworld.FuelWorldActionGenerator;
+import edu.oregonstate.eecs.mcplan.domains.fuelworld.FuelWorldSimulator;
+import edu.oregonstate.eecs.mcplan.domains.fuelworld.FuelWorldState;
+import edu.oregonstate.eecs.mcplan.domains.fuelworld.PrimitiveFuelWorldRepresenter;
 import edu.oregonstate.eecs.mcplan.domains.racegrid.PrimitiveRacegridRepresenter;
 import edu.oregonstate.eecs.mcplan.domains.racegrid.RacegridAction;
 import edu.oregonstate.eecs.mcplan.domains.racegrid.RacegridActionGenerator;
@@ -94,13 +104,14 @@ import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiState;
 import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiWorlds;
 import edu.oregonstate.eecs.mcplan.domains.toy.ChainWalk;
 import edu.oregonstate.eecs.mcplan.domains.toy.Irrelevance;
+import edu.oregonstate.eecs.mcplan.domains.yahtzee2.CategoryActionGenerator;
 import edu.oregonstate.eecs.mcplan.domains.yahtzee2.PrimitiveYahtzeeRepresenter;
 import edu.oregonstate.eecs.mcplan.domains.yahtzee2.ReprWrapper;
-import edu.oregonstate.eecs.mcplan.domains.yahtzee2.SmartActionGenerator;
 import edu.oregonstate.eecs.mcplan.domains.yahtzee2.YahtzeeAction;
 import edu.oregonstate.eecs.mcplan.domains.yahtzee2.YahtzeeSimulator;
 import edu.oregonstate.eecs.mcplan.domains.yahtzee2.YahtzeeState;
-import edu.oregonstate.eecs.mcplan.ml.ClassifierSimilarityFunction;
+import edu.oregonstate.eecs.mcplan.ensemble.MultiAbstractionUctSearch;
+import edu.oregonstate.eecs.mcplan.ensemble.VotingPolicyEnsemble;
 import edu.oregonstate.eecs.mcplan.ml.HilbertSpace;
 import edu.oregonstate.eecs.mcplan.ml.InformationTheoreticMetricLearner;
 import edu.oregonstate.eecs.mcplan.ml.MatrixAlgorithms;
@@ -113,22 +124,24 @@ import edu.oregonstate.eecs.mcplan.search.AggregatingActionNode;
 import edu.oregonstate.eecs.mcplan.search.BackupRules;
 import edu.oregonstate.eecs.mcplan.search.DefaultMctsVisitor;
 import edu.oregonstate.eecs.mcplan.search.EvaluationFunction;
-import edu.oregonstate.eecs.mcplan.search.GameTree;
-import edu.oregonstate.eecs.mcplan.search.GameTreeFactory;
 import edu.oregonstate.eecs.mcplan.search.GameTreeVisitor;
+import edu.oregonstate.eecs.mcplan.search.LazyAggregatingActionNode;
 import edu.oregonstate.eecs.mcplan.search.MctsVisitor;
+import edu.oregonstate.eecs.mcplan.search.MutableActionNode;
 import edu.oregonstate.eecs.mcplan.search.RolloutEvaluator;
-import edu.oregonstate.eecs.mcplan.search.SearchPolicy;
 import edu.oregonstate.eecs.mcplan.search.SimpleMutableActionNode;
 import edu.oregonstate.eecs.mcplan.search.StateNode;
 import edu.oregonstate.eecs.mcplan.search.TreeStatisticsRecorder;
+import edu.oregonstate.eecs.mcplan.search.UTreeSearch;
 import edu.oregonstate.eecs.mcplan.search.UctSearch;
 import edu.oregonstate.eecs.mcplan.sim.Episode;
 import edu.oregonstate.eecs.mcplan.sim.EpisodeListener;
+import edu.oregonstate.eecs.mcplan.sim.ResetAdapter;
 import edu.oregonstate.eecs.mcplan.sim.RewardAccumulator;
 import edu.oregonstate.eecs.mcplan.sim.Simulator;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 import edu.oregonstate.eecs.mcplan.util.Csv;
+import edu.oregonstate.eecs.mcplan.util.Csv.Writer;
 import edu.oregonstate.eecs.mcplan.util.CsvConfigurationParser;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 import edu.oregonstate.eecs.mcplan.util.KeyValueStore;
@@ -136,6 +149,7 @@ import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 import edu.oregonstate.eecs.mcplan.util.MinMaxAccumulator;
 import edu.oregonstate.eecs.mcplan.util.QuantileAccumulator;
 import edu.oregonstate.eecs.mcplan.util.ReservoirSampleAccumulator;
+import gnu.trove.list.TDoubleList;
 import gnu.trove.list.TIntList;
 import gnu.trove.list.array.TDoubleArrayList;
 import gnu.trove.list.array.TIntArrayList;
@@ -538,14 +552,17 @@ public class Experiments
 		public final Instances instances;
 		public final HashMap<A, Integer> action_to_int;
 		public final ArrayList<A> int_to_action;
+		public final ArrayList<Pair<ArrayList<A>, TDoubleList>> qtable;
 		
 		public SingleInstanceDataset( final Instances instances,
 									  final HashMap<A, Integer> action_to_int,
-									  final ArrayList<A> int_to_action )
+									  final ArrayList<A> int_to_action,
+									  final ArrayList<Pair<ArrayList<A>, TDoubleList>> qtable )
 		{
 			this.instances = instances;
 			this.action_to_int = action_to_int;
 			this.int_to_action = int_to_action;
+			this.qtable = qtable;
 		}
 	}
 	
@@ -581,7 +598,7 @@ public class Experiments
 	SingleInstanceDataset<A> makeSingleInstanceDataset(
 		final Configuration config,
 		final ArrayList<Attribute> attributes, final ArrayList<double[]> data, final ArrayList<A> labels,
-		final int iter )
+		final ArrayList<Pair<ArrayList<A>, TDoubleList>> qtable, final int iter )
 	{
 //		System.out.println( "data.size() = " + data.size() );
 		final int[] ii = Fn.range( 0, data.size() );
@@ -589,6 +606,8 @@ public class Experiments
 		
 		final HashMap<A, Integer> action_to_int = new HashMap<A, Integer>();
 		final ArrayList<A> int_to_action = new ArrayList<A>();
+		final ArrayList<Pair<ArrayList<A>, TDoubleList>> abridged_qtable
+			= (qtable != null ? new ArrayList<Pair<ArrayList<A>, TDoubleList>>() : null);
 		
 		final TIntArrayList counts = new TIntArrayList();
 		final int max_per_label = config.getInt( "training.max_per_label" );
@@ -619,6 +638,9 @@ public class Experiments
 				final DenseInstance instance = new DenseInstance( 1.0, phi );
 				instance_list.add( instance );
 				counts.set( label, c + 1 );
+				if( qtable != null ) {
+					abridged_qtable.add( qtable.get( idx ) );
+				}
 			}
 		}
 		
@@ -633,7 +655,7 @@ public class Experiments
 			instance.setDataset( instances );
 		}
 		
-		return new SingleInstanceDataset<A>( instances, action_to_int, int_to_action );
+		return new SingleInstanceDataset<A>( instances, action_to_int, int_to_action, abridged_qtable );
 	}
 	
 	private static <A> void writeActionKey( final Configuration config, final SingleInstanceDataset<A> data, final int iter )
@@ -644,6 +666,26 @@ public class Experiments
 			writer.cell( "key" ).cell( "action" ).newline();
 			for( int i = 0; i < data.int_to_action.size(); ++i ) {
 				writer.cell( i ).cell( data.int_to_action.get( i ) ).newline();
+			}
+		}
+		catch( final FileNotFoundException ex ) {
+			throw new RuntimeException( ex );
+		}
+	}
+	
+	private static <A> void writeQTable( final Configuration config, final SingleInstanceDataset<A> data, final int iter )
+	{
+		final DecimalFormat df = new DecimalFormat( "#.####" );
+		final File f = new File( config.data_directory, data.instances.relationName() + "_qvalues.csv" );
+		try {
+			final Csv.Writer writer = new Csv.Writer( new PrintStream( f ) );
+			for( final Pair<ArrayList<A>, TDoubleList> q : data.qtable ) {
+				for( int i = 0; i < q.first.size(); ++i ) {
+					final A a = q.first.get( i );
+					final double v = q.second.get( i );
+					writer.cell( data.action_to_int.get( a ) + ":" + df.format( v ) );
+				}
+				writer.newline();
 			}
 		}
 		catch( final FileNotFoundException ex ) {
@@ -690,23 +732,568 @@ public class Experiments
 		public abstract void trainRepresenter(
 			final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter );
 		
-		public UctSearch.Factory<S, A> getUctFactory(
-			final Configuration config, final Domain<S, X, A, R> domain, final UndoSimulator<S, A> sim, final int Nepisodes )
+		public abstract Policy<S, A> getControlPolicy( final Configuration config, final Domain<S, X, A, R> domain );
+		
+		public ArrayList<Pair<ArrayList<A>, TDoubleList>> getQTable()
+		{ return null; }
+		
+		public abstract void writeStatisticsHeaders( final Csv.Writer csv );
+		public abstract void writeStatisticsRecord( final Csv.Writer csv );
+	}
+	
+	private static abstract class QDiscovery<S extends State, X extends FactoredRepresentation<S>,
+					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
+		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
+	{
+		public final ArrayList<Pair<ArrayList<A>, TDoubleList>> qtable
+			= new ArrayList<Pair<ArrayList<A>, TDoubleList>>();
+		
+		@Override
+		public Policy<S, A> getControlPolicy( final Configuration config, final Domain<S, X, A, R> domain )
 		{
-			final UctSearch.Factory<S, A> f = createUctFactory( config, domain, sim, Nepisodes );
-			if( config.getInt( "max_action_visits" ) > 0 ) {
-				f.setMaxActionVisits( config.getInt( "max_action_visits" ) );
-			}
-			return f;
+			final QFunction<S, A> qfunction = createQFunctionEstimator( config, domain );
+			final Policy<S, A> pi = new QGreedyPolicy<S, A>( qfunction ) {
+				@Override
+				protected void onQFunctionCalculate( final S s, final Pair<ArrayList<A>, TDoubleList> q )
+				{
+					qtable.add( q );
+				}
+			};
+			return pi;
 		}
 		
-		protected abstract UctSearch.Factory<S, A> createUctFactory(
-			final Configuration config, final Domain<S, X, A, R> domain, final UndoSimulator<S, A> sim, final int Nepisodes );
+		@Override
+		public ArrayList<Pair<ArrayList<A>, TDoubleList>> getQTable()
+		{
+			return qtable;
+		}
+		
+		protected abstract QFunction<S, A> createQFunctionEstimator(
+			final Configuration config, final Domain<S, X, A, R> domain );
+		
+//		public UctSearch.Factory<S, A> getUctFactory(
+//			final Configuration config, final Domain<S, X, A, R> domain, final UndoSimulator<S, A> sim, final int Nepisodes )
+//		{
+//			final UctSearch.Factory<S, A> f = createUctFactory( config, domain, sim, Nepisodes );
+//			if( config.getInt( "max_action_visits" ) > 0 ) {
+//				f.setMaxActionVisits( config.getInt( "max_action_visits" ) );
+//			}
+//			if( config.getInt( "uct.max_depth" ) > 0 ) {
+//				f.setMaxDepth( config.getInt( "uct.max_depth" ) );
+//			}
+//			return f;
+//		}
+//
+//		protected abstract UctSearch.Factory<S, A> createUctFactory(
+//			final Configuration config, final Domain<S, X, A, R> domain, final UndoSimulator<S, A> sim, final int Nepisodes );
 	}
+	
+	private abstract static class UctAbstractionDiscovery<S extends State, X extends FactoredRepresentation<S>,
+					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
+		extends QDiscovery<S, X, A, R>
+	{
+		private final TreeStatisticsRecorder<S, A> tree_stats = new TreeStatisticsRecorder<S, A>();
+		private final MeanVarianceAccumulator elapsed_time = new MeanVarianceAccumulator();
+		
+		protected abstract MutableActionNode<S, A> createRootActionNode(
+			final Configuration config, final Domain<S, X, A, R> domain );
+		
+		protected abstract Representer<S, ? extends Representation<S>>
+		getRepresenter( final Configuration config, final Domain<S, X, A, R> domain );
+		
+		@Override
+		protected final QFunction<S, A> createQFunctionEstimator(
+			final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			return new QFunction<S, A>() {
+
+				Pair<ArrayList<A>, TDoubleList> q = null;
+				
+				@Override
+				public void calculate( final S s )
+				{
+					final UctSearch<S, A> search = new UctSearch<S, A>(
+						new ResetAdapter<S, A>( domain.createSimulator( s ) ), getRepresenter( config, domain ),
+						SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
+						config.uct_c, config.Ntest_episodes,
+						config.rng, domain.getEvaluator(), new DefaultMctsVisitor<S, A>(),
+						createRootActionNode( config, domain ) );
+					
+					final long tstart = System.nanoTime();
+					search.run();
+					final long tend = System.nanoTime();
+					final double elapsed_ms = (tend - tstart) * 1e-6;
+					elapsed_time.add( elapsed_ms );
+					
+					search.root().accept( tree_stats );
+					q = Pair.makePair( new ArrayList<A>(), (TDoubleList) new TDoubleArrayList() );
+					qtable.add( q );
+					for( final ActionNode<S, A> an : Fn.in( search.root().successors() ) ) {
+						// FIXME: This doesn't work for >1 agent
+						q.first.add( an.a().get( 0 ) );
+						q.second.add( an.q( 0 ) );
+					}
+				}
+
+				@Override
+				public Pair<ArrayList<A>, TDoubleList> get()
+				{
+					return q;
+				}
+			};
+		}
+		
+		@Override
+		public void writeStatisticsHeaders( final Writer csv )
+		{
+			csv.cell( "time_mean" ).cell( "time_var" ).cell( "time_conf" )
+			   .cell( "state_branching_mean" ).cell( "state_branching_var" )
+			   .cell( "action_branching_mean" ).cell( "action_branching_var" )
+			   .cell( "tree_depth_mean" ).cell( "tree_depth_var" )
+			   .cell( "tree_avg_depth_mean" ).cell( "tree_avg_depth_var" )
+			   .cell( "action_visits_mean" ).cell( "action_visits_var" ).cell( "action_visits_conf" )
+			   .cell( "action_visits_per_ms" );
+		}
+		
+		@Override
+		public void writeStatisticsRecord( final Writer csv )
+		{
+			csv.cell( elapsed_time.mean() ).cell( elapsed_time.variance() ).cell( elapsed_time.confidence() )
+			   .cell( tree_stats.state_branching.mean() ).cell( tree_stats.state_branching.variance() )
+			   .cell( tree_stats.action_branching.mean() ).cell( tree_stats.action_branching.variance() )
+			   .cell( tree_stats.depth.mean() ).cell( tree_stats.depth.variance() )
+			   .cell( tree_stats.avg_depth.mean() ).cell( tree_stats.avg_depth.variance() )
+			   .cell( tree_stats.action_visits.mean() ).cell( tree_stats.action_visits.variance() ).cell( tree_stats.action_visits.confidence() )
+			   .cell( tree_stats.action_visits.mean() / elapsed_time.mean() );
+			
+			System.out.println( "Time (ms) (mean): " + elapsed_time.mean() );
+			System.out.println( "Time (ms) (var): " + elapsed_time.variance() );
+			System.out.println( "Time (ms) (conf): " + elapsed_time.confidence() );
+			
+			System.out.println( "State branching (mean): " + tree_stats.state_branching.mean() );
+			System.out.println( "State branching (var): " + tree_stats.state_branching.variance() );
+			System.out.println( "Action branching (mean): " + tree_stats.action_branching.mean() );
+			System.out.println( "Action branching (var): " + tree_stats.action_branching.variance() );
+			System.out.println( "Depth (mean): " + tree_stats.depth.mean() );
+			System.out.println( "Depth (var): " + tree_stats.depth.variance() );
+			System.out.println( "Avg. Depth (mean): " + tree_stats.avg_depth.mean() );
+			System.out.println( "Avg. Depth (var): " + tree_stats.avg_depth.variance() );
+			
+			System.out.println( "Action visits (mean): " + tree_stats.action_visits.mean() );
+			System.out.println( "Action visits (var): " + tree_stats.action_visits.variance() );
+			System.out.println( "Action visits (conf): " + tree_stats.action_visits.confidence() );
+			System.out.println( "Action visits per millisecond: " + tree_stats.action_visits.mean() / elapsed_time.mean() );
+		}
+	}
+	
+	private static class UTreeAbstraction<S extends State, X extends FactoredRepresentation<S>,
+					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
+		extends QDiscovery<S, X, A, R>
+	{
+		private final TreeStatisticsRecorder<S, A> tree_stats = new TreeStatisticsRecorder<S, A>();
+		private final MeanVarianceAccumulator elapsed_time = new MeanVarianceAccumulator();
+		
+		@Override
+		protected final QFunction<S, A> createQFunctionEstimator(
+			final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			return new QFunction<S, A>() {
+
+				Pair<ArrayList<A>, TDoubleList> q = null;
+				
+				@Override
+				public void calculate( final S s )
+				{
+					final UTreeSearch<S, A> search = new UTreeSearch<S, A>(
+						ResetAdapter.of( domain.createSimulator( s ) ), domain.getBaseRepresenter(),
+						SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
+						config.uct_c, config.Ntest_episodes,
+						domain.getEvaluator(), new DefaultMctsVisitor<S, A>() );
+					
+					final long tstart = System.nanoTime();
+					search.run();
+					final long tend = System.nanoTime();
+					final double elapsed_ms = (tend - tstart) * 1e-6;
+					elapsed_time.add( elapsed_ms );
+					
+					search.root().accept( tree_stats );
+					q = Pair.makePair( new ArrayList<A>(), (TDoubleList) new TDoubleArrayList() );
+					qtable.add( q );
+					for( final ActionNode<S, A> an : Fn.in( search.root().successors() ) ) {
+						// FIXME: This doesn't work for >1 agent
+						q.first.add( an.a().get( 0 ) );
+						q.second.add( an.q( 0 ) );
+					}
+				}
+
+				@Override
+				public Pair<ArrayList<A>, TDoubleList> get()
+				{
+					return q;
+				}
+			};
+		}
+		
+		@Override
+		public void writeStatisticsHeaders( final Writer csv )
+		{
+			csv.cell( "time_mean" ).cell( "time_var" ).cell( "time_conf" )
+			   .cell( "state_branching_mean" ).cell( "state_branching_var" )
+			   .cell( "action_branching_mean" ).cell( "action_branching_var" )
+			   .cell( "tree_depth_mean" ).cell( "tree_depth_var" )
+			   .cell( "tree_avg_depth_mean" ).cell( "tree_avg_depth_var" )
+			   .cell( "action_visits_mean" ).cell( "action_visits_var" ).cell( "action_visits_conf" )
+			   .cell( "action_visits_per_ms" );
+		}
+		
+		@Override
+		public void writeStatisticsRecord( final Writer csv )
+		{
+			csv.cell( elapsed_time.mean() ).cell( elapsed_time.variance() ).cell( elapsed_time.confidence() )
+			   .cell( tree_stats.state_branching.mean() ).cell( tree_stats.state_branching.variance() )
+			   .cell( tree_stats.action_branching.mean() ).cell( tree_stats.action_branching.variance() )
+			   .cell( tree_stats.depth.mean() ).cell( tree_stats.depth.variance() )
+			   .cell( tree_stats.avg_depth.mean() ).cell( tree_stats.avg_depth.variance() )
+			   .cell( tree_stats.action_visits.mean() ).cell( tree_stats.action_visits.variance() ).cell( tree_stats.action_visits.confidence() )
+			   .cell( tree_stats.action_visits.mean() / elapsed_time.mean() );
+			
+			System.out.println( "Time (ms) (mean): " + elapsed_time.mean() );
+			System.out.println( "Time (ms) (var): " + elapsed_time.variance() );
+			System.out.println( "Time (ms) (conf): " + elapsed_time.confidence() );
+			
+			System.out.println( "State branching (mean): " + tree_stats.state_branching.mean() );
+			System.out.println( "State branching (var): " + tree_stats.state_branching.variance() );
+			System.out.println( "Action branching (mean): " + tree_stats.action_branching.mean() );
+			System.out.println( "Action branching (var): " + tree_stats.action_branching.variance() );
+			System.out.println( "Depth (mean): " + tree_stats.depth.mean() );
+			System.out.println( "Depth (var): " + tree_stats.depth.variance() );
+			System.out.println( "Avg. Depth (mean): " + tree_stats.avg_depth.mean() );
+			System.out.println( "Avg. Depth (var): " + tree_stats.avg_depth.variance() );
+			
+			System.out.println( "Action visits (mean): " + tree_stats.action_visits.mean() );
+			System.out.println( "Action visits (var): " + tree_stats.action_visits.variance() );
+			System.out.println( "Action visits (conf): " + tree_stats.action_visits.confidence() );
+			System.out.println( "Action visits per millisecond: " + tree_stats.action_visits.mean() / elapsed_time.mean() );
+		}
+
+		@Override
+		public void writeModel( final int iter )
+		{ }
+
+		@Override
+		public void loadModel( final FactoredRepresenter<S, X> base_repr, final int iter )
+		{ }
+
+		@Override
+		public void trainRepresenter( final Dataset<A> train,
+				final FactoredRepresenter<S, X> base_repr, final int iter )
+		{ }
+	}
+	
+	private static class EnsembleUct<S extends State, X extends FactoredRepresentation<S>,
+					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
+		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
+	{
+		private final TreeStatisticsRecorder<S, A> tree_stats = new TreeStatisticsRecorder<S, A>();
+		private final MeanVarianceAccumulator elapsed_time = new MeanVarianceAccumulator();
+		
+		private final ArrayList<Representer<S, ? extends Representation<S>>> reprs
+			= new ArrayList<Representer<S, ? extends Representation<S>>>();
+
+		public EnsembleUct( final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			final int Nreprs = config.getInt( "ensemble.N" );
+			final int Nvars = config.getInt( "pdb.Nvars" );
+			
+			final ArrayList<Attribute> attributes = domain.getBaseRepresenter().attributes();
+			final int[] idx = Fn.range( 0, attributes.size() );
+			for( int i = 0; i < Nreprs; ++i ) {
+				Fn.shuffle( config.rng, idx );
+				final int[] indices = Arrays.copyOf( idx, Nvars );
+				System.out.println( "Pattern " + i + ": " + Arrays.toString( indices ) );
+				reprs.add( new ProjectionRepresenter<S>( domain.getBaseRepresenter(), indices ) );
+			}
+		}
+		
+		@Override
+		public Policy<S, A> getControlPolicy( final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			final ArrayList<Policy<S, A>> Pi = new ArrayList<Policy<S, A>>();
+			for( final Representer<S, ? extends Representation<S>> repr : reprs ) {
+				Pi.add( new SingleAgentPolicyAdapter<S, A>( 0, new Policy<S, JointAction<A>>() {
+					private S s_ = null;
+					@Override
+					public void setState( final S s, final long t )
+					{ s_ = s; }
+					
+					@Override
+					public JointAction<A> getAction()
+					{
+						final UctSearch<S, A> search = new UctSearch<S, A>(
+							new ResetAdapter<S, A>( domain.createSimulator( s_ ) ), repr.create(),
+							SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
+							config.uct_c, config.Ntest_episodes,
+							config.rng, domain.getEvaluator(), new DefaultMctsVisitor<S, A>(),
+							new SimpleMutableActionNode<S, A>( null, 0, repr.create() ) );
+						
+						final long tstart = System.nanoTime();
+						search.run();
+						final long tend = System.nanoTime();
+						final double elapsed_ms = (tend - tstart) * 1e-6;
+						elapsed_time.add( elapsed_ms );
+						
+						search.root().accept( tree_stats );
+						return BackupRules.MaxAction( search.root() ).a();
+					}
+
+					@Override
+					public void actionResult( final S sprime, final double[] r )
+					{ }
+
+					@Override
+					public String getName()
+					{ return "EnsembleComponent"; }
+	
+					@Override
+					public int hashCode()
+					{ return System.identityHashCode( this ); }
+	
+					@Override
+					public boolean equals( final Object that )
+					{ return this == that; }
+				} ) );
+			}
+			
+			final Policy<S, A> pi_ensemble = new VotingPolicyEnsemble<S, A>( config.rng, Pi );
+			return pi_ensemble;
+		}
+		
+		@Override
+		public void writeStatisticsHeaders( final Writer csv )
+		{
+			csv.cell( "time_mean" ).cell( "time_var" ).cell( "time_conf" )
+			   .cell( "state_branching_mean" ).cell( "state_branching_var" )
+			   .cell( "action_branching_mean" ).cell( "action_branching_var" )
+			   .cell( "tree_depth_mean" ).cell( "tree_depth_var" )
+			   .cell( "tree_avg_depth_mean" ).cell( "tree_avg_depth_var" )
+			   .cell( "action_visits_mean" ).cell( "action_visits_var" ).cell( "action_visits_conf" )
+			   .cell( "action_visits_per_ms" );
+		}
+		
+		@Override
+		public void writeStatisticsRecord( final Writer csv )
+		{
+			csv.cell( elapsed_time.mean() ).cell( elapsed_time.variance() ).cell( elapsed_time.confidence() )
+			   .cell( tree_stats.state_branching.mean() ).cell( tree_stats.state_branching.variance() )
+			   .cell( tree_stats.action_branching.mean() ).cell( tree_stats.action_branching.variance() )
+			   .cell( tree_stats.depth.mean() ).cell( tree_stats.depth.variance() )
+			   .cell( tree_stats.avg_depth.mean() ).cell( tree_stats.avg_depth.variance() )
+			   .cell( tree_stats.action_visits.mean() ).cell( tree_stats.action_visits.variance() ).cell( tree_stats.action_visits.confidence() )
+			   .cell( tree_stats.action_visits.mean() / elapsed_time.mean() );
+			
+			System.out.println( "Time (ms) (mean): " + elapsed_time.mean() );
+			System.out.println( "Time (ms) (var): " + elapsed_time.variance() );
+			System.out.println( "Time (ms) (conf): " + elapsed_time.confidence() );
+			
+			System.out.println( "State branching (mean): " + tree_stats.state_branching.mean() );
+			System.out.println( "State branching (var): " + tree_stats.state_branching.variance() );
+			System.out.println( "Action branching (mean): " + tree_stats.action_branching.mean() );
+			System.out.println( "Action branching (var): " + tree_stats.action_branching.variance() );
+			System.out.println( "Depth (mean): " + tree_stats.depth.mean() );
+			System.out.println( "Depth (var): " + tree_stats.depth.variance() );
+			System.out.println( "Avg. Depth (mean): " + tree_stats.avg_depth.mean() );
+			System.out.println( "Avg. Depth (var): " + tree_stats.avg_depth.variance() );
+			
+			System.out.println( "Action visits (mean): " + tree_stats.action_visits.mean() );
+			System.out.println( "Action visits (var): " + tree_stats.action_visits.variance() );
+			System.out.println( "Action visits (conf): " + tree_stats.action_visits.confidence() );
+			System.out.println( "Action visits per millisecond: " + tree_stats.action_visits.mean() / elapsed_time.mean() );
+		}
+
+		@Override
+		public void writeModel( final int iter )
+		{
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void loadModel( final FactoredRepresenter<S, X> base_repr, final int iter )
+		{
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void trainRepresenter( final Dataset<A> train,
+				final FactoredRepresenter<S, X> base_repr, final int iter )
+		{ }
+	}
+	
+	private static class MultiAbstractionUct<S extends State, X extends FactoredRepresentation<S>,
+					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
+		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
+	{
+		private final TreeStatisticsRecorder<S, A> tree_stats = new TreeStatisticsRecorder<S, A>();
+		private final MeanVarianceAccumulator elapsed_time = new MeanVarianceAccumulator();
+		
+		private final ArrayList<Representer<S, ? extends Representation<S>>> reprs
+			= new ArrayList<Representer<S, ? extends Representation<S>>>();
+
+		public MultiAbstractionUct( final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			final int Nreprs = config.getInt( "ensemble.N" );
+			final int Nvars = config.getInt( "pdb.Nvars" );
+			
+			final ArrayList<Attribute> attributes = domain.getBaseRepresenter().attributes();
+			final ArrayList<double[]> ranges = domain.getVariableRanges();
+			final int[] idx = Fn.range( 0, attributes.size() );
+			for( int i = 0; i < Nreprs; ++i ) {
+				Fn.shuffle( config.rng, idx );
+				final int[] indices = Arrays.copyOf( idx, Nvars );
+				System.out.println( "Pattern " + i + ": " + Arrays.toString( indices ) );
+				final double[][] quantiles = new double[Nvars][];
+				for( int j = 0; j < Nvars; ++j ) {
+					final int jprime = indices[j];
+					final double[] r = ranges.get( jprime );
+					if( r != null ) {
+						final double q = r[0] + config.rng.nextDouble()*(r[1] - r[0]);
+						quantiles[j] = new double[] { q };
+					}
+					else {
+						quantiles[j] = new double[] { };
+					}
+					System.out.println( "\tQ" + j + " = " + Arrays.toString( quantiles[j] ) );
+				}
+				reprs.add( new QuantizedRepresenter<S>(
+					new ProjectionRepresenter<S>( domain.getBaseRepresenter(), indices ), quantiles ) );
+			}
+		}
+		
+		@Override
+		public Policy<S, A> getControlPolicy( final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			return new Policy<S, A>() {
+				private S s_ = null;
+				@Override
+				public void setState( final S s, final long t )
+				{ s_ = s; }
+				
+				@Override
+				public A getAction()
+				{
+					final MultiAbstractionUctSearch<S, A> search = new MultiAbstractionUctSearch<S, A>(
+						new ResetAdapter<S, A>( domain.createSimulator( s_ ) ), reprs,
+						SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
+						config.uct_c, config.Ntest_episodes,
+						domain.getEvaluator(), new DefaultMctsVisitor<S, A>() );
+					
+					final long tstart = System.nanoTime();
+					search.run();
+					final long tend = System.nanoTime();
+					final double elapsed_ms = (tend - tstart) * 1e-6;
+					elapsed_time.add( elapsed_ms );
+					
+					// TODO: Record tree stats
+//					for( final Map.Entry<JointAction<A>, UcbBandit<MutableActionNode<S, A>>> e
+//							: search.action_abstractions.entrySet() ) {
+//						System.out.println( e.getKey() );
+//						for( int i = 0; i < e.getValue().arms.size(); ++i ) {
+//							System.out.println( "\tArm " + i + ": " + e.getValue().counts[i] );
+//							e.getValue().arms.get( i ).accept( new TreePrinter<S, A>() );
+//						}
+//					}
+//					System.out.println( "*****" );
+					
+					// TODO: Generalize to multiagent
+					return search.astar().get( 0 );
+				}
+
+				@Override
+				public void actionResult( final S sprime, final double[] r )
+				{ }
+
+				@Override
+				public String getName()
+				{ return "MultiAbstractionUct"; }
+
+				@Override
+				public int hashCode()
+				{ return System.identityHashCode( this ); }
+
+				@Override
+				public boolean equals( final Object that )
+				{ return this == that; }
+			};
+		}
+		
+		@Override
+		public void writeStatisticsHeaders( final Writer csv )
+		{
+			csv.cell( "time_mean" ).cell( "time_var" ).cell( "time_conf" )
+			   .cell( "state_branching_mean" ).cell( "state_branching_var" )
+			   .cell( "action_branching_mean" ).cell( "action_branching_var" )
+			   .cell( "tree_depth_mean" ).cell( "tree_depth_var" )
+			   .cell( "tree_avg_depth_mean" ).cell( "tree_avg_depth_var" )
+			   .cell( "action_visits_mean" ).cell( "action_visits_var" ).cell( "action_visits_conf" )
+			   .cell( "action_visits_per_ms" );
+		}
+		
+		@Override
+		public void writeStatisticsRecord( final Writer csv )
+		{
+			csv.cell( elapsed_time.mean() ).cell( elapsed_time.variance() ).cell( elapsed_time.confidence() )
+			   .cell( tree_stats.state_branching.mean() ).cell( tree_stats.state_branching.variance() )
+			   .cell( tree_stats.action_branching.mean() ).cell( tree_stats.action_branching.variance() )
+			   .cell( tree_stats.depth.mean() ).cell( tree_stats.depth.variance() )
+			   .cell( tree_stats.avg_depth.mean() ).cell( tree_stats.avg_depth.variance() )
+			   .cell( tree_stats.action_visits.mean() ).cell( tree_stats.action_visits.variance() ).cell( tree_stats.action_visits.confidence() )
+			   .cell( tree_stats.action_visits.mean() / elapsed_time.mean() );
+			
+			System.out.println( "Time (ms) (mean): " + elapsed_time.mean() );
+			System.out.println( "Time (ms) (var): " + elapsed_time.variance() );
+			System.out.println( "Time (ms) (conf): " + elapsed_time.confidence() );
+			
+			System.out.println( "State branching (mean): " + tree_stats.state_branching.mean() );
+			System.out.println( "State branching (var): " + tree_stats.state_branching.variance() );
+			System.out.println( "Action branching (mean): " + tree_stats.action_branching.mean() );
+			System.out.println( "Action branching (var): " + tree_stats.action_branching.variance() );
+			System.out.println( "Depth (mean): " + tree_stats.depth.mean() );
+			System.out.println( "Depth (var): " + tree_stats.depth.variance() );
+			System.out.println( "Avg. Depth (mean): " + tree_stats.avg_depth.mean() );
+			System.out.println( "Avg. Depth (var): " + tree_stats.avg_depth.variance() );
+			
+			System.out.println( "Action visits (mean): " + tree_stats.action_visits.mean() );
+			System.out.println( "Action visits (var): " + tree_stats.action_visits.variance() );
+			System.out.println( "Action visits (conf): " + tree_stats.action_visits.confidence() );
+			System.out.println( "Action visits per millisecond: " + tree_stats.action_visits.mean() / elapsed_time.mean() );
+		}
+
+		@Override
+		public void writeModel( final int iter )
+		{
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void loadModel( final FactoredRepresenter<S, X> base_repr, final int iter )
+		{
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void trainRepresenter( final Dataset<A> train,
+				final FactoredRepresenter<S, X> base_repr, final int iter )
+		{ }
+	}
+	
+	// -----------------------------------------------------------------------
 	
 	private static class NoneAbstractionDiscovery<S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
-		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
+		extends UctAbstractionDiscovery<S, X, A, R>
 	{
 		public static <S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
@@ -715,52 +1302,39 @@ public class Experiments
 			return new NoneAbstractionDiscovery<S, X, A, R>( config, domain );
 		}
 		
-		private Representer<S, Representation<S>> repr_ = null;
-		
 		public NoneAbstractionDiscovery( final Configuration config, final Domain<S, X, A, R> domain )
-		{
-//			config_ = config;
-//			base_repr_ = domain.getBaseRepresenter();
-//			labeled_ = new SolvedStateAccumulator<S, X, A>( domain.getBaseRepresenter().create() );
-//			unlabeled_ = new UnlabeledStateAccumulator<S, A>( base_repr_.create() );
-		}
+		{ }
 		
 		@Override
 		public void trainRepresenter( final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter )
-		{
-			repr_ = new ReprWrapper<S>( base_repr.create() );
-		}
+		{ }
 
 		@Override
 		public void loadModel( final FactoredRepresenter<S, X> base_repr, final int iter )
-		{
-			repr_ = new ReprWrapper<S>( base_repr.create() );
-		}
+		{ }
 
 		@Override
 		public void writeModel( final int iter )
 		{ }
 
 		@Override
-		public UctSearch.Factory<S, A> createUctFactory(
-				final Configuration config, final Domain<S, X, A, R> domain, final UndoSimulator<S, A> sim,
-				final int Nepisodes )
+		protected MutableActionNode<S, A> createRootActionNode(
+			final Configuration config, final Domain<S, X, A, R> domain )
 		{
-			return new UctSearch.Factory<S, A>(
-				sim, domain.getBaseRepresenter(),
-				SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
-				config.uct_c, Nepisodes, config.rng, domain.getEvaluator(),
-				new SimpleMutableActionNode<S, A>( null, 0, domain.getBaseRepresenter().create() ) );
+			return new SimpleMutableActionNode<S, A>( null, 0, getRepresenter( config, domain ) );
 		}
 
+		@Override
+		protected Representer<S, ? extends Representation<S>> getRepresenter( final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			return domain.getBaseRepresenter().create();
+		}
 	}
 	
 	private static class TrivialAbstraction<S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
-		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
+		extends UctAbstractionDiscovery<S, X, A, R>
 	{
-		final TrivialRepresenter<S> repr_ = new TrivialRepresenter<S>();
-
 		@Override
 		public void writeModel( final int iter )
 		{ }
@@ -774,59 +1348,76 @@ public class Experiments
 		{ }
 
 		@Override
-		public UctSearch.Factory<S, A> createUctFactory( final Configuration config,
-				final Domain<S, X, A, R> domain, final UndoSimulator<S, A> sim,
-				final int Nepisodes )
+		protected MutableActionNode<S, A> createRootActionNode(
+			final Configuration config, final Domain<S, X, A, R> domain )
 		{
-//			System.out.println( "Trivial.createUctFactory()" );
-			return new UctSearch.Factory<S, A>(
-				sim, repr_.create(),
-				SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
-				config.uct_c, Nepisodes, config.rng, domain.getEvaluator(),
-				new SimpleMutableActionNode<S, A>( null, 0, repr_.create() ) );
+			return new SimpleMutableActionNode<S, A>( null, 0, getRepresenter( config, domain ) );
+		}
+
+		@Override
+		protected TrivialRepresenter<S> getRepresenter( final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			return new TrivialRepresenter<S>();
 		}
 		
+//		@Override
+//		public UctSearch.Factory<S, A> createUctFactory( final Configuration config,
+//				final Domain<S, X, A, R> domain, final UndoSimulator<S, A> sim,
+//				final int Nepisodes )
+//		{
+////			System.out.println( "Trivial.createUctFactory()" );
+//			return new UctSearch.Factory<S, A>(
+//				sim, repr_.create(),
+//				SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
+//				config.uct_c, Nepisodes, config.rng, domain.getEvaluator(),
+//				new SimpleMutableActionNode<S, A>( null, 0, repr_.create() ) );
+//		}
 	}
 	
 	// -----------------------------------------------------------------------
 	
 	private static class RandomClusterAbstraction<S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
-		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
+		extends UctAbstractionDiscovery<S, X, A, R>
 	{
-		public static <S extends State, X extends FactoredRepresentation<S>,
-					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
-		RandomClusterAbstraction<S, X, A, R> create( final Configuration config, final Domain<S, X, A, R> domain )
-		{
-			return new RandomClusterAbstraction<S, X, A, R>( config );
-		}
-		
-		private final Configuration config_;
-		private final int max_branching_;
-		
-		public RandomClusterAbstraction( final Configuration config )
-		{
-			config_ = config;
-			max_branching_ = config_.getInt( "pairwise_classifier.max_branching" );
-		}
-		
 		@Override
-		public Representer<S, Representation<S>> trainRepresenter(
-			final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter )
+		protected MutableActionNode<S, A> createRootActionNode(
+				final Configuration config, final Domain<S, X, A, R> domain )
 		{
-			return new ReprWrapper<S>( new RandomClusterRepresenter<S>( config_.rng, max_branching_ ) );
+			return new SimpleMutableActionNode<S, A>( null, 0, getRepresenter( config, domain ) );
 		}
 
 		@Override
-		public Representer<S, Representation<S>> loadModel(
-			final File dir, final FactoredRepresenter<S, X> base_repr, final int iter )
+		protected Representer<S, ? extends Representation<S>> getRepresenter(
+				final Configuration config, final Domain<S, X, A, R> domain )
 		{
-			return new ReprWrapper<S>( new RandomClusterRepresenter<S>( config_.rng, max_branching_ ) );
+			return new RandomClusterRepresenter<S>(
+				config.rng, config.getInt( "random.branching" ) );
 		}
 
 		@Override
 		public void writeModel( final int iter )
-		{ }
+		{
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void loadModel( final FactoredRepresenter<S, X> base_repr, final int iter )
+		{
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void trainRepresenter( final Dataset<A> train,
+				final FactoredRepresenter<S, X> base_repr, final int iter )
+		{
+			// TODO Auto-generated method stub
+			
+		}
+
+
 	}
 	
 	// -----------------------------------------------------------------------
@@ -1187,7 +1778,7 @@ public class Experiments
 	
 	private static class MulticlassAbstraction<S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
-		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
+		extends UctAbstractionDiscovery<S, X, A, R>
 	{
 		public static <S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
@@ -1293,17 +1884,42 @@ public class Experiments
 			}
 		}
 		
+//		@Override
+//		public UctSearch.Factory<S, A> createUctFactory(
+//				final Configuration config, final Domain<S, X, A, R> domain,
+//				final UndoSimulator<S, A> sim, final int Nepisodes )
+//		{
+//			final int lazy_threshold = config.getInt( "lazy.threshold" );
+//			return new UctSearch.Factory<S, A>(
+//				sim, domain.getBaseRepresenter(),
+//				SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
+//				config.uct_c, Nepisodes, config.rng, domain.getEvaluator(),
+//				new LazyAggregatingActionNode<S, A>( null, 0, domain.getBaseRepresenter().create(),
+//												 abstract_repr_.create(), lazy_threshold ) );
+//		}
+
 		@Override
-		public UctSearch.Factory<S, A> createUctFactory(
-				final Configuration config, final Domain<S, X, A, R> domain,
-				final UndoSimulator<S, A> sim, final int Nepisodes )
+		protected MutableActionNode<S, A> createRootActionNode(
+				final Configuration config, final Domain<S, X, A, R> domain )
 		{
-			return new UctSearch.Factory<S, A>(
-				sim, domain.getBaseRepresenter(),
-				SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
-				config.uct_c, Nepisodes, config.rng, domain.getEvaluator(),
-				new AggregatingActionNode<S, A>( null, 0, domain.getBaseRepresenter().create(),
-												 abstract_repr_.create() ) );
+			final int lazy_threshold = config.getInt( "lazy.threshold" );
+			final MutableActionNode<S, A> an;
+			if( lazy_threshold <= 1 ) {
+				an = new AggregatingActionNode<S, A>(
+					null, 0, domain.getBaseRepresenter().create(), abstract_repr_.create() );
+			}
+			else {
+				an = new LazyAggregatingActionNode<S, A>(
+					null, 0, domain.getBaseRepresenter().create(), abstract_repr_.create(), lazy_threshold );
+			}
+			return an;
+		}
+
+		@Override
+		protected Representer<S, ? extends Representation<S>> getRepresenter(
+				final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			return domain.getBaseRepresenter();
 		}
 	}
 	
@@ -1311,7 +1927,7 @@ public class Experiments
 	
 	private static class PairwiseClassifierAbstraction<S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
-		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
+		extends UctAbstractionDiscovery<S, X, A, R>
 	{
 		public static <S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
@@ -1340,15 +1956,28 @@ public class Experiments
 			Nclasses = domain.getActionGenerator().size();
 			base_repr_ = domain.getBaseRepresenter();
 			labeled_ = new SolvedStateAccumulator<S, X, A>( base_repr_.create() );
-			combiner_ = new PairDataset.SymmetricFeatures( base_repr_.attributes() );
+			if( "tamarisk".equals( config.domain ) ) {
+				combiner_ = new IndicatorTamariskRepresenter.SmartPairFeatures(
+					new TamariskParameters( null, config.getInt( "tamarisk.Nreaches" ), config.getInt( "tamarisk.Nhabitats" ) ) );
+			}
+			else {
+				combiner_ = new PairDataset.SymmetricFeatures( base_repr_.attributes() );
+			}
 		}
 		
 		public PairDataset prepareInstances( final Instances test )
 		{
 			final int positive_pairs = config_.getInt( "training.positive_pairs" );
 			final int negative_pairs = config_.getInt( "training.negative_pairs" );
-			return PairDataset.makeBalancedPairDataset(
+			final PairDataset p = PairDataset.makeBalancedPairDataset(
 				config_.rng, negative_pairs, positive_pairs, test, combiner_ );
+			final double negative_weight = config_.getDouble( "pair.negative_weight" );
+			for( final Instance i : p.instances ) {
+				if( (int) i.classValue() == 0 ) {
+					i.setWeight( negative_weight );
+				}
+			}
+			return p;
 		}
 		
 		@Override
@@ -1396,8 +2025,8 @@ public class Experiments
 
 		private String modelFilename()
 		{
-			final String algorithm = config_.get( "multiclass.classifier" );
-			return "multiclass." + algorithm + ".model";
+			final String algorithm = config_.get( "pair.algorithm" );
+			return "pair." + algorithm + ".model";
 		}
 		
 		@Override
@@ -1433,17 +2062,49 @@ public class Experiments
 			}
 		}
 		
+//		@Override
+//		public UctSearch.Factory<S, A> createUctFactory(
+//				final Configuration config, final Domain<S, X, A, R> domain,
+//				final UndoSimulator<S, A> sim, final int Nepisodes )
+//		{
+//			final int lazy_threshold = config.getInt( "lazy.threshold" );
+//			final MutableActionNode<S, A> an;
+//			if( lazy_threshold <= 1 ) {
+//				an = new AggregatingActionNode<S, A>(
+//					null, 0, domain.getBaseRepresenter().create(), abstract_repr_.create() );
+//			}
+//			else {
+//				an = new LazyAggregatingActionNode<S, A>(
+//					null, 0, domain.getBaseRepresenter().create(), abstract_repr_.create(), lazy_threshold );
+//			}
+//			return new UctSearch.Factory<S, A>(
+//				sim, domain.getBaseRepresenter(),
+//				SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
+//				config.uct_c, Nepisodes, config.rng, domain.getEvaluator(), an );
+//		}
+
 		@Override
-		public UctSearch.Factory<S, A> createUctFactory(
-				final Configuration config, final Domain<S, X, A, R> domain,
-				final UndoSimulator<S, A> sim, final int Nepisodes )
+		protected MutableActionNode<S, A> createRootActionNode(
+				final Configuration config, final Domain<S, X, A, R> domain )
 		{
-			return new UctSearch.Factory<S, A>(
-				sim, domain.getBaseRepresenter(),
-				SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
-				config.uct_c, Nepisodes, config.rng, domain.getEvaluator(),
-				new AggregatingActionNode<S, A>( null, 0, domain.getBaseRepresenter().create(),
-												 abstract_repr_.create() ) );
+			final int lazy_threshold = config.getInt( "lazy.threshold" );
+			final MutableActionNode<S, A> an;
+			if( lazy_threshold <= 1 ) {
+				an = new AggregatingActionNode<S, A>(
+					null, 0, domain.getBaseRepresenter().create(), abstract_repr_.create() );
+			}
+			else {
+				an = new LazyAggregatingActionNode<S, A>(
+					null, 0, domain.getBaseRepresenter().create(), abstract_repr_.create(), lazy_threshold );
+			}
+			return an;
+		}
+
+		@Override
+		protected Representer<S, ? extends Representation<S>> getRepresenter(
+				final Configuration config, final Domain<S, X, A, R> domain )
+		{
+			return domain.getBaseRepresenter();
 		}
 	}
 	
@@ -1540,157 +2201,6 @@ public class Experiments
 	
 	// -----------------------------------------------------------------------
 	
-	private static class RandomForestAbstractionDiscovery<S extends State, X extends FactoredRepresentation<S>,
-					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
-		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
-	{
-		public static <S extends State, X extends FactoredRepresentation<S>,
-					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
-		RandomForestAbstractionDiscovery<S, X, A, R> create( final Configuration config, final Domain<S, X, A, R> domain )
-		{
-			return new RandomForestAbstractionDiscovery<S, X, A, R>( config, domain );
-		}
-		
-		private final Configuration config_;
-		private final R base_repr_;
-		
-		private final SolvedStateAccumulator<S, X, A> labeled_;
-		private final SolvedStateGapRecorder<Representation<S>, A> gaps_
-			= new SolvedStateGapRecorder<Representation<S>, A>();
-		
-		public RandomForestAbstractionDiscovery( final Configuration config, final Domain<S, X, A, R> domain )
-		{
-			config_ = config;
-			base_repr_ = domain.getBaseRepresenter();
-			labeled_ = new SolvedStateAccumulator<S, X, A>( base_repr_.create() );
-		}
-		
-		@Override
-		public Representer<S, Representation<S>> trainRepresenter(
-			final Instances train, final FactoredRepresenter<S, X> base_repr, final int iter )
-		{
-			final FastRandomForest classifier;
-			try {
-				classifier = new FastRandomForest();
-				// We want single-threaded, so that we can run multiple
-				// experiments on one machine without competing for cores.
-				classifier.setNumThreads( 1 );
-				classifier.setNumTrees( config_.getInt( "rf.Ntrees" ) );
-				classifier.buildClassifier( train );
-				SerializationHelper.write(
-					new File( config_.data_directory, "rf" + iter + ".model" ).getAbsolutePath(), classifier );
-			}
-			catch( final Exception ex ) {
-				throw new RuntimeException( ex );
-			}
-			
-//			final int Nfeatures = base_repr.attributes().size();
-//			for( int i = 0; i < Nfeatures; ++i ) {
-//				final RealVector xi = new ArrayRealVector( Nfeatures );
-//				xi.setEntry( i, 1.0 );
-//				xi.setEntry( Nfeatures - 1, 1.0 );
-//				for( int j = 0; j <= i; ++j ) {
-//					final RealVector xj = new ArrayRealVector( Nfeatures );
-//					xj.setEntry( j, 1.0 );
-//					xj.setEntry( Nfeatures - 1, 10.0 );
-//					final double[] diff = makePairwiseFeaturesUnlabeled( xi.toArray(), xj.toArray() );
-//					System.out.print( WekaUtil.classify( classifier, base_repr.attributes(), diff ) + "\t" );
-////					final Instance instance = new DenseInstance( 1.0, diff );
-////					final Instances x = new Instances( "eval", base_repr.attributes(), 1 );
-////					x.add( instance );
-////					instance.setDataset( x );
-////					try {
-////						System.out.print( classifier.classifyInstance( instance ) + "\t" );
-////					}
-////					catch( final Exception ex ) {
-////						ex.printStackTrace();
-////						throw new RuntimeException();
-////					}
-//				}
-//				System.out.println();
-//			}
-//			for( int i = 0; i < Nfeatures; ++i ) {
-//				final RealVector xi = new ArrayRealVector( Nfeatures );
-//				xi.setEntry( i, 1.0 );
-//				xi.setEntry( Nfeatures - 1, 1.0 );
-//				for( int j = 0; j <= i; ++j ) {
-//					final RealVector xj = new ArrayRealVector( Nfeatures );
-//					xj.setEntry( j, 1.0 );
-//					xj.setEntry( Nfeatures - 1, 10.0 );
-//					final double[] diff = makePairwiseFeaturesUnlabeled( xi.toArray(), xj.toArray() );
-//					System.out.print( Fn.max( WekaUtil.distribution( classifier, base_repr.attributes(), diff ) ) + "\t" );
-//				}
-//				System.out.println();
-//			}
-			
-			// FIXME: These have to be the same as the spec for ChainWalk, but
-			// it's hard to get those values here because we don't actually
-			// know that we're using ChainWalk.
-//			final int Nvalues = config_.getInt( "chain_walk.Nstates" );
-//			final int Nirrelevant = 4;
-//			for( int irrelevant_i = 0; irrelevant_i < Nirrelevant; ++irrelevant_i ) {
-//				for( int irrelevant_j = 0; irrelevant_j < Nirrelevant; ++irrelevant_j ) {
-//					System.out.println( "=== " + irrelevant_i + " x " + irrelevant_j + ":" );
-//					for( int i = -Nvalues; i <= Nvalues; ++i ) {
-//						final RealVector xi = new ArrayRealVector( base_repr.attributes().size() );
-//						xi.setEntry( 0, i );
-//						xi.setEntry( 1, irrelevant_i );
-//						for( int j = -Nvalues; j <= Nvalues; ++j ) {
-//							final RealVector xj = new ArrayRealVector( base_repr.attributes().size() );
-//							xj.setEntry( 0, j );
-//							xj.setEntry( 1, irrelevant_j );
-//							final double[] diff = makePairwiseFeaturesUnlabeled( xi.toArray(), xj.toArray() );
-//							System.out.print( WekaUtil.classify( classifier, base_repr.attributes(), diff ) + "\t" );
-//						}
-//						System.out.println();
-//					}
-//	//				for( int i = -Nvalues; i <= Nvalues; ++i ) {
-//	//					final RealVector xi = new ArrayRealVector( 1 );
-//	//					xi.setEntry( 0, i );
-//	//					for( int j = -Nvalues; j <= Nvalues; ++j ) {
-//	//						final RealVector xj = new ArrayRealVector( 1 );
-//	//						xj.setEntry( 0, j );
-//	//						final double[] diff = makePairwiseFeaturesUnlabeled( xi.toArray(), xj.toArray() );
-//	//						System.out.print( Fn.max( WekaUtil.distribution( classifier, base_repr.attributes(), diff ) ) + "\t" );
-//	//					}
-//	//					System.out.println();
-//	//				}
-//				}
-//			}
-			
-			final double decision_threshold = config_.getDouble( "pairwise_classifier.decision_threshold" );
-			final int max_branching = config_.getInt( "pairwise_classifier.max_branching" );
-			return new ReprWrapper<S>( new PairwiseSimilarityRepresenter<S, X>(
-				base_repr.create(),
-				new ClassifierSimilarityFunction( classifier, new Instances( train ) ) {
-					@Override
-					public Instance makeFeatures( final double[] phi_i, final double[] phi_j )
-					{
-						final double[] phi_joint = makePairwiseFeaturesUnlabeled( phi_i, phi_j );
-						return new DenseInstance( 1.0, phi_joint );
-					}
-				},
-				decision_threshold, max_branching ) );
-		}
-
-		@Override
-		public Representer<S, Representation<S>> loadModel(
-			final File dir, final FactoredRepresenter<S, X> base_repr, final int iter )
-		{
-			// TODO Auto-generated method stub
-			
-		}
-
-		@Override
-		public void writeModel( final int iter )
-		{
-			// TODO Auto-generated method stub
-			
-		}
-	}
-	
-	// -----------------------------------------------------------------------
-	
 	public static <S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
 	AbstractionDiscoveryAlgorithm<S, X, A, R> createAbstractionDiscoveryAlgorithm(
@@ -1700,7 +2210,7 @@ public class Experiments
 			return NoneAbstractionDiscovery.create( config, domain );
 		}
 		else if( "random".equals( name ) ) {
-			return RandomClusterAbstraction.create( config, domain );
+			return new RandomClusterAbstraction<S, X, A, R>();
 		}
 		else if( "trivial".equals( name ) ) {
 			return new TrivialAbstraction<S, X, A, R>();
@@ -1720,8 +2230,14 @@ public class Experiments
 		else if( "kmeans".equals( name ) ) {
 			return KMeansAbstraction.create( config, domain );
 		}
-		else if( "random_forest".equals( name ) ) {
-			return RandomForestAbstractionDiscovery.create( config, domain );
+		else if( "ensemble_vote".equals( name ) ) {
+			return new EnsembleUct<S, X, A, R>( config, domain );
+		}
+		else if( "multi_abstraction".equals( name ) ) {
+			return new MultiAbstractionUct<S, X, A, R>( config, domain );
+		}
+		else if( "utree".equals( name ) ) {
+			return new UTreeAbstraction<S, X, A, R>();
 		}
 		else {
 			throw new IllegalArgumentException( "name = " + name );
@@ -1735,12 +2251,18 @@ public class Experiments
 	private static abstract class Domain<S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends Representer<S, ? extends Representation<S>>>
 	{
-		public abstract UndoSimulator<S, A> createSimulator();
+		public abstract S initialState();
+		public abstract UndoSimulator<S, A> createSimulator( final S s );
 		public abstract R getBaseRepresenter();
 		public abstract ActionGenerator<S, A> getActionGenerator();
 		public abstract EvaluationFunction<S, A> getEvaluator();
 		public abstract EpisodeListener<S, A> getVisualization();
 		public abstract String name();
+		
+		public ArrayList<double[]> getVariableRanges()
+		{
+			return null;
+		}
 	}
 	
 	// -----------------------------------------------------------------------
@@ -1758,9 +2280,9 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<Irrelevance.State, Irrelevance.Action> createSimulator()
+		public UndoSimulator<Irrelevance.State, Irrelevance.Action> createSimulator( final Irrelevance.State s )
 		{
-			return irrelevance_.new Simulator();
+			return irrelevance_.new Simulator( s );
 		}
 
 		@Override
@@ -1769,7 +2291,6 @@ public class Experiments
 			return new Irrelevance.IdentityRepresenter();
 		}
 
-//		@Override
 		@Override
 		public EvaluationFunction<Irrelevance.State, Irrelevance.Action> getEvaluator()
 		{
@@ -1810,6 +2331,12 @@ public class Experiments
 		{
 			return "irrelevance_" + irrelevance_;
 		}
+
+		@Override
+		public Irrelevance.State initialState()
+		{
+			return irrelevance_.new State();
+		}
 	}
 	
 	// -----------------------------------------------------------------------
@@ -1831,9 +2358,9 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<ChainWalk.State, ChainWalk.Action> createSimulator()
+		public UndoSimulator<ChainWalk.State, ChainWalk.Action> createSimulator( final ChainWalk.State s )
 		{
-			return world_.new Simulator();
+			return world_.new Simulator( s );
 		}
 
 		@Override
@@ -1884,6 +2411,12 @@ public class Experiments
 		{
 			return "chain_walk_" + world_;
 		}
+
+		@Override
+		public ChainWalk.State initialState()
+		{
+			return world_.new State();
+		}
 		
 	}
 	
@@ -1904,10 +2437,16 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<BlackjackState, BlackjackAction> createSimulator()
+		public BlackjackState initialState()
 		{
 			final Deck deck = new InfiniteDeck( config_.rng.nextInt() );
-			return new BlackjackSimulator( deck, nagents_, params_ );
+			return new BlackjackState( deck, nagents_, params_ );
+		}
+		
+		@Override
+		public UndoSimulator<BlackjackState, BlackjackAction> createSimulator( final BlackjackState s )
+		{
+			return new BlackjackSimulator( s );
 		}
 
 		@Override
@@ -1969,21 +2508,28 @@ public class Experiments
 		
 		private final int nagents_ = 1;
 		
+		private final int Nother_taxis;
+		private final double slip;
+		
 		public TaxiDomain( final Configuration config )
 		{
 			config_ = config;
-			final int Nother_taxis = config_.getInt( "taxi.Nother_taxis" );
-			exemplar_state_ = TaxiWorlds.dietterich2000( Nother_taxis );
+			Nother_taxis = config_.getInt( "taxi.Nother_taxis" );
+			slip = config_.getDouble( "taxi.slip" );
+			exemplar_state_ = initialState();
 		}
 		
 		@Override
-		public UndoSimulator<TaxiState, TaxiAction> createSimulator()
+		public TaxiState initialState()
 		{
-			final int Nother_taxis = config_.getInt( "taxi.Nother_taxis" );
-			final TaxiState state = TaxiWorlds.dietterich2000( Nother_taxis );
-			final double slip = config_.getDouble( "taxi.slip" );
+			return TaxiWorlds.dietterich2000( config_.rng, Nother_taxis, slip );
+		}
+		
+		@Override
+		public UndoSimulator<TaxiState, TaxiAction> createSimulator( final TaxiState s )
+		{
 			final int T = config_.getInt( "taxi.T" );
-			final TaxiSimulator sim = new TaxiSimulator( config_.rng, state, slip, T );
+			final TaxiSimulator sim = new TaxiSimulator( config_.rng, s, slip, T );
 			return sim;
 		}
 
@@ -2063,9 +2609,15 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<YahtzeeState, YahtzeeAction> createSimulator()
+		public YahtzeeState initialState()
 		{
-			return new YahtzeeSimulator( config_.rng );
+			return new YahtzeeState( config_.rng );
+		}
+		
+		@Override
+		public UndoSimulator<YahtzeeState, YahtzeeAction> createSimulator( final YahtzeeState s )
+		{
+			return new YahtzeeSimulator( s );
 		}
 
 		@Override
@@ -2106,8 +2658,8 @@ public class Experiments
 		@Override
 		public ActionGenerator<YahtzeeState, YahtzeeAction> getActionGenerator()
 		{
-//			return new CategoryActionGenerator();
-			return new SmartActionGenerator();
+			return new CategoryActionGenerator();
+//			return new SmartActionGenerator();
 //			return new YahtzeeActionGenerator();
 		}
 
@@ -2121,7 +2673,7 @@ public class Experiments
 	// -----------------------------------------------------------------------
 	
 	private static class FroggerDomain extends Domain<FroggerState, FactoredRepresentation<FroggerState>,
-													  FroggerAction, PrimitiveFroggerRepresenter>
+													  FroggerAction, RelativeFroggerRepresenter>
 	{
 		private final Configuration config_;
 		
@@ -2134,18 +2686,23 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<FroggerState, FroggerAction> createSimulator()
+		public FroggerState initialState()
 		{
-			final FroggerState s = new FroggerState( params_ );
-			final FroggerSimulator sim = new FroggerSimulator( config_.rng, s );
-			return sim;
+			return new FroggerState( params_ );
+		}
+		
+		@Override
+		public UndoSimulator<FroggerState, FroggerAction> createSimulator( final FroggerState s )
+		{
+			return new FroggerSimulator( config_.rng, s );
 		}
 
 		@Override
-		public PrimitiveFroggerRepresenter getBaseRepresenter()
+		public RelativeFroggerRepresenter getBaseRepresenter()
 		{
-			return new PrimitiveFroggerRepresenter( params_ );
-//			return new RelativeFroggerRepresenter( params_ );
+//			return new PrimitiveFroggerRepresenter( params_ );
+			// FIXME: Make 'vision' a parameter
+			return new RelativeFroggerRepresenter( params_, 3 );
 		}
 
 		@Override
@@ -2201,13 +2758,20 @@ public class Experiments
 			else {
 				throw new IllegalArgumentException( "racegrid.circuit = " + circuit_name_ );
 			}
+			
+			final RacegridState s = new RacegridState( circuit_ );
+			heuristic_ = new ShortestPathHeuristic( s, 3 );
 		}
 		
 		@Override
-		public UndoSimulator<RacegridState, RacegridAction> createSimulator()
+		public RacegridState initialState()
 		{
-			final RacegridState s = new RacegridState( circuit_ );
-			heuristic_ = new ShortestPathHeuristic( s, 3 );
+			return new RacegridState( circuit_ );
+		}
+		
+		@Override
+		public UndoSimulator<RacegridState, RacegridAction> createSimulator( final RacegridState s )
+		{
 			final RacegridSimulator sim = new RacegridSimulator(
 				config_.rng, s, config_.getDouble( "racegrid.slip" ) );
 			return sim;
@@ -2326,10 +2890,15 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<TamariskState, TamariskAction> createSimulator()
+		public TamariskState initialState()
 		{
 			final DirectedGraph<Integer, DefaultEdge> g = params_.createBalancedGraph( branching_ );
-			final TamariskState s = new TamariskState( config_.rng, params_, g );
+			return new TamariskState( config_.rng, params_, g );
+		}
+		
+		@Override
+		public UndoSimulator<TamariskState, TamariskAction> createSimulator( final TamariskState s )
+		{
 			return new TamariskSimulator( s );
 		}
 
@@ -2383,6 +2952,96 @@ public class Experiments
 	
 	// -----------------------------------------------------------------------
 	
+	private static class FuelWorldDomain extends Domain<FuelWorldState, FactoredRepresentation<FuelWorldState>,
+													  FuelWorldAction, PrimitiveFuelWorldRepresenter>
+	{
+		private final Configuration config_;
+		
+		public FuelWorldDomain( final Configuration config )
+		{
+			config_ = config;
+		}
+		
+		@Override
+		public FuelWorldState initialState()
+		{
+			if( "default".equals( config_.get( "fuelworld.variant" ) ) ) {
+				return FuelWorldState.createDefault( config_.rng );
+			}
+			else if( "choices".equals( config_.get( "fuelworld.variant" ) ) ) {
+				return FuelWorldState.createDefaultWithChoices( config_.rng );
+			}
+			else {
+				throw new IllegalArgumentException( "fuelworld.variant = " + config_.get( "fuelworld.variant" ) );
+			}
+		}
+		
+		@Override
+		public UndoSimulator<FuelWorldState, FuelWorldAction> createSimulator( final FuelWorldState s )
+		{
+			return new FuelWorldSimulator( s );
+		}
+
+		@Override
+		public PrimitiveFuelWorldRepresenter getBaseRepresenter()
+		{
+			return new PrimitiveFuelWorldRepresenter();
+		}
+		
+		@Override
+		public ArrayList<double[]> getVariableRanges()
+		{
+			final ArrayList<double[]> ranges = new ArrayList<double[]>();
+			ranges.add( null );
+			ranges.add( new double[] { 0, FuelWorldState.fuel_capacity } );
+			ranges.add( null );
+			return ranges;
+		}
+
+		@Override
+		public EvaluationFunction<FuelWorldState, FuelWorldAction> getEvaluator()
+		{
+			final int rollout_width = 1;
+			final int rollout_depth = Integer.MAX_VALUE;
+			final Policy<FuelWorldState, JointAction<FuelWorldAction>> rollout_policy
+				= new RandomPolicy<FuelWorldState, JointAction<FuelWorldAction>>(
+					0 /*Player*/, config_.rng.nextInt(),
+					SingleAgentJointActionGenerator.create( getActionGenerator() ) );
+			final EvaluationFunction<FuelWorldState, FuelWorldAction> heuristic
+				= new EvaluationFunction<FuelWorldState, FuelWorldAction>() {
+				@Override
+				public double[] evaluate( final Simulator<FuelWorldState, FuelWorldAction> sim )
+				{
+					return new double[] { 0.0 };
+				}
+			};
+			final EvaluationFunction<FuelWorldState, FuelWorldAction> rollout_evaluator
+				= RolloutEvaluator.create( rollout_policy, config_.discount,
+										   rollout_width, rollout_depth, heuristic );
+			return rollout_evaluator;
+		}
+
+		@Override
+		public EpisodeListener<FuelWorldState, FuelWorldAction> getVisualization()
+		{
+			return null;
+		}
+
+		@Override
+		public ActionGenerator<FuelWorldState, FuelWorldAction> getActionGenerator()
+		{
+			return new FuelWorldActionGenerator();
+		}
+
+		@Override
+		public String name()
+		{
+			return "fuelworld";
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
 	private static String deriveDatasetName( final String base, final int iter )
 	{
 		if( iter == -1 ) {
@@ -2405,13 +3064,12 @@ public class Experiments
 			= createAbstractionDiscoveryAlgorithm( config.get( "abstraction.discovery" ), config, domain );
 		
 		System.out.println( "****************************************" );
-		System.out.println( "game = x ("
-							+ config.Ntrain_games + "(" + config.Ntrain_episodes + ")"
-							+ " / " + config.Ntest_games
-							+ "(" + config.Ntest_episodes_order_min + " - " + config.Ntest_episodes_order_max + ")) "
-							+ ": " + config.get( "abstraction.bootstrap" ) + " -> "
+		System.out.println( "game = " + config.Ntest_episodes
+							+ " x " + config.get( "abstraction.bootstrap" ) + " -> "
 							+ config.get( "abstraction.discovery" ) + "." + config.get( "multiclass.classifier" )
 							+ " / " + domain.getBaseRepresenter() );
+		System.out.println( "UCT: max_depth = " + config.getInt( "uct.max_depth" )
+							+ ", max_action_visits = " + config.getInt( "max_action_visits" ) );
 
 		final Representer<S, Representation<S>> Crepr = new ReprWrapper<S>( domain.getBaseRepresenter() );
 		
@@ -2420,7 +3078,7 @@ public class Experiments
 		for( int iter = 0; iter < config.Niterations; ++iter ) {
 			System.out.println( "Iteration " + iter );
 			
-			final Csv.Writer data_out = createDataWriter( config, iter );
+			final Csv.Writer data_out = createDataWriter( config, discovery, iter );
 			
 			final AbstractionDiscoveryAlgorithm<S, X, A, R> algorithm;
 			if( "create".equals( config.model ) ) {
@@ -2480,15 +3138,16 @@ public class Experiments
 			
 			// Test
 			System.out.println( "[Running tree search]" );
-			final int order_min = config.Ntest_episodes_order_min;
-			final int order_max = config.Ntest_episodes_order_max;
-			for( int order = order_min; order <= order_max; ++order ) {
-				final int Ntest_episodes = (int) Math.pow( 2, order );
-				System.out.println( "Ntest_episodes = " + Ntest_episodes );
+//			final int order_min = config.Ntest_episodes_order_min;
+//			final int order_max = config.Ntest_episodes_order_max;
+//			for( int order = order_min; order <= order_max; ++order ) {
+//				final int Ntest_episodes = (int) Math.pow( 2, order );
+//				System.out.println( "Ntest_episodes = " + Ntest_episodes );
+			
 				final MctsVisitor<S, A> test_visitor = new DefaultMctsVisitor<S, A>();
 				
-				runGames( "test", config, domain, algorithm, Ntest_episodes, config.Ntest_games,
-						  test_visitor, labeled_states, Crepr, data_out, iter );
+				final ArrayList<Pair<ArrayList<A>, TDoubleList>> qtable =
+					runGames( config, domain, algorithm, test_visitor, labeled_states, Crepr, data_out, iter );
 				
 				// Gather training examples
 				// TODO: Should we have a switch to disable this?
@@ -2496,7 +3155,7 @@ public class Experiments
 
 				final SingleInstanceDataset<A> single = makeSingleInstanceDataset(
 						config, domain.getBaseRepresenter().attributes(),
-						labeled_states.Phi_, labeled_states.actions_, iter );
+						labeled_states.Phi_, labeled_states.actions_, qtable, iter );
 				
 				if( running_dataset == null ) {
 					System.out.println( "[Storing initial training data]" );
@@ -2512,10 +3171,14 @@ public class Experiments
 				
 				WekaUtil.writeDataset( config.data_directory, running_dataset.instances );
 				writeActionKey( config, running_dataset, iter );
+				if( running_dataset.qtable != null ) {
+					writeQTable( config, running_dataset, iter );
+				}
 				
 //				WekaUtil.writeDataset( config.data_directory, single.instances );
 //				writeActionKey( config, single, iter );
-			}
+				
+//			}
 			
 							
 //				runGames( "train", config, domain, discovery, config.Ntrain_episodes, config.Ntrain_games,
@@ -2541,55 +3204,35 @@ public class Experiments
 	
 	private static <S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
-	void runGames( final String phase, final Configuration config,
-				   final Domain<S, X, A, R> domain, final AbstractionDiscoveryAlgorithm<S, X, A, R> discovery,
-				   final int Nepisodes, final int Ngames,
-				   final MctsVisitor<S, A> mcts_visitor, final EpisodeListener<S, A> listener,
-				   final Representer<S, Representation<S>> Crepr,
-				   final Csv.Writer data_out, final int iter ) throws Exception
+	ArrayList<Pair<ArrayList<A>, TDoubleList>> runGames(
+		final Configuration config, final Domain<S, X, A, R> domain,
+		final AbstractionDiscoveryAlgorithm<S, X, A, R> discovery,
+		final MctsVisitor<S, A> mcts_visitor, final EpisodeListener<S, A> listener,
+		final Representer<S, Representation<S>> Crepr,
+		final Csv.Writer data_out, final int iter ) throws Exception
 	{
-		assert( "train".equals( phase ) || "test".equals( phase ) );
+//		assert( "train".equals( phase ) || "test".equals( phase ) );
 		
 		final int print_interval = 100;
 		
 		final MeanVarianceAccumulator ret = new MeanVarianceAccumulator();
 		final MeanVarianceAccumulator steps = new MeanVarianceAccumulator();
 		final MinMaxAccumulator steps_minmax = new MinMaxAccumulator();
-		final TreeStatisticsRecorder<S, A> tree_stats = new TreeStatisticsRecorder<S, A>();
-		final MeanVarianceAccumulator elapsed_time = new MeanVarianceAccumulator();
+//		final TreeStatisticsRecorder<S, A> tree_stats = new TreeStatisticsRecorder<S, A>();
+//		final MeanVarianceAccumulator elapsed_time = new MeanVarianceAccumulator();
 		
-		for( int i = 0; i < Ngames; ++i ) {
+//		final ArrayList<ArrayList<Pair<A, Double>>> qtable = new ArrayList<ArrayList<Pair<A, Double>>>();
+		
+		for( int i = 0; i < config.Ntest_games; ++i ) {
 			if( i % print_interval == 0 ) {
 				System.out.println( "Episode " + i );
 			}
-			
-			final UndoSimulator<S, A> sim = domain.createSimulator();
-			
-			final GameTreeFactory<S, A> factory
-				= discovery.getUctFactory( config, domain, sim, Nepisodes );
-			
-			final SearchPolicy<S, A>
-				search_policy = new SearchPolicy<S, A>( factory, mcts_visitor, null ) {
-					@Override
-					protected JointAction<A> selectAction( final GameTree<S, A> tree )
-					{
-//						tree.root().accept( new TreePrinter<S, A>() );
-						final JointAction<A> astar = BackupRules.MaxAction( tree.root() ).a();
-//						System.out.println( "[a* = " + astar + "]" );
-						tree.root().accept( tree_stats );
-						return astar;
-					}
 
-					@Override
-					public int hashCode()
-					{ return System.identityHashCode( this ); }
-
-					@Override
-					public boolean equals( final Object that )
-					{ return this == that; }
-			};
+			final Policy<S, A> pi = discovery.getControlPolicy( config, domain );
 			
-			final Episode<S, A> episode	= new Episode<S, A>( sim, search_policy );
+			final S s0 = domain.initialState();
+			final UndoSimulator<S, A> sim = domain.createSimulator( s0 );
+			final Episode<S, A> episode	= new Episode<S, A>( sim, new JointPolicy<S, A>( pi ) );
 			final RewardAccumulator<S, A> racc = new RewardAccumulator<S, A>( sim.nagents(), config.discount );
 			episode.addListener( racc );
 //			final LoggingEpisodeListener<S, A> epi_log = new LoggingEpisodeListener<S, A>();
@@ -2602,11 +3245,11 @@ public class Experiments
 				episode.addListener( vis );
 			}
 			
-			final long tstart = System.nanoTime();
+//			final long tstart = System.nanoTime();
 			episode.run();
-			final long tend = System.nanoTime();
-			final double elapsed_ms = (tend - tstart) * 1e-6;
-			elapsed_time.add( elapsed_ms );
+//			final long tend = System.nanoTime();
+//			final double elapsed_ms = (tend - tstart) * 1e-6;
+//			elapsed_time.add( elapsed_ms );
 			
 			ret.add( racc.v()[0] );
 			steps.add( racc.steps() );
@@ -2615,48 +3258,39 @@ public class Experiments
 //			System.out.println( "Reward: " + racc.v()[0] );
 		}
 		
+//		for( final ArrayList<Pair<A, Double>> q : qtable ) {
+//			System.out.println( q );
+//		}
+		
 		System.out.println( "****************************************" );
 		System.out.println( "Average return: " + ret.mean() );
 		System.out.println( "Return variance: " + ret.variance() );
 		System.out.println( "Confidence: " + ret.confidence() );
-		System.out.println( "State branching (mean): " + tree_stats.state_branching.mean() );
-		System.out.println( "State branching (var): " + tree_stats.state_branching.variance() );
-		System.out.println( "Action branching (mean): " + tree_stats.action_branching.mean() );
-		System.out.println( "Action branching (var): " + tree_stats.action_branching.variance() );
-		System.out.println( "Depth (mean): " + tree_stats.depth.mean() );
-		System.out.println( "Depth (var): " + tree_stats.depth.variance() );
-		System.out.println( "Avg. Depth (mean): " + tree_stats.avg_depth.mean() );
-		System.out.println( "Avg. Depth (var): " + tree_stats.avg_depth.variance() );
+		
 		System.out.println( "Steps (mean): " + steps.mean() );
 		System.out.println( "Steps (var): " + steps.variance() );
 		System.out.println( "Steps (min/max): " + steps_minmax.min() + " -- " + steps_minmax.max() );
-		System.out.println( "Time (ms) (mean): " + elapsed_time.mean() );
-		System.out.println( "Time (ms) (var): " + elapsed_time.variance() );
-		System.out.println( "Time (ms) (conf): " + elapsed_time.confidence() );
-		System.out.println( "Action visits (mean): " + tree_stats.action_visits.mean() );
-		System.out.println( "Action visits (var): " + tree_stats.action_visits.variance() );
-		System.out.println( "Action visits (conf): " + tree_stats.action_visits.confidence() );
-		System.out.println( "Action visits per millisecond: " + tree_stats.action_visits.mean() / elapsed_time.mean() );
-		System.out.println();
+		
 		// See: createDataWriter for correct column order
-		data_out.cell( phase ).cell( domain.getBaseRepresenter() ).cell( domain.getActionGenerator() )
-				.cell( iter ).cell( Nepisodes ).cell( Ngames )
+		data_out.cell( config.experiment_name ).cell( domain.getBaseRepresenter() ).cell( domain.getActionGenerator() )
+				.cell( iter ).cell( config.Ntest_episodes ).cell( config.Ntest_games )
 				.cell( ret.mean() ).cell( ret.variance() ).cell( ret.confidence() )
-				.cell( tree_stats.state_branching.mean() ).cell( tree_stats.state_branching.variance() )
-				.cell( tree_stats.action_branching.mean() ).cell( tree_stats.action_branching.variance() )
-				.cell( tree_stats.depth.mean() ).cell( tree_stats.depth.variance() )
-				.cell( tree_stats.avg_depth.mean() ).cell( tree_stats.avg_depth.variance() )
-				.cell( steps.mean() ).cell( steps.variance() ).cell( steps_minmax.min() ).cell( steps_minmax.max() )
-				.cell( elapsed_time.mean() ).cell( elapsed_time.variance() ).cell( elapsed_time.confidence() )
-				.cell( tree_stats.action_visits.mean() ).cell( tree_stats.action_visits.variance() ).cell( tree_stats.action_visits.confidence() )
-				.cell( tree_stats.action_visits.mean() / elapsed_time.mean() );
+				.cell( steps.mean() ).cell( steps.variance() ).cell( steps_minmax.min() ).cell( steps_minmax.max() );
+				
+		discovery.writeStatisticsRecord( data_out );
 		for( final String k : config.keys() ) {
 			data_out.cell( config.get( k ) );
 		}
 		data_out.newline();
+		System.out.println();
+		
+		return discovery.getQTable();
 	}
 	
-	private static Csv.Writer createDataWriter( final Configuration config, final int iter )
+	private static <S extends State, X extends FactoredRepresentation<S>,
+					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
+	Csv.Writer createDataWriter(
+		final Configuration config, final AbstractionDiscoveryAlgorithm<S, X, A, R> discovery, final int iter )
 	{
 		Csv.Writer data_out;
 		try {
@@ -2665,17 +3299,12 @@ public class Experiments
 		catch( final FileNotFoundException ex ) {
 			throw new RuntimeException( ex );
 		}
-		data_out.cell( "phase" ).cell( "abstraction" ).cell( "actions" ).cell( "iteration" )
+		data_out.cell( "experiment_name" ).cell( "abstraction" ).cell( "actions" ).cell( "iteration" )
 				.cell( "Nepisodes" ).cell( "Ngames" )
 				.cell( "mean" ).cell( "var" ).cell( "conf" )
-				.cell( "state_branching_mean" ).cell( "state_branching_var" )
-				.cell( "action_branching_mean" ).cell( "action_branching_var" )
-				.cell( "tree_depth_mean" ).cell( "tree_depth_var" )
-				.cell( "tree_avg_depth_mean" ).cell( "tree_avg_depth_var" )
-				.cell( "steps_mean" ).cell( "steps_var" ).cell( "steps_min" ).cell( "steps_max" )
-				.cell( "time_mean" ).cell( "time_var" ).cell( "time_conf" )
-				.cell( "action_visits_mean" ).cell( "action_visits_var" ).cell( "action_visits_conf" )
-				.cell( "action_visits_per_ms" );
+				.cell( "steps_mean" ).cell( "steps_var" ).cell( "steps_min" ).cell( "steps_max" );
+				
+		discovery.writeStatisticsHeaders( data_out );
 		for( final String k : config.keys() ) {
 			data_out.cell( k );
 		}
@@ -2699,12 +3328,13 @@ public class Experiments
 		public final String training_data_pair;
 		public final String labels;
 				
-		public final int Ntrain_episodes;
-		public final int Ntrain_games;
+//		public final int Ntrain_episodes;
+//		public final int Ntrain_games;
 //		public final int max_training_size;
-//		public final int Ntest_episodes;
-		public final int Ntest_episodes_order_min;
-		public final int Ntest_episodes_order_max;
+		public final int Ntest_episodes_order;
+		public final int Ntest_episodes;
+//		public final int Ntest_episodes_order_min;
+//		public final int Ntest_episodes_order_max;
 		public final int Ntest_games;
 		public final double uct_c;
 		public final double discount;
@@ -2714,6 +3344,7 @@ public class Experiments
 		public final RandomGenerator rng;
 //		public final File training_directory;
 		public final File data_directory;
+		public final String experiment_name;
 		
 		private final Set<String> exclude_ = new HashSet<String>();
 		
@@ -2737,27 +3368,11 @@ public class Experiments
 			return new File( root_directory, "test" );
 		}
 		
-//		public Instances loadSingleInstances()
-//		{
-//			return WekaUtil.readLabeledDataset(
-//				new File( trainSingleDirectory(), get( "training_data.single" ) ) );
-//		}
-
-//		public Instances loadPairInstances()
-//		{
-//			return WekaUtil.readLabeledDataset(
-//				new File( trainPairDirectory(), get( "training_data.pair" ) ) );
-//		}
-		
-//		public Configuration( final KeyValueStore config )
-//		{
-//			this( config.get( "root_directory" ), config );
-//		}
-		
-		public Configuration( final String root_directory, final String subdir, final KeyValueStore config )
+		public Configuration( final String root_directory, final String experiment_name, final KeyValueStore config )
 		{
 			config_ = config;
 			
+			this.experiment_name = experiment_name;
 			this.root_directory = root_directory;
 			exclude_.add( "root_directory" );
 			domain = config.get( "domain" );
@@ -2773,10 +3388,12 @@ public class Experiments
 			labels = config.get( "labels" );
 			exclude_.add( "labels" );
 			
-			Ntrain_episodes = config.getInt( "Ntrain_episodes" );
-			Ntrain_games = config.getInt( "Ntrain_games" );
-			Ntest_episodes_order_min = config.getInt( "Ntest_episodes_order_min" );
-			Ntest_episodes_order_max = config.getInt( "Ntest_episodes_order_max" );
+//			Ntrain_episodes = config.getInt( "Ntrain_episodes" );
+//			Ntrain_games = config.getInt( "Ntrain_games" );
+//			Ntest_episodes_order_min = config.getInt( "Ntest_episodes_order_min" );
+//			Ntest_episodes_order_max = config.getInt( "Ntest_episodes_order_max" );
+			Ntest_episodes_order = config.getInt( "Ntest_episodes_order" );
+			Ntest_episodes = 1 << Ntest_episodes_order; // 2^order
 			Ntest_games = config.getInt( "Ntest_games" );
 			uct_c = config.getDouble( "uct_c" );
 			discount = config.getDouble( "discount" );
@@ -2799,29 +3416,9 @@ public class Experiments
 				}
 				sb.append( config.get( key ) );
 			}
-		
-//			training_directory = new File( root_directory + File.separator + domain + File.separator + "train" );
 			
-//			final String file_name = root_directory + File.separator
-//								   + "results" + File.separator
-//					  			   + domain + File.separator
-//					  			   + abstraction + File.separator
-//					  			   + sb.toString();
-//			data_directory = new File( file_name );
-//			data_directory.mkdirs();
-			
-			data_directory = new File( root_directory, subdir );
+			data_directory = new File( root_directory, experiment_name );
 			data_directory.mkdirs();
-		}
-		
-		public String trainingName( final String keyword, final int iter )
-		{
-			final StringBuilder sb = new StringBuilder();
-			sb.append( domain ).append( "_" ).append( keyword ).append( "_" ).append( iter )
-			  .append( "_" ).append( Ntrain_episodes )
-			  .append( "_" ).append( Ntrain_games )
-			  .append( "_" ).append( getInt( "training.max_per_label" ) );
-			return sb.toString();
 		}
 
 		@Override
@@ -2872,7 +3469,7 @@ public class Experiments
 		for( int expr = 0; expr < csv_config.size(); ++expr ) {
 			final KeyValueStore expr_config = csv_config.get( expr );
 			final Configuration config = new Configuration(
-					root_directory.getPath(), expr_directory.getName(), expr_config );
+					root_directory.getPath(), experiment_name, expr_config );
 			
 			if( "irrelevance".equals( config.domain ) ) {
 				final IrrelevanceDomain domain = new IrrelevanceDomain( config, 10 );
@@ -2908,6 +3505,10 @@ public class Experiments
 			}
 			else if( "tamarisk".equals( config.domain ) ) {
 				final TamariskDomain domain = new TamariskDomain( config );
+				runExperiment( config, domain );
+			}
+			else if( "fuelworld".equals( config.domain ) ) {
+				final FuelWorldDomain domain = new FuelWorldDomain( config );
 				runExperiment( config, domain );
 			}
 			else {

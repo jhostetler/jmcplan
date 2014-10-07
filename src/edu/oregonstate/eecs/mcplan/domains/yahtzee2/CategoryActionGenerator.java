@@ -48,6 +48,6 @@ public class CategoryActionGenerator extends ActionGenerator<YahtzeeState, Yahtz
 			i += 1;
 		}
 		count += 1;
-		return new CategoryAction( YahtzeeScores.values()[i] );
+		return new CategoryAction( YahtzeeScores.values()[i++] );
 	}
 }

@@ -4,7 +4,6 @@
 package edu.oregonstate.eecs.mcplan.search;
 
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
-import edu.oregonstate.eecs.mcplan.IdentityRepresentation;
 import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
@@ -38,16 +37,16 @@ public class SimpleMutableActionNode<S extends State, A extends VirtualConstruct
 		if( s.isTerminal() ) {
 //			System.out.println( "\tTerminal" );
 			
-			final IdentityRepresentation<S> x = new IdentityRepresentation<S>( s.toString() );
-			final MutableStateNode<S, A> leaf = new LeafStateNode<S, A>( x, nagents, turn );
-			attachSuccessor( x, turn, leaf );
+//			final IdentityRepresentation<S> x = new IdentityRepresentation<S>( s.toString() );
+//			final MutableStateNode<S, A> leaf = new LeafStateNode<S, A>( x, nagents, turn );
+//			attachSuccessor( x, turn, leaf );
 			
-//			final TrivialRepresentation<S> x = new TrivialRepresentation<S>();
-//			MutableStateNode<S, A> leaf = getStateNode( x, turn );
-//			if( leaf == null ) {
-//				leaf = new LeafStateNode<S, A>( x, nagents, turn );
-//				attachSuccessor( x, turn, leaf );
-//			}
+			final LeafRepresentation<S> x = new LeafRepresentation<S>();
+			MutableStateNode<S, A> leaf = getStateNode( x, turn );
+			if( leaf == null ) {
+				leaf = new LeafStateNode<S, A>( /*x,*/ nagents, turn );
+				attachSuccessor( x, turn, leaf );
+			}
 			
 			return leaf;
 		}

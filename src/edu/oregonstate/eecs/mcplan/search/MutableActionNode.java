@@ -89,10 +89,10 @@ public abstract class MutableActionNode<S, A extends VirtualConstructor<A>>
 	public abstract MutableStateNode<S, A> successor(
 			final S s, final int nagents, final int[] turn, final ActionGenerator<S, JointAction<A>> action_gen );
 	
-//	public Representer<S, ? extends Representation<S>> repr()
-//	{
-//		return repr_;
-//	}
+	public Representer<S, ? extends Representation<S>> repr()
+	{
+		return repr_;
+	}
 	
 	protected void attachSuccessor( final Representation<S> x, final int[] turn, final MutableStateNode<S, A> node )
 	{
@@ -102,7 +102,7 @@ public abstract class MutableActionNode<S, A extends VirtualConstructor<A>>
 	public void visit()
 	{ n_ += 1; }
 	
-	@Override
+//	@Override
 	public MutableStateNode<S, A> getStateNode( final Representation<S> x, final int[] turn )
 	{
 		return s_.get( new StateTuple<S>( x, turn ) );

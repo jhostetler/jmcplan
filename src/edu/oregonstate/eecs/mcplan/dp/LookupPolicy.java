@@ -6,12 +6,13 @@ package edu.oregonstate.eecs.mcplan.dp;
 import java.util.Map;
 
 import edu.oregonstate.eecs.mcplan.Policy;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
 /**
  * @author jhostetler
  *
  */
-public class LookupPolicy<S, A> extends Policy<S, A>
+public class LookupPolicy<S, A extends VirtualConstructor<A>> extends Policy<S, A>
 {
 	private final Map<S, A> actions_;
 	
@@ -31,7 +32,7 @@ public class LookupPolicy<S, A> extends Policy<S, A>
 	@Override
 	public A getAction()
 	{
-		return a_;
+		return a_.create();
 	}
 
 	@Override

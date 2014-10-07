@@ -16,15 +16,19 @@ import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
 public class RelativeFroggerRepresenter implements FactoredRepresenter<FroggerState, FactoredRepresentation<FroggerState>>
 {
 	private final ArrayList<Attribute> attributes_;
+	private final int vision_;
 
-	public RelativeFroggerRepresenter( final FroggerParameters params )
+	public RelativeFroggerRepresenter( final FroggerParameters params, final int vision )
 	{
+		vision_ = vision;
 		attributes_ = new ArrayList<Attribute>();
 		attributes_.add( new Attribute( "x" ) );
 		attributes_.add( new Attribute( "y" ) );
-		final int road_vision = params.road_length - 1;
-		for( int i = params.lanes; i >= -params.lanes + 1; --i ) {
-			for( int j = -road_vision; j <= road_vision; ++j ) {
+		for( int i = vision; i >= -vision; --i ) {
+			for( int j = -vision; j <= vision; ++j ) {
+				if( i == 0 && j == 0 ) {
+					continue;
+				}
 				attributes_.add( new Attribute(
 					"car_x" + (j >= 0 ? "+" : "") + j + "_y" + (i >= 0 ? "+" : "") + i ) );
 			}
@@ -34,6 +38,7 @@ public class RelativeFroggerRepresenter implements FactoredRepresenter<FroggerSt
 	private RelativeFroggerRepresenter( final RelativeFroggerRepresenter that )
 	{
 		attributes_ = that.attributes_;
+		vision_ = that.vision_;
 	}
 	
 	@Override
@@ -45,7 +50,7 @@ public class RelativeFroggerRepresenter implements FactoredRepresenter<FroggerSt
 	@Override
 	public RelativeFroggerRepresentation encode( final FroggerState s )
 	{
-		return new RelativeFroggerRepresentation( s );
+		return new RelativeFroggerRepresentation( s, vision_ );
 	}
 	
 	@Override

@@ -6,7 +6,6 @@ package edu.oregonstate.eecs.mcplan.domains.frogger;
 import java.util.Arrays;
 
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
-import edu.oregonstate.eecs.mcplan.Representation;
 
 /**
  * @author jhostetler
@@ -41,7 +40,7 @@ public class PrimitiveFroggerRepresentation extends FactoredRepresentation<Frogg
 	}
 
 	@Override
-	public Representation<FroggerState> copy()
+	public PrimitiveFroggerRepresentation copy()
 	{
 		return new PrimitiveFroggerRepresentation( this );
 	}

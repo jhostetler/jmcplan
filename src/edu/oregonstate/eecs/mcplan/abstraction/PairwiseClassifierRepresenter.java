@@ -31,11 +31,14 @@ public class PairwiseClassifierRepresenter<S extends State>
 	private final ArrayList<double[]> exemplars_ = new ArrayList<double[]>();
 	private final TIntArrayList n_ = new TIntArrayList();
 	
+	private final Instances dummy_;
+	
 	public PairwiseClassifierRepresenter(
 		final PairDataset.InstanceCombiner combiner, final Classifier classifier )
 	{
 		combiner_ = combiner;
 		classifier_ = classifier;
+		dummy_ = WekaUtil.createEmptyInstances( "dummy", combiner_.attributes() );
 	}
 	
 	@Override
@@ -49,7 +52,6 @@ public class PairwiseClassifierRepresenter<S extends State>
 //		System.out.println( "\tcluster " + (count_++) +": size = " + clusters_.size() );
 		
 		final int none = -1;
-		final Instances dummy = WekaUtil.createEmptyInstances( "dummy", combiner_.attributes() );
 		try { // try-block for the sake of Weka
 			final int[] idx = Fn.range( 0, exemplars_.size() );
 			int cluster = none;
@@ -61,9 +63,9 @@ public class PairwiseClassifierRepresenter<S extends State>
 				}
 				// NaN for "unknown label"
 				final Instance p = new DenseInstance( 1.0, combiner_.apply( phi, x, Double.NaN ) );
-				WekaUtil.addInstance( dummy, p );
+				WekaUtil.addInstance( dummy_, p );
 				final int prediction = (int) classifier_.classifyInstance( p );
-				dummy.remove( 0 );
+				dummy_.remove( 0 );
 				if( prediction == 1 ) {
 					cluster = i;
 					break;
@@ -78,7 +80,8 @@ public class PairwiseClassifierRepresenter<S extends State>
 			}
 			else {
 				// No match found in loop -> Make new cluster
-				final ClusterAbstraction<S> c = new ClusterAbstraction<S>( clusters_.size() );
+				// FIXME: Added string hint for debugging; this has non-trivial overhead
+				final ClusterAbstraction<S> c = new ClusterAbstraction<S>( clusters_.size() ); //, Arrays.toString( phi ) );
 				clusters_.add( c );
 				exemplars_.add( Arrays.copyOf( phi, phi.length ) );
 				n_.add( 1 );

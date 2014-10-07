@@ -19,6 +19,9 @@ public abstract class FactoredRepresentation<T> extends Representation<T>
 	public abstract double[] phi();
 	
 	@Override
+	public abstract FactoredRepresentation<T> copy();
+	
+	@Override
 	public String toString()
 	{
 		return Arrays.toString( phi() );

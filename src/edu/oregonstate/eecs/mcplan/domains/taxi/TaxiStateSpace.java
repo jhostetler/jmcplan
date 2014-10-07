@@ -42,7 +42,7 @@ public class TaxiStateSpace extends edu.oregonstate.eecs.mcplan.StateSpace<TaxiS
 		@Override
 		public TaxiState next()
 		{
-			final TaxiState s = new TaxiState( topology, locations, Nother_taxis );
+			final TaxiState s = new TaxiState( topology, locations, Nother_taxis, slip );
 			
 			int idx = 0;
 			s.taxi[0] = sequence[idx++];
@@ -92,6 +92,7 @@ public class TaxiStateSpace extends edu.oregonstate.eecs.mcplan.StateSpace<TaxiS
 	public final int height;
 	public final int Nlocations;
 	public final int Nother_taxis;
+	public final double slip;
 	
 	private final int Nstates;
 	
@@ -103,6 +104,7 @@ public class TaxiStateSpace extends edu.oregonstate.eecs.mcplan.StateSpace<TaxiS
 		height = s.height;
 		Nlocations = s.locations.size();
 		Nother_taxis = s.Nother_taxis;
+		slip = s.slip;
 		
 		int ns = width*height * Nlocations * (Nlocations + 1);
 		for( int i = 0; i < Nother_taxis; ++i ) {
@@ -139,7 +141,7 @@ public class TaxiStateSpace extends edu.oregonstate.eecs.mcplan.StateSpace<TaxiS
 	
 	public static void main( final String[] argv )
 	{
-		final TaxiState s = TaxiWorlds.dietterich2000( 2 );
+		final TaxiState s = TaxiWorlds.dietterich2000( 2, 0.1 );
 		final TaxiStateSpace ss = new TaxiStateSpace( s );
 		final Generator<TaxiState> g = ss.generator();
 		

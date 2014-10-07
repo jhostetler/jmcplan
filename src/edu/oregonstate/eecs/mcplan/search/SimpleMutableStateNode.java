@@ -17,11 +17,16 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 public class SimpleMutableStateNode<S extends State, A extends VirtualConstructor<A>>
 	extends MutableStateNode<S, A>
 {
+	public final Representation<S> x;
+	
 	public SimpleMutableStateNode( final Representation<S> x, final int nagents, final int[] turn,
 							 final ActionGenerator<S, JointAction<A>> action_gen )
 	{
-		super( x, nagents, turn, action_gen );
+		super( /*x,*/ nagents, turn, action_gen );
+		this.x = x;
 	}
+	
+	
 	
 	@Override
 	public MutableActionNode<S, A> successor( final JointAction<A> a, final int nagents,
@@ -42,6 +47,12 @@ public class SimpleMutableStateNode<S extends State, A extends VirtualConstructo
 			final JointAction<A> a, final int nagents, final Representer<S, ? extends Representation<S>> repr )
 	{
 		return new SimpleMutableActionNode<S, A>( a, nagents, repr );
+	}
+	
+	@Override
+	public String toString()
+	{
+		return "StateNode[" + x + "]";
 	}
 
 }

@@ -6,7 +6,6 @@ package edu.oregonstate.eecs.mcplan.domains.frogger;
 import java.util.Arrays;
 
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
-import edu.oregonstate.eecs.mcplan.Representation;
 
 /**
  * @author jhostetler
@@ -16,18 +15,18 @@ public class RelativeFroggerRepresentation extends FactoredRepresentation<Frogge
 {
 	private final double[] phi_;
 	
-	public RelativeFroggerRepresentation( final FroggerState s )
+	public RelativeFroggerRepresentation( final FroggerState s, final int vision )
 	{
-		final int road_vision = s.params.road_length - 1;
-		final int Nx = 2*road_vision + 1;
-		final int Ny = (s.params.lanes-1) + s.params.lanes + 1;
-		final int Npos = Nx*Ny;
+		final int Npos = (2*vision + 1)*(2*vision + 1) - 1;
 		phi_ = new double[2 + Npos];
 		int idx = 0;
 		phi_[idx++] = s.frog_x;
 		phi_[idx++] = s.frog_y;
-		for( int i = s.params.lanes; i >= -s.params.lanes + 1; --i ) {
-			for( int j = -road_vision; j <= road_vision; ++j ) {
+		for( int i = vision; i >= -vision; --i ) {
+			for( int j = -vision; j <= vision; ++j ) {
+				if( i == 0 && j == 0 ) {
+					continue;
+				}
 				final int dx = j + s.frog_x;
 				final int dy = i + s.frog_y;
 				if( dx >= 0 && dx < s.params.road_length && dy >= 1 && dy <= s.params.lanes ) {
@@ -51,7 +50,7 @@ public class RelativeFroggerRepresentation extends FactoredRepresentation<Frogge
 	}
 
 	@Override
-	public Representation<FroggerState> copy()
+	public RelativeFroggerRepresentation copy()
 	{
 		return new RelativeFroggerRepresentation( this );
 	}

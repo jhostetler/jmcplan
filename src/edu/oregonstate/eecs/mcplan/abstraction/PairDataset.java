@@ -195,8 +195,91 @@ public class PairDataset
 			result.add( new Attribute( "__label__", nominal ) );
 			return result;
 		}
-
+	}
+	
+	public static class ExtendedSymmetricFeatures extends InstanceCombiner
+	{
+		private final ArrayList<Attribute> attributes_;
 		
+		/**
+		 * @param attributes Unlabeled attributes of single-instance data.
+		 */
+		public ExtendedSymmetricFeatures( final ArrayList<Attribute> attributes )
+		{
+			attributes_ = attributes;
+		}
+		
+		@Override
+		public DenseInstance apply( final Instance a, final Instance b, final int pair_label )
+		{
+			assert( a.classIndex() == b.classIndex() );
+			assert( a.classIndex() == a.numAttributes() - 1 );
+			final double[] phi = new double[3*(a.numAttributes() - 1) + 1];
+			
+			int idx = 0;
+			for( int i = 0; i < a.numAttributes() - 1; ++i ) {
+				phi[idx++] = a.value( i ) + b.value( i );
+				phi[idx++] = a.value( i ) * b.value( i );
+				phi[idx++] = Math.abs( a.value( i ) - b.value( i ) );
+			}
+			phi[idx++] = pair_label;
+			assert( idx == phi.length );
+			// FIXME: Make this configurable?
+			final double weight = (pair_label == 1 ? 1.0 : 1.0);
+			return new DenseInstance( weight, phi );
+		}
+		
+		@Override
+		public double[] apply( final double[] a, final double[] b, final double label )
+		{
+			assert( a.length == b.length );
+			final double[] phi = new double[3*a.length + 1];
+			int idx = 0;
+			for( int i = 0; i < a.length; ++i ) {
+				phi[idx++] = a[i] + b[i];
+				phi[idx++] = a[i] * b[i];
+				phi[idx++] = Math.abs( a[i] - b[i] );
+			}
+			phi[idx++] = label;
+			assert( idx == phi.length );
+			return phi;
+		}
+		
+		@Override
+		public double[] apply( final double[] a, final double[] b )
+		{
+			assert( a.length == b.length );
+			final double[] phi = new double[3*a.length];
+			int idx = 0;
+			for( int i = 0; i < a.length; ++i ) {
+				phi[idx++] = a[i] + b[i];
+				phi[idx++] = a[i] * b[i];
+				phi[idx++] = Math.abs( a[i] - b[i] );
+			}
+			return phi;
+		}
+		
+		@Override
+		public String keyword()
+		{
+			return "exsymmetric";
+		}
+
+		@Override
+		public ArrayList<Attribute> attributes()
+		{
+			final ArrayList<Attribute> result = new ArrayList<Attribute>();
+			for( final Attribute a : attributes_ ) {
+				result.add( new Attribute( a.name() + "_sum" ) );
+				result.add( new Attribute( a.name() + "_product" ) );
+				result.add( new Attribute( a.name() + "_distance") );
+			}
+			final ArrayList<String> nominal = new ArrayList<String>();
+			nominal.add( "0" );
+			nominal.add( "1" );
+			result.add( new Attribute( "__label__", nominal ) );
+			return result;
+		}
 	}
 	
 	// -----------------------------------------------------------------------
@@ -339,6 +422,80 @@ public class PairDataset
 		
 		final int N = Math.min( negative.samples().size(), positive.samples().size() );
 		final String dataset_name = "train_" + combiner.keyword() + "_" + Nnegative + "x" + Npositive;
+		final Instances x = new Instances( dataset_name, combiner.attributes(), Nnegative + Npositive );
+		x.setClassIndex( x.numAttributes() - 1 );
+		final ArrayList<int[]> matches = new ArrayList<int[]>();
+		for( final Pair<Instance, int[]> ineg : negative.samples() ) {
+			WekaUtil.addInstance( x, ineg.first );
+			matches.add( ineg.second );
+		}
+		for( final Pair<Instance, int[]> ipos : positive.samples() ) {
+			WekaUtil.addInstance( x, ipos.first );
+			matches.add( ipos.second );
+		}
+		
+		return new PairDataset( x, matches, combiner );
+	}
+	
+	/**
+	 * Constructs one positive pair and one negative pair involving each
+	 * data point in 'single'.
+	 * @param rng
+	 * @param max_pairwise_instances
+	 * @param single
+	 * @param combiner
+	 * @return
+	 */
+	public static <S, X extends FactoredRepresentation<S>, A extends VirtualConstructor<A>>
+	PairDataset makePlausiblePairDataset( final RandomGenerator rng,
+										 final int negative_per_instance, final int positive_per_instance,
+										 final Instances single, final InstanceCombiner combiner,
+										 final Fn.Function2<Boolean, Instance, Instance> plausible_p )
+	{
+		final int Nnegative = negative_per_instance * single.size();
+		final int Npositive = positive_per_instance * single.size();
+//		final int max_pairwise = config.getInt( "training.max_pairwise" );
+		final ReservoirSampleAccumulator<Pair<Instance, int[]>> negative
+			= new ReservoirSampleAccumulator<Pair<Instance, int[]>>( rng, Nnegative );
+		final ReservoirSampleAccumulator<Pair<Instance, int[]>> positive
+			= new ReservoirSampleAccumulator<Pair<Instance, int[]>>( rng, Npositive );
+		
+		for( int i = 0; i < single.size(); ++i ) {
+//			if( i % 100 == 0 ) {
+//				System.out.println( "i = " + i );
+//			}
+			for( int j = i + 1; j < single.size(); ++j ) {
+				final Instance ii = single.get( i );
+				final Instance ij = single.get( j );
+				
+				if( !plausible_p.apply( ii, ij ) ) {
+//					System.out.println( "Not plausible: " + ii + " != " + ij );
+					continue;
+				}
+				
+//				System.out.println( "! Plausible: " + ii + " == " + ij );
+				
+				final int label;
+				if( ii.classValue() == ij.classValue() ) {
+					label = 1;
+					if( positive.acceptNext() ) {
+						final Instance pair_instance = combiner.apply( ii, ij, label );
+						positive.addPending( Pair.makePair( pair_instance, new int[] { i, j } ) );
+					}
+				}
+				else {
+					label = 0;
+					if( negative.acceptNext() ) {
+						final Instance pair_instance = combiner.apply( ii, ij, label );
+						negative.addPending( Pair.makePair( pair_instance, new int[] { i, j } ) );
+					}
+				}
+			}
+		}
+		
+		final int N = Math.min( negative.samples().size(), positive.samples().size() );
+		final String dataset_name = "train_" + combiner.keyword()
+								  + "_" + negative.samples().size() + "x" + positive.samples().size();
 		final Instances x = new Instances( dataset_name, combiner.attributes(), Nnegative + Npositive );
 		x.setClassIndex( x.numAttributes() - 1 );
 		final ArrayList<int[]> matches = new ArrayList<int[]>();

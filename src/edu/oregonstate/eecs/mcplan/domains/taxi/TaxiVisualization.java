@@ -446,8 +446,9 @@ public class TaxiVisualization
 	{
 		final RandomGenerator rng = new MersenneTwister( 42 );
 		
-		final TaxiState state = TaxiWorlds.dietterich2000( 2 );
-		final double slip = 0.0;
+		final int Nother_taxis = 1;
+		final double slip = 0.1;
+		final TaxiState state = TaxiWorlds.dietterich2000( Nother_taxis, slip );
 		final int T = 100;
 		final TaxiSimulator sim = new TaxiSimulator( rng, state, slip, T );
 		final int scale = 20;

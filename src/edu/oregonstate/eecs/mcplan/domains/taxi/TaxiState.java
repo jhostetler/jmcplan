@@ -21,6 +21,7 @@ public class TaxiState implements State
 	public final int[][] topology;
 	public final ArrayList<int[]> locations;
 	public final int Nother_taxis;
+	public final double slip;
 	
 	public final int width;
 	public final int height;
@@ -46,11 +47,13 @@ public class TaxiState implements State
 	 * @param locations Special locations
 	 * @param Nother_taxis Number of taxis not controlled by the agent
 	 */
-	public TaxiState( final int[][] topology, final ArrayList<int[]> locations, final int Nother_taxis )
+	public TaxiState( final int[][] topology, final ArrayList<int[]> locations,
+					  final int Nother_taxis, final double slip )
 	{
 		this.topology = topology;
 		this.locations = locations;
 		this.Nother_taxis = Nother_taxis;
+		this.slip = slip;
 		
 		width = this.topology.length;
 		height = this.topology[0].length;
@@ -63,6 +66,7 @@ public class TaxiState implements State
 		topology = s.topology;
 		locations = s.locations;
 		Nother_taxis = s.Nother_taxis;
+		slip = s.slip;
 		width = s.width;
 		height = s.height;
 		

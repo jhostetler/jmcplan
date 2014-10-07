@@ -159,8 +159,13 @@ public class TaxiMDP extends MarkovDecisionProblem<TaxiState, TaxiAction>
 	@Override
 	public double P( final TaxiState s, final TaxiAction a, final TaxiState sprime )
 	{
-		// TODO Auto-generated method stub
-		return 0;
+		throw new UnsupportedOperationException( "Use sparseP()" );
+	}
+	
+	@Override
+	public double R( final TaxiState s )
+	{
+		return 0.0;
 	}
 
 	@Override
@@ -195,8 +200,9 @@ public class TaxiMDP extends MarkovDecisionProblem<TaxiState, TaxiAction>
 	public static void main( final String[] argv )
 	{
 		final int Nother_taxis = 2;
+		final double slip = 0.1;
 		final double discount = 0.9;
-		final TaxiState template = TaxiWorlds.dietterich2000( Nother_taxis );
+		final TaxiState template = TaxiWorlds.dietterich2000( Nother_taxis, slip );
 		final TaxiMDP mdp = new TaxiMDP( template );
 		final int Nfeatures = new PrimitiveTaxiRepresentation( template ).phi().length;
 		final SparseValueIterationSolver<TaxiState, TaxiAction> vi

@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.taxi;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
@@ -14,6 +16,8 @@ public class MoveAction extends TaxiAction
 	public final int dx;
 	public final int dy;
 	
+	private int old_x_ = 0;
+	private int old_y_ = 0;
 	private final boolean old_pickup_success_ = false;
 	private boolean old_illegal_ = false;
 	private boolean legal_ = false;
@@ -21,6 +25,8 @@ public class MoveAction extends TaxiAction
 	
 	public MoveAction( final int dx, final int dy )
 	{
+		// Assertion reflects an assumption relied on by doAction()
+		assert( Math.abs( dx ) + Math.abs( dy ) <= 1 );
 		this.dx = dx;
 		this.dy = dy;
 	}
@@ -30,8 +36,8 @@ public class MoveAction extends TaxiAction
 	{
 		assert( done_ );
 		if( legal_ ) {
-			s.taxi[0] -= dx;
-			s.taxi[1] -= dy;
+			s.taxi[0] = old_x_;
+			s.taxi[1] = old_y_;
 		}
 		s.pickup_success = old_pickup_success_;
 		s.illegal_pickup_dropoff = old_illegal_;
@@ -40,11 +46,41 @@ public class MoveAction extends TaxiAction
 	}
 
 	@Override
-	public void doAction( final TaxiState s )
+	public void doAction( final TaxiState s, final RandomGenerator rng )
 	{
 		assert( !done_ );
 		old_illegal_ = s.illegal_pickup_dropoff;
-		final int[] new_pos = new int[] { s.taxi[0] + dx, s.taxi[1] + dy };
+		old_x_ = s.taxi[0];
+		old_y_ = s.taxi[1];
+		
+		final int[] new_pos;
+		if( s.slip == 0.0 ) {
+			new_pos = new int[] { s.taxi[0] + dx, s.taxi[1] + dy };
+		}
+		else {
+			// Slip actions move orthogonally to the intended direction
+			final double r = rng.nextDouble();
+			if( r < s.slip ) {
+				if( dx != 0 ) {
+					new_pos = new int[] { s.taxi[0], s.taxi[1] - 1 };
+				}
+				else {
+					new_pos = new int[] { s.taxi[0] - 1, s.taxi[1] };
+				}
+			}
+			else if( r < 2*s.slip ) {
+				if( dx != 0 ) {
+					new_pos = new int[] { s.taxi[0], s.taxi[1] + 1 };
+				}
+				else {
+					new_pos = new int[] { s.taxi[0] + 1, s.taxi[1] };
+				}
+			}
+			else {
+				new_pos = new int[] { s.taxi[0] + dx, s.taxi[1] + dy };
+			}
+		}
+		
 		if( s.isLegalMove( s.taxi, new_pos ) ) {
 			Fn.memcpy( s.taxi, new_pos, new_pos.length );
 			legal_ = true;

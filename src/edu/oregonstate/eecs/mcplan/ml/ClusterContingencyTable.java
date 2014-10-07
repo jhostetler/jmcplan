@@ -157,10 +157,22 @@ public class ClusterContingencyTable
 	
 	public double adjustedMutualInformation_max()
 	{
+		if( C == 1 && R == 1 ) {
+			return 1.0;
+		}
 		final double emi = expectedMutualInformation();
 		assert( !Double.isNaN( emi ) );
-		return (mutualInformation() - emi)
-				/ (Math.max( entropyU(), entropyV() ) - emi);
+		final double HU = entropyU();
+		final double HV = entropyV();
+		if( HU < 1e-100 && HV < 1e-100 ) {
+			return 1.0;
+		}
+		final double num = mutualInformation() - emi;
+		final double denom = Math.max( HU, HV ) - emi;
+//		if( Math.abs( denom ) < 1e-100 && Math.abs( num ) < 1e-100 ) {
+//			return 0.0;
+//		}
+		return num / denom;
 	}
 	
 	public ClusterContingencyTable plus( final ClusterContingencyTable that )
@@ -223,8 +235,15 @@ public class ClusterContingencyTable
 		
 		for( int i = 0; i < R; ++i ) {
 			sb.append( String.format( fmt,i ) ).append( "|" );
+			final int max = Fn.argmax( n[i] );
 			for( int j = 0; j < C; ++j ) {
-				sb.append( " " ).append( String.format( fmt, n[i][j] ) );
+				if( j == max + 1 ) {
+					sb.append( "*" );
+				}
+				else {
+					sb.append( " " );
+				}
+				sb.append( String.format( fmt, n[i][j] ) );
 			}
 			sb.append( "| ").append( String.format( fmt, a[i] ) );
 			sb.append( "\n" );
@@ -240,7 +259,7 @@ public class ClusterContingencyTable
 			sb.append( " " ).append( String.format( fmt, b[j] ) );
 		}
 		sb.append( "| " ).append( N );
-		sb.append( "\n" );
+//		sb.append( "\n" );
 		
 		return sb.toString();
 	}

@@ -40,11 +40,21 @@ public class KeepStraightAction extends YahtzeeAction
 		
 		int n = 0;
 		final int[] keepers = new int[Hand.Nfaces];
-		for( int i = 0; i < Hand.Nfaces; ++i ) {
+		// Keep one each of the middle values (2,3,4,5)
+		for( int i = 1; i < Hand.Nfaces - 1; ++i ) {
 			if( old_hand_.dice[i] > 0 ) {
 				keepers[i] = 1;
 				n += 1;
 			}
+		}
+		// Keep only one end value (6 or 1)
+		if( old_hand_.dice[5] >= 1 ) {
+			keepers[5] = 1;
+			n += 1;
+		}
+		else if( old_hand_.dice[0] >= 1 ) {
+			keepers[0] = 1;
+			n += 1;
 		}
 		
 		if( n < Hand.Ndice ) {

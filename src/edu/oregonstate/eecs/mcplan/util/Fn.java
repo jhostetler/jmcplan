@@ -1267,6 +1267,11 @@ public final class Fn
 		return v[argmax( v )];
 	}
 	
+	public static int max( final int... v )
+	{
+		return v[argmax( v )];
+	}
+	
 	// -----------------------------------------------------------------------
 	// power_set
 	// -----------------------------------------------------------------------
@@ -1350,6 +1355,17 @@ public final class Fn
 		double d = 0.0;
 		for( int i = 0; i < x.length; ++i ) {
 			final double diff = x[i] - y[i];
+			d += diff*diff;
+		}
+		return d;
+	}
+	
+	public static double distance_l1( final double[] x, final double[] y )
+	{
+		assert( x.length == y.length );
+		double d = 0;
+		for( int i = 0; i < x.length; ++i ) {
+			final double diff = Math.abs( x[i] - y[i] );
 			d += diff*diff;
 		}
 		return d;

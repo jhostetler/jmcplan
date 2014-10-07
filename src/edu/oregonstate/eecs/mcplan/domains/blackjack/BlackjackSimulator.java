@@ -28,11 +28,11 @@ public class BlackjackSimulator implements UndoSimulator<BlackjackState, Blackja
 	
 	private final BlackjackParameters params_;
 	
-	public BlackjackSimulator( final Deck deck, final int nplayers, final BlackjackParameters params )
+	public BlackjackSimulator( final BlackjackState s )
 	{
-		s_ = new BlackjackState( deck, nplayers, params );
-		r_ = new double[nplayers];
-		params_ = params;
+		s_ = s;
+		r_ = new double[s.nplayers()];
+		params_ = s.parameters();
 	}
 	
 	@Override
@@ -178,7 +178,8 @@ public class BlackjackSimulator implements UndoSimulator<BlackjackState, Blackja
 		final BlackjackParameters params = new BlackjackParameters();
 		while( true ) {
 			final Deck deck = new InfiniteDeck();
-			final BlackjackSimulator sim = new BlackjackSimulator( deck, 1, params );
+			final BlackjackState s = new BlackjackState( deck, 1, params );
+			final BlackjackSimulator sim = new BlackjackSimulator( s );
 			
 			System.out.print( "Dealer showing: " );
 			System.out.println( sim.state().dealerUpcard() );

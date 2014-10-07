@@ -45,6 +45,7 @@ public class UctSearch<S extends State, A extends VirtualConstructor<A>>
 		private final MutableActionNode<S, A> root_action_;
 		
 		private int max_action_visits_ = Integer.MAX_VALUE;
+		private int max_depth_ = Integer.MAX_VALUE;
 		
 		public Factory( final UndoSimulator<S, A> sim,
 						  final Representer<S, ? extends Representation<S>> repr,
@@ -70,6 +71,12 @@ public class UctSearch<S extends State, A extends VirtualConstructor<A>>
 			return this;
 		}
 		
+		public Factory<S, A> setMaxDepth( final int max )
+		{
+			max_depth_ = max;
+			return this;
+		}
+		
 		@Override
 		public GameTree<S, A> create( final MctsVisitor<S, A> visitor )
 		{
@@ -82,6 +89,7 @@ public class UctSearch<S extends State, A extends VirtualConstructor<A>>
 				new ResetAdapter<S, A>( sim_ ), repr_.create(), actions_,
 				c_, episode_limit_, rng_, eval_, visitor, root_action_.create() );
 			uct.setMaxActionVisits( max_action_visits_ );
+			uct.setMaxDepth( max_depth_ );
 			return uct;
 		}
 	}
@@ -162,6 +170,9 @@ public class UctSearch<S extends State, A extends VirtualConstructor<A>>
 //			System.out.println( Arrays.toString( visit( null, Integer.MAX_VALUE, visitor_ ) ) );
 			visit( root_action_, 0, visitor_ );
 			sim_.reset();
+			
+//			System.out.println( "********************" );
+//			root().accept( new TreePrinter<S, A>() );
 		}
 		
 		complete_ = true;
@@ -231,6 +242,14 @@ public class UctSearch<S extends State, A extends VirtualConstructor<A>>
 			// Sample below 'sn'
 			final MutableActionNode<S, A> sa = selectAction( sn, s, sim_.t(), turn );
 			sa.visit();
+			
+			// FIXME: Our current implementation assumes that rewards correspond
+			// to states, but not to actions. The following line has to be
+			// called so that the appropriate number of updates to R are made.
+			// Ideally, we should define a different semantics for ActionNode.r(),
+			// perhaps so that it holds R(s, a) (but not R(s)).
+			sa.updateR( new double[nagents] );
+			
 			sim_.takeAction( sa.a().create() );
 			final double[] z = visit( sa, depth + 1, visitor );
 			sa.updateQ( z );

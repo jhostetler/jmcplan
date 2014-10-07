@@ -15,6 +15,9 @@ public class TamariskActionGenerator extends ActionGenerator<TamariskState, Tama
 	int reach_ = 0;
 	int Nreaches_ = 0;
 	
+	public final boolean enable_eradicate_restore_actions = false;
+	public final int Ncategories = (enable_eradicate_restore_actions ? 3 : 2);
+	
 	@Override
 	public ActionGenerator<TamariskState, TamariskAction> create()
 	{
@@ -32,19 +35,24 @@ public class TamariskActionGenerator extends ActionGenerator<TamariskState, Tama
 	@Override
 	public int size()
 	{
-		// Three categories, plus the Nothing action.
-		return 3*Nreaches_ + 1;
+		// Categories, plus the Nothing action.
+		return Ncategories*Nreaches_ + 1;
 	}
 
 	@Override
 	public boolean hasNext()
 	{
-		return category_ < 4 && reach_ < Nreaches_;
+		return category_ <= Ncategories && reach_ < Nreaches_;
 	}
 
 	@Override
 	public TamariskAction next()
 	{
+		if( category_ == 0 ) {
+			category_ += 1;
+			return new NothingAction();
+		}
+		
 		final int r = reach_;
 		final int c = category_;
 		reach_ += 1;
@@ -54,14 +62,12 @@ public class TamariskActionGenerator extends ActionGenerator<TamariskState, Tama
 		}
 		
 		switch( c ) {
-		case 0:
-			return new NothingAction();
 		case 1:
 			return new EradicateAction( r );
 		case 2:
 			return new RestoreAction( r );
-		case 3:
-			return new EradicateRestoreAction( r );
+//		case 3:
+//			return new EradicateRestoreAction( r );
 		default:
 			throw new IllegalStateException( "hasNext() == false" );
 		}

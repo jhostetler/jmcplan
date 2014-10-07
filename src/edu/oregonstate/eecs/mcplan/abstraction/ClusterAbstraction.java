@@ -6,6 +6,9 @@ package edu.oregonstate.eecs.mcplan.abstraction;
 import java.util.ArrayList;
 
 import weka.core.Attribute;
+
+import com.google.common.base.Strings;
+
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 
 /**
@@ -27,10 +30,17 @@ public class ClusterAbstraction<T> extends FactoredRepresentation<T>
 	// -----------------------------------------------------------------------
 	
 	public final int cluster_;
+	private final String hint_;
 	
 	public ClusterAbstraction( final int cluster )
 	{
+		this( cluster, null );
+	}
+	
+	public ClusterAbstraction( final int cluster, final String hint )
+	{
 		cluster_ = cluster;
+		hint_ = hint;
 	}
 	
 	@Override
@@ -58,7 +68,12 @@ public class ClusterAbstraction<T> extends FactoredRepresentation<T>
 	@Override
 	public String toString()
 	{
-		return "ClusterAbstraction[" + cluster_ + "]";
+		final StringBuilder sb = new StringBuilder();
+		sb.append( "ClusterAbstraction[" ).append( cluster_ ).append( "]" );
+		if( !Strings.isNullOrEmpty( hint_ ) ) {
+			sb.append( "[" ).append( hint_ ).append( "]" );
+		}
+		return sb.toString();
 	}
 
 	@Override

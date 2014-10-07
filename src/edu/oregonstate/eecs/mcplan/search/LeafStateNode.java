@@ -15,10 +15,10 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 public class LeafStateNode<S, A extends VirtualConstructor<A>>
 	extends MutableStateNode<S, A>
 {
-	public LeafStateNode( final Representation<S> x, final int nagents, final int[] turn )
+	public LeafStateNode( /*final Representation<S> x,*/ final int nagents, final int[] turn )
 	{
 		// Note: Passing 'null' for action_gen.
-		super( x, nagents, turn, null );
+		super( /*x,*/ nagents, turn, null );
 	}
 
 	@Override

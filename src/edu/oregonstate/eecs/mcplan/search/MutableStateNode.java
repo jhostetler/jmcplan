@@ -21,17 +21,17 @@ import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 public abstract class MutableStateNode<S, A extends VirtualConstructor<A>>
 	extends StateNode<S, A>
 {
-	private final Map<JointAction<A>, MutableActionNode<S, A>> a_
+	protected final Map<JointAction<A>, MutableActionNode<S, A>> a_
 		= new HashMap<JointAction<A>, MutableActionNode<S, A>>();
-	private int n_ = 0;
+	protected int n_ = 0;
 	protected final MeanVarianceAccumulator[] rv_;
 	
 	public final ActionGenerator<S, JointAction<A>> action_gen_;
 
-	public MutableStateNode( final Representation<S> x, final int nagents, final int[] turn,
+	public MutableStateNode( /*final Representation<S> x,*/ final int nagents, final int[] turn,
 							 final ActionGenerator<S, JointAction<A>> action_gen )
 	{
-		super( x, nagents, turn );
+		super( /*x,*/ nagents, turn );
 		rv_ = new MeanVarianceAccumulator[nagents];
 		for( int i = 0; i < nagents; ++i ) {
 			rv_[i] = new MeanVarianceAccumulator();
@@ -112,10 +112,10 @@ public abstract class MutableStateNode<S, A extends VirtualConstructor<A>>
 		return an;
 	}
 	
-	@Override
-	public String toString()
-	{
-		return "StateNode[" + x + "]";
-	}
+//	@Override
+//	public String toString()
+//	{
+//		return "StateNode[" + x + "]";
+//	}
 
 }

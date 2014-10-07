@@ -10,13 +10,14 @@ import java.util.Map;
 import edu.oregonstate.eecs.mcplan.MarkovDecisionProblem;
 import edu.oregonstate.eecs.mcplan.Pair;
 import edu.oregonstate.eecs.mcplan.Policy;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Generator;
 
 /**
  * @author jhostetler
  *
  */
-public class SparseValueIterationSolver<S, A> implements Runnable
+public class SparseValueIterationSolver<S, A extends VirtualConstructor<A>> implements Runnable
 {
 	private final MarkovDecisionProblem<S, A> m_;
 	private final HashMap<S, Double> v_ = new HashMap<S, Double>();
@@ -39,7 +40,7 @@ public class SparseValueIterationSolver<S, A> implements Runnable
 		final Generator<S> g = m.S().generator();
 		while( g.hasNext() ) {
 			final S s = g.next();
-			v_.put( s, 0.0 );
+			v_.put( s, 100.0 );
 		}
 	}
 	
@@ -84,7 +85,9 @@ public class SparseValueIterationSolver<S, A> implements Runnable
 					max_a = a;
 				}
 			}
-			actions.put( s, max_a );
+			if( max_a != null ) {
+				actions.put( s, max_a );
+			}
 		}
 		return new LookupPolicy<S, A>( actions );
 	}
@@ -92,9 +95,9 @@ public class SparseValueIterationSolver<S, A> implements Runnable
 	@Override
 	public void run()
 	{
-		int count = 0;
+		final int count = 0;
 		while( true ) {
-			System.out.println( "Iteration " + (count++) );
+//			System.out.println( "Iteration " + (count++) );
 			iterate();
 //			System.out.println( "\t" + v_.toString() );
 			if( converged() ) {
@@ -114,6 +117,7 @@ public class SparseValueIterationSolver<S, A> implements Runnable
 		final Generator<S> gs = m_.S().generator();
 		while( gs.hasNext() ) {
 			final S s = gs.next();
+			final double r = m_.R( s );
 			double qstar = -Double.MAX_VALUE;
 			m_.A().setState( s );
 			final Generator<A> ga = m_.A().generator();
@@ -140,8 +144,10 @@ public class SparseValueIterationSolver<S, A> implements Runnable
 				}
 			}
 			
-			final double old_q = v_.put( s, qstar );
-			final double diff = qstar - old_q;
+			final double v = r + (qstar > -Double.MAX_VALUE ? qstar : 0);
+			
+			final double old_q = v_.put( s, v );
+			final double diff = v - old_q;
 			delta_ += (diff*diff);
 		}
 	}

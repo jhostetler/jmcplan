@@ -177,9 +177,14 @@ public class Irrelevance
 	
 	public class Simulator implements UndoSimulator<State, Action>
 	{
-		private final State s_ = new State();
+		private final State s_;
 		private final Deque<Action> h_ = new ArrayDeque<Action>();
 		
+		public Simulator( final Irrelevance.State s )
+		{
+			s_ = s;
+		}
+
 		@Override
 		public State state()
 		{ return s_; }

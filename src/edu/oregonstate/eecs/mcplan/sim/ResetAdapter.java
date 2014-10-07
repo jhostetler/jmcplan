@@ -13,6 +13,11 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 public class ResetAdapter<S, A extends VirtualConstructor<A>>
 	implements ResetSimulator<S, A>, UndoSimulator<S, A>
 {
+	public static <S, A extends VirtualConstructor<A>> ResetAdapter<S, A> of( final UndoSimulator<S, A> sim )
+	{
+		return new ResetAdapter<S, A>( sim );
+	}
+	
 	private final UndoSimulator<S, A> sim_;
 	private final long d_;
 	

@@ -31,6 +31,12 @@ public class YahtzeeState implements State
 	public YahtzeeState( final RandomGenerator rng )
 	{
 		rng_ = rng;
+		
+		// We roll an initial hand, so that rolling dice can be the last step
+		// of KeepAction and ScoreAction, and thus we don't need a 'RollDice'
+		// action, which would be the only action available whenever it is
+		// legal.
+		setHand( new Hand( roll( Hand.Ndice ) ), Hand.Nrerolls );
 	}
 	
 	public int score()

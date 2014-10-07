@@ -6,8 +6,12 @@ package edu.oregonstate.eecs.mcplan.domains.tamarisk;
 import java.util.ArrayList;
 
 import weka.core.Attribute;
+import weka.core.DenseInstance;
+import weka.core.Instance;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
+import edu.oregonstate.eecs.mcplan.abstraction.PairDataset.InstanceCombiner;
+import edu.oregonstate.eecs.mcplan.abstraction.WekaUtil;
 
 /**
  * @author jhostetler
@@ -55,5 +59,115 @@ public class IndicatorTamariskRepresenter implements FactoredRepresenter<Tamaris
 	public String toString()
 	{
 		return "IndicatorTamariskRepresenter";
+	}
+	
+	public static class SmartPairFeatures extends InstanceCombiner
+	{
+		private final ArrayList<Attribute> attributes_ = new ArrayList<Attribute>();
+		private final TamariskParameters params_;
+		
+		/**
+		 * @param attributes Unlabeled attributes of single-instance data.
+		 */
+		public SmartPairFeatures( final TamariskParameters params )
+		{
+			params_ = params;
+			for( int i = 0; i < params_.Nreaches; ++i ) {
+				attributes_.add( new Attribute( "r" + i + "_Nnative_sum" ) );
+				attributes_.add( new Attribute( "r" + i + "_Nnative_product" ) );
+//				attributes_.add( new Attribute( "r" + i + "_Nnative_distance" ) );
+				attributes_.add( new Attribute( "r" + i + "_Ntamarisk_sum" ) );
+				attributes_.add( new Attribute( "r" + i + "_Ntamarisk_product" ) );
+//				attributes_.add( new Attribute( "r" + i + "_Ntamarisk_distance" ) );
+			}
+			attributes_.add( WekaUtil.createBinaryNominalAttribute( "__label__" ) );
+		}
+		
+		@Override
+		public DenseInstance apply( final Instance a, final Instance b, final int pair_label )
+		{
+			assert( a.classIndex() == b.classIndex() );
+			assert( a.classIndex() == a.numAttributes() - 1 );
+			
+			final double[] phi = new double[attributes_.size()];
+			int idx = 0;
+			int ai = 0;
+			int bi = 0;
+			for( int r = 0; r < params_.Nreaches; ++r ) {
+				int Nnative_a = 0;
+				int Nnative_b = 0;
+				int Ntamarisk_a = 0;
+				int Ntamarisk_b = 0;
+				for( int h = 0; h < params_.Nhabitats; ++h ) {
+					Nnative_a += (int) a.value( ai++ );
+					Nnative_b += (int) b.value( bi++ );
+					Ntamarisk_a += (int) a.value( ai++ );
+					Ntamarisk_b += (int) b.value( bi++ );
+				}
+				phi[idx++] = Nnative_a + Nnative_b;
+				phi[idx++] = Nnative_a * Nnative_b;
+//				phi[idx++] = Math.abs( Nnative_a - Nnative_b );
+				phi[idx++] = Ntamarisk_a + Ntamarisk_b;
+				phi[idx++] = Ntamarisk_a * Ntamarisk_b;
+//				phi[idx++] = Math.abs( Ntamarisk_a - Ntamarisk_b );
+			}
+			
+			phi[idx++] = pair_label;
+			assert( idx == phi.length );
+			// FIXME: Make this configurable?
+			final double weight = (pair_label == 1 ? 1.0 : 1.0);
+			return new DenseInstance( weight, phi );
+		}
+		
+		@Override
+		public double[] apply( final double[] a, final double[] b, final double label )
+		{
+			assert( a.length == b.length );
+			
+			final double[] phi = new double[attributes_.size()];
+			int idx = 0;
+			int ai = 0;
+			int bi = 0;
+			for( int r = 0; r < params_.Nreaches; ++r ) {
+				int Nnative_a = 0;
+				int Nnative_b = 0;
+				int Ntamarisk_a = 0;
+				int Ntamarisk_b = 0;
+				for( int h = 0; h < params_.Nhabitats; ++h ) {
+					Nnative_a += (int) a[ai++];
+					Nnative_b += (int) b[bi++];
+					Ntamarisk_a += (int) a[ai++];
+					Ntamarisk_b += (int) b[bi++];
+				}
+				phi[idx++] = Nnative_a + Nnative_b;
+				phi[idx++] = Nnative_a * Nnative_b;
+//				phi[idx++] = Math.abs( Nnative_a - Nnative_b );
+				phi[idx++] = Ntamarisk_a + Ntamarisk_b;
+				phi[idx++] = Ntamarisk_a * Ntamarisk_b;
+//				phi[idx++] = Math.abs( Ntamarisk_a - Ntamarisk_b );
+			}
+			
+			phi[idx++] = label;
+			assert( idx == phi.length );
+			return phi;
+		}
+		
+		@Override
+		public double[] apply( final double[] a, final double[] b )
+		{
+			return null;
+		}
+		
+		@Override
+		public String keyword()
+		{
+			return "tamarisk_smart";
+		}
+
+		@Override
+		public ArrayList<Attribute> attributes()
+		{
+			return attributes_;
+		}
 	}
 }

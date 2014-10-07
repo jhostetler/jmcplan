@@ -35,7 +35,7 @@ public class TaxiSimulator implements UndoSimulator<TaxiState, TaxiAction>
 		}
 
 		@Override
-		public void doAction( final TaxiState s )
+		public void doAction( final TaxiState s, final RandomGenerator rng_unused )
 		{
 			assert( old_taxis_ == null );
 			old_taxis_ = Fn.copy( s.other_taxis );
@@ -86,21 +86,21 @@ public class TaxiSimulator implements UndoSimulator<TaxiState, TaxiAction>
 		slip_ = slip;
 		this.T = T;
 		
-		s.passenger = rng_.nextInt( s.locations.size() );
-		s.destination = rng_.nextInt( s.locations.size() );
-		
-		s.taxi[0] = rng_.nextInt( s.width );
-		s.taxi[1] = rng_.nextInt( s.height );
-		
-		for( int i = 0; i < s.Nother_taxis; ++i ) {
-			final int[] pos = new int[2];
-			do {
-				pos[0] = rng_.nextInt( s.width );
-				pos[1] = rng_.nextInt( s.height );
-			}
-			while( s.isOccupied( pos, i ) );
-			Fn.memcpy( s.other_taxis[i], pos, 2 );
-		}
+//		s.passenger = rng_.nextInt( s.locations.size() );
+//		s.destination = rng_.nextInt( s.locations.size() );
+//
+//		s.taxi[0] = rng_.nextInt( s.width );
+//		s.taxi[1] = rng_.nextInt( s.height );
+//
+//		for( int i = 0; i < s.Nother_taxis; ++i ) {
+//			final int[] pos = new int[2];
+//			do {
+//				pos[0] = rng_.nextInt( s.width );
+//				pos[1] = rng_.nextInt( s.height );
+//			}
+//			while( s.isOccupied( pos, i ) );
+//			Fn.memcpy( s.other_taxis[i], pos, 2 );
+//		}
 	}
 	
 	@Override
@@ -113,11 +113,11 @@ public class TaxiSimulator implements UndoSimulator<TaxiState, TaxiAction>
 	public void takeAction( final JointAction<TaxiAction> a )
 	{
 		final TaxiAction a0 = a.get( 0 );
-		a0.doAction( s_ );
+		a0.doAction( s_, rng_ );
 		action_history_.push( a0 );
 		
 		final StepAction step = new StepAction();
-		step.doAction( s_ );
+		step.doAction( s_, null );
 		action_history_.push( step );
 		
 		s_.t += 1;

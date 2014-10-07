@@ -25,7 +25,7 @@ public class ArrayFactoredRepresentation<S> extends FactoredRepresentation<S>
 	}
 
 	@Override
-	public Representation<S> copy()
+	public ArrayFactoredRepresentation<S> copy()
 	{
 		return new ArrayFactoredRepresentation<S>( Arrays.copyOf( phi_, phi_.length ) );
 	}

@@ -58,25 +58,39 @@ public class CategoryAction extends YahtzeeAction
 			return new KeepAction( new int[] { 0, 0, 0, 0, 0, h.dice[5] } );
 		case ThreeOfKind: {
 			final int i = Fn.argmax( Fn.reversed( h.dice ) );
-			if( h.dice[i] >= 3 ) {
-				final int[] keepers = new int[Hand.Nfaces];
-				keepers[i] = h.dice[i];
-				for( int j = 3; j < Hand.Nfaces; ++j ) {
-					keepers[j] = h.dice[j];
-				}
-				return new KeepAction( keepers );
+			
+			// Keep up to three of the highest-value dice we have the most of
+			final int[] keepers = new int[Hand.Nfaces];
+			keepers[i] = Math.min( h.dice[i], 3 );
+			
+			// Improve the dice not involved in the 3-of-kind
+			if( s.rerolls >= 1 ) {
+				keepers[5] = h.dice[5];
+				keepers[4] = h.dice[4];
 			}
+			if( s.rerolls == 1 ) {
+				keepers[3] = h.dice[3];
+			}
+			
+			return new KeepAction( keepers );
 		}
-		case FourOfKind: {
+		case FourOfKind: { // Same as ThreeOfKind, except 4
 			final int i = Fn.argmax( Fn.reversed( h.dice ) );
-			if( h.dice[i] >= 4 ) {
-				final int[] keepers = new int[Hand.Nfaces];
-				keepers[i] = h.dice[i];
-				for( int j = 3; j < Hand.Nfaces; ++j ) {
-					keepers[j] = h.dice[j];
-				}
-				return new KeepAction( keepers );
+			
+			// Keep up to three of the highest-value dice we have the most of
+			final int[] keepers = new int[Hand.Nfaces];
+			keepers[i] = Math.min( h.dice[i], 4 );
+			
+			// Improve the dice not involved in the 4-of-kind
+			if( s.rerolls >= 1 ) {
+				keepers[5] = h.dice[5];
+				keepers[4] = h.dice[4];
 			}
+			if( s.rerolls == 1 ) {
+				keepers[3] = h.dice[3];
+			}
+			
+			return new KeepAction( keepers );
 		}
 		case Yahtzee: {
 			final int i = Fn.argmax( Fn.reversed( h.dice ) );
@@ -88,19 +102,32 @@ public class CategoryAction extends YahtzeeAction
 		case LargeStraight:
 			return new KeepStraightAction();
 		case FullHouse:
-			for( int i = 0; i < Hand.Nfaces; ++i ) {
+			final int[] keepers = new int[Hand.Nfaces];
+			boolean three = false;
+			for( int i = Hand.Nfaces - 1; i >= 0; --i ) {
 				if( h.dice[i] >= 3 ) {
-					final int[] keepers = new int[Hand.Nfaces];
 					keepers[i] = 3;
-					return new KeepAction( keepers );
+					three = true;
+					break;
 				}
 			}
-			return new KeepMostAction();
+			for( int i = Hand.Nfaces - 1; i >= 0; --i ) {
+				if( h.dice[i] >= 2 ) {
+					keepers[i] = 2;
+					if( !three ) {
+						three = true;
+					}
+					else {
+						break;
+					}
+				}
+			}
+			return new KeepAction( keepers );
 		case Chance:
 			if( s.rerolls == 2 ) {
 				return new KeepAction( new int[] { 0, 0, 0, 0, h.dice[4], h.dice[5] } );
 			}
-			else if( s.rerolls == 1 ) {
+			else { // if( s.rerolls == 1 ) {
 				return new KeepAction( new int[] { 0, 0, 0, h.dice[3], h.dice[4], h.dice[5] } );
 			}
 		default:
@@ -118,5 +145,27 @@ public class CategoryAction extends YahtzeeAction
 	public YahtzeeAction create()
 	{
 		return new CategoryAction( category );
+	}
+	
+	@Override
+	public int hashCode()
+	{
+		return category.hashCode();
+	}
+	
+	@Override
+	public boolean equals( final Object obj )
+	{
+		if( !(obj instanceof CategoryAction) ) {
+			return false;
+		}
+		final CategoryAction that = (CategoryAction) obj;
+		return category == that.category;
+	}
+	
+	@Override
+	public String toString()
+	{
+		return "CategoryAction[" + category + "]";
 	}
 }
