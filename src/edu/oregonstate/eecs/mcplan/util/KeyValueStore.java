@@ -11,9 +11,11 @@ public interface KeyValueStore
 {
 	public String get( final String key );
 	
-	public int getInt( final String key );
+	boolean getBoolean( String key );
 	
 	public double getDouble( final String key );
+	
+	public int getInt( final String key );
 	
 	public Iterable<String> keys();
 }

@@ -16,6 +16,7 @@ import java.util.NoSuchElementException;
 
 import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
+import org.apache.commons.math3.util.ArithmeticUtils;
 
 /**
  * Fn for "functional".
@@ -1130,6 +1131,34 @@ public final class Fn
 		return memcpy( dest, src, dest.length );
 	}
 	
+	/**
+	 * Copies 'src' element-wise into 'dest' and returns 'dest'.
+	 * @param dest
+	 * @param src
+	 * @param n
+	 * @return
+	 */
+	public static boolean[] memcpy( final boolean[] dest, final boolean[] src, final int n )
+	{
+		assert( dest.length >= n );
+		assert( src.length >= n );
+		for( int i = 0; i < n; ++i ) {
+			dest[i] = src[i];
+		}
+		return dest;
+	}
+	
+	/**
+	 * Copies 'src' element-wise into 'dest' and returns 'dest'.
+	 * @param dest
+	 * @param src
+	 * @return
+	 */
+	public static boolean[] memcpy( final boolean[] dest, final boolean[] src )
+	{
+		return memcpy( dest, src, dest.length );
+	}
+	
 	public static <T> ArrayList<T> memcpy( final ArrayList<T> dest, final ArrayList<T> src )
 	{
 		assert( dest.size() == src.size() );
@@ -1137,6 +1166,11 @@ public final class Fn
 			dest.set( i, src.get( i ) );
 		}
 		return dest;
+	}
+	
+	public static boolean[] copy( final boolean[] x )
+	{
+		return Arrays.copyOf( x, x.length );
 	}
 	
 	public static int[] copy( final int[] x )
@@ -1166,6 +1200,13 @@ public final class Fn
 			}
 		}
 		return dest;
+	}
+	
+	public static void assign( final int[] xs, final int x )
+	{
+		for( int i = 0; i < xs.length; ++i ) {
+			xs[i] = x;
+		}
 	}
 	
 	// -----------------------------------------------------------------------
@@ -1273,6 +1314,128 @@ public final class Fn
 	}
 	
 	// -----------------------------------------------------------------------
+	// Multinomial
+	// -----------------------------------------------------------------------
+	
+	/**
+	 * Computes the multinomial coefficient n multichoose k[], which is the
+	 * number of ways of putting n objects into m boxes such that each box
+	 * contains k_i objects.
+	 * 
+	 * This implementation is exact, but beware of overflow.
+	 * 
+	 * This is a naive implementation using the definition of the multinomial
+	 * coefficient in terms of binomial coefficients. There are probably
+	 * much faster ways to do this.
+	 * 
+	 * @param n
+	 * @param k
+	 * @return
+	 */
+	public static int multinomialCoefficient( final int n, final int[] k )
+	{
+		int top = k[0];
+		int product = 1; // k[0] choose k[0]
+		for( int i = 1; i < k.length; ++i ) {
+			top += k[i];
+			product *= ArithmeticUtils.binomialCoefficient( top, k[i] );
+		}
+		return product;
+	}
+	
+	public static int multinomialTermCount( final int n, final int m )
+	{
+		return (int) ArithmeticUtils.binomialCoefficient( n + m - 1, n );
+	}
+	
+	/**
+	 * Generates all the different terms in the expansion of
+	 * (x_1 + x_2 + ... + x_m)^n. Terms are represented as integer arrays
+	 * representing the exponent of each variable in the term:
+	 *   x_1^2 x_2^1 x_3^0 => [2, 1, 0]
+	 * 
+	 * The order of the terms is undefined.
+	 * 
+	 * Uses the "stars and bars" method. See:
+	 * https://en.wikipedia.org/wiki/Stars_and_bars_%28combinatorics%29
+	 */
+	public static final class MultinomialTermGenerator extends Generator<int[]>
+	{
+		public final int n;
+		public final int m;
+		
+		final int[] bars;
+		final int[] term;
+		
+		private boolean done = false;
+		
+		public MultinomialTermGenerator( final int n, final int m )
+		{
+			this.n = n;
+			this.m = m;
+			
+			bars = new int[m - 1];
+			term = new int[m];
+			term[0] = n;
+		}
+
+		@Override
+		public boolean hasNext()
+		{
+			return !done;
+		}
+		
+		@Override
+		public int[] next()
+		{
+			assert( !done );
+			
+			final int[] next = Fn.copy( term );
+			
+			// We're implementing the "stars and bars" counting method.
+			// Imagine the 5 dice are stars, and the 6 bins are represented by 5 dividing "bars":
+			//    ||**|**|*| = {0, 0, 2, 2, 1, 0}
+			//    *|*||*|*|* = {1, 1, 0, 1, 1, 1}
+			// The algorithm moves the bars around to create different combinations
+			
+			int i = 0;
+			for( ; i < bars.length; ++i ) {
+				if( bars[i] < n ) {
+					// Bar can be moved. e.g.:
+					// ||**|***||
+					//     ^
+					bars[i] += 1;
+					// => ||***|**||
+					for( int j = 0; j < i; ++j ) {
+						// Move all lower-order bars to the same position
+						// => ||***|||**
+						bars[j] = bars[i];
+					}
+					break;
+				}
+			}
+			
+			if( i == bars.length ) {
+				done = true;
+			}
+			
+			// Recompute totals. This could be done incrementally for greater
+			// efficiency.
+			term[0] = n - bars[0];
+			int sum = term[0];
+			for( int j = 1; j < bars.length; ++j ) {
+				term[j] = bars[j - 1] - bars[j];
+				sum += term[j];
+			}
+			term[m - 1] = n - sum;
+			
+			// Return state computed above
+			return next;
+		}
+		
+	}
+	
+	// -----------------------------------------------------------------------
 	// power_set
 	// -----------------------------------------------------------------------
 	
@@ -1292,6 +1455,14 @@ public final class Fn
 //		}
 //	}
 	
+	public static int multisetPowerSetCardinality( final int[] M )
+	{
+		int r = 1;
+		for( int i = 0; i < M.length; ++i ) {
+			r *= (M[i] + 1);
+		}
+		return r;
+	}
 	
 	public static class MultisetPowerSetGenerator extends Generator<int[]>
 	{
@@ -1553,6 +1724,8 @@ public final class Fn
 		}
 		System.out.println( Arrays.toString( counts ) );
 	}
+
+	
 
 	
 	

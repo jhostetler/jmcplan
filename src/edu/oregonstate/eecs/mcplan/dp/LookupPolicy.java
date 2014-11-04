@@ -16,11 +16,17 @@ public class LookupPolicy<S, A extends VirtualConstructor<A>> extends Policy<S, 
 {
 	private final Map<S, A> actions_;
 	
+	private final int hash_code;
+	
 	private A a_ = null;
 	
+	/**
+	 * @param actions Must not be modified after calling the constructor.
+	 */
 	public LookupPolicy( final Map<S, A> actions )
 	{
 		actions_ = actions;
+		hash_code = actions_.hashCode();
 	}
 	
 	@Override
@@ -48,16 +54,16 @@ public class LookupPolicy<S, A extends VirtualConstructor<A>> extends Policy<S, 
 	@Override
 	public int hashCode()
 	{
-		return actions_.hashCode();
+		return hash_code;
 	}
 
 	@Override
 	public boolean equals( final Object obj )
 	{
-		if( !(obj instanceof LookupPolicy) ) {
+		final LookupPolicy<?, ?> that = (LookupPolicy<?, ?>) obj;
+		if( this.hashCode() != that.hashCode() ) {
 			return false;
 		}
-		final LookupPolicy<?, ?> that = (LookupPolicy<?, ?>) obj;
 		return actions_.equals( that.actions_ );
 	}
 }

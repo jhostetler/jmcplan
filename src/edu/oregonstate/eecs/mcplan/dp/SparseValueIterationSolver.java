@@ -23,7 +23,7 @@ public class SparseValueIterationSolver<S, A extends VirtualConstructor<A>> impl
 	private final HashMap<S, Double> v_ = new HashMap<S, Double>();
 	
 	private final double gamma_;
-	private final double convergence_threshold_ = 0.0001;
+	private final double convergence_threshold_;
 	private double delta_ = 0.0;
 	
 	public SparseValueIterationSolver( final MarkovDecisionProblem<S, A> m )
@@ -33,14 +33,21 @@ public class SparseValueIterationSolver<S, A extends VirtualConstructor<A>> impl
 	
 	public SparseValueIterationSolver( final MarkovDecisionProblem<S, A> m, final double gamma )
 	{
+		this( m, gamma, 1e-4 );
+	}
+	
+	public SparseValueIterationSolver( final MarkovDecisionProblem<S, A> m, final double gamma,
+									   final double convergence_threshold )
+	{
 		assert( m.S().isFinite() );
 		m_ = m;
 		gamma_ = gamma;
+		convergence_threshold_ = convergence_threshold;
 		
 		final Generator<S> g = m.S().generator();
 		while( g.hasNext() ) {
 			final S s = g.next();
-			v_.put( s, 100.0 );
+			v_.put( s, 0.0 );
 		}
 	}
 	
@@ -117,6 +124,7 @@ public class SparseValueIterationSolver<S, A extends VirtualConstructor<A>> impl
 		final Generator<S> gs = m_.S().generator();
 		while( gs.hasNext() ) {
 			final S s = gs.next();
+			assert( s != null );
 			final double r = m_.R( s );
 			double qstar = -Double.MAX_VALUE;
 			m_.A().setState( s );

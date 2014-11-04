@@ -1,5 +1,7 @@
 package edu.oregonstate.eecs.mcplan.util;
 
+import java.util.Arrays;
+
 import org.apache.commons.math3.linear.RealVector;
 
 public class VectorMeanVarianceAccumulator
@@ -21,6 +23,13 @@ public class VectorMeanVarianceAccumulator
 	{
 		for( int i = 0; i < Ndim; ++i ) {
 			mv_[i].add( x[i] );
+		}
+	}
+	
+	public void add( final double[] x, final int n )
+	{
+		for( int i = 0; i < Ndim; ++i ) {
+			mv_[i].add( x[i], n );
 		}
 	}
 	
@@ -56,5 +65,11 @@ public class VectorMeanVarianceAccumulator
 			conf[i] = mv_[i].confidence();
 		}
 		return conf;
+	}
+	
+	@Override
+	public String toString()
+	{
+		return Arrays.toString( mv_ );
 	}
 }

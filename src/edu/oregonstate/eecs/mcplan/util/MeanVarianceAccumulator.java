@@ -24,10 +24,13 @@ public class MeanVarianceAccumulator implements StatisticAccumulator
 		m2_ += delta*(x - mean_);
 	}
 	
-//	public void combine( final double m, final double s, final double n )
-//	{
-//
-//	}
+	public void add( final double x, final int n )
+	{
+		n_ += n;
+		final double delta = x - mean_;
+		mean_ += (n*delta / n_);
+		m2_ += n*delta*(x - mean_);
+	}
 	
 	public void combine( final MeanVarianceAccumulator that )
 	{
@@ -80,6 +83,12 @@ public class MeanVarianceAccumulator implements StatisticAccumulator
 		return 1.96 * Math.sqrt( variance() ) / Math.sqrt( n_ );
 	}
 	
+	@Override
+	public String toString()
+	{
+		return "{mean: " + mean() + ", var: " + variance() + ", conf: " + confidence() + ", n: " + n() + "}";
+	}
+	
 	// -----------------------------------------------------------------------
 	
 	public static void main( final String[] argv )
@@ -90,16 +99,27 @@ public class MeanVarianceAccumulator implements StatisticAccumulator
 		final MeanVarianceAccumulator a1 = new MeanVarianceAccumulator();
 		final MeanVarianceAccumulator t = new MeanVarianceAccumulator();
 		
-		for( int i = 0; i < 100; ++i ) {
-			final double x = rng.nextDouble();
-			a0.add( x );
-			t.add( x );
+		final MeanVarianceAccumulator b0 = new MeanVarianceAccumulator();
+		final MeanVarianceAccumulator b1 = new MeanVarianceAccumulator();
+		
+		final int Ni = 10;
+		final int Nj = 100;
+		for( int i = 0; i < Ni; ++i ) {
+			for( int j = 0; j < Nj; ++j ) {
+				final double x = i; // rng.nextDouble();
+				a0.add( x );
+				t.add( x );
+			}
+			b0.add( i, Nj );
 		}
 		
-		for( int i = 0; i < 100; ++i ) {
-			final double x = rng.nextDouble();
-			a1.add( x );
-			t.add( x );
+		for( int i = 0; i < Ni; ++i ) {
+			for( int j = 0; j < Nj; ++j ) {
+				final double x = i; // rng.nextDouble();
+				a1.add( x );
+				t.add( x );
+			}
+			b1.add( i, Nj );
 		}
 		
 		System.out.println( "a0: " + a0.mean() + " (" + a0.variance() + ")" );
@@ -107,5 +127,8 @@ public class MeanVarianceAccumulator implements StatisticAccumulator
 		System.out.println( "t: " + t.mean() + " (" + t.variance() + ")" );
 		a0.combine( a1 );
 		System.out.println( "combined: " + a0.mean() + " (" + a0.variance() + ")" );
+		
+		System.out.println( "b0: " + b0.mean() + " (" + b0.variance() + ")" );
+		System.out.println( "b1: " + b1.mean() + " (" + b1.variance() + ")" );
 	}
 }

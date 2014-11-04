@@ -52,7 +52,7 @@ public class AggregatingActionNode<S extends State, A extends VirtualConstructor
 			final LeafRepresentation<S> x = new LeafRepresentation<S>();
 			MutableStateNode<S, A> leaf = getStateNode( x, turn );
 			if( leaf == null ) {
-				leaf = new LeafStateNode<S, A>( x, nagents, turn );
+				leaf = new LeafStateNode<S, A>( nagents, turn );
 				attachSuccessor( x, turn, leaf );
 			}
 			

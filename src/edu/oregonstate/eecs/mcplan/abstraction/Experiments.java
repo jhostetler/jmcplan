@@ -103,11 +103,12 @@ import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiSimulator;
 import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiState;
 import edu.oregonstate.eecs.mcplan.domains.taxi.TaxiWorlds;
 import edu.oregonstate.eecs.mcplan.domains.toy.ChainWalk;
+import edu.oregonstate.eecs.mcplan.domains.toy.CliffWorld;
 import edu.oregonstate.eecs.mcplan.domains.toy.Irrelevance;
-import edu.oregonstate.eecs.mcplan.domains.yahtzee2.CategoryActionGenerator;
 import edu.oregonstate.eecs.mcplan.domains.yahtzee2.PrimitiveYahtzeeRepresenter;
 import edu.oregonstate.eecs.mcplan.domains.yahtzee2.ReprWrapper;
 import edu.oregonstate.eecs.mcplan.domains.yahtzee2.YahtzeeAction;
+import edu.oregonstate.eecs.mcplan.domains.yahtzee2.YahtzeePhasedActionGenerator;
 import edu.oregonstate.eecs.mcplan.domains.yahtzee2.YahtzeeSimulator;
 import edu.oregonstate.eecs.mcplan.domains.yahtzee2.YahtzeeState;
 import edu.oregonstate.eecs.mcplan.ensemble.MultiAbstractionUctSearch;
@@ -119,6 +120,12 @@ import edu.oregonstate.eecs.mcplan.ml.Memorizer;
 import edu.oregonstate.eecs.mcplan.ml.MetricConstrainedKMeans;
 import edu.oregonstate.eecs.mcplan.ml.SimilarityFunction;
 import edu.oregonstate.eecs.mcplan.ml.VoronoiClassifier;
+import edu.oregonstate.eecs.mcplan.rddl.RDDLAction;
+import edu.oregonstate.eecs.mcplan.rddl.RDDLState;
+import edu.oregonstate.eecs.mcplan.rddl.RddlActionGenerator;
+import edu.oregonstate.eecs.mcplan.rddl.RddlRepresenter;
+import edu.oregonstate.eecs.mcplan.rddl.RddlSimulatorAdapter;
+import edu.oregonstate.eecs.mcplan.rddl.RddlSpec;
 import edu.oregonstate.eecs.mcplan.search.ActionNode;
 import edu.oregonstate.eecs.mcplan.search.AggregatingActionNode;
 import edu.oregonstate.eecs.mcplan.search.BackupRules;
@@ -137,9 +144,9 @@ import edu.oregonstate.eecs.mcplan.search.UctSearch;
 import edu.oregonstate.eecs.mcplan.sim.Episode;
 import edu.oregonstate.eecs.mcplan.sim.EpisodeListener;
 import edu.oregonstate.eecs.mcplan.sim.ResetAdapter;
+import edu.oregonstate.eecs.mcplan.sim.ResetSimulator;
 import edu.oregonstate.eecs.mcplan.sim.RewardAccumulator;
 import edu.oregonstate.eecs.mcplan.sim.Simulator;
-import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 import edu.oregonstate.eecs.mcplan.util.Csv;
 import edu.oregonstate.eecs.mcplan.util.Csv.Writer;
 import edu.oregonstate.eecs.mcplan.util.CsvConfigurationParser;
@@ -741,6 +748,49 @@ public class Experiments
 		public abstract void writeStatisticsRecord( final Csv.Writer csv );
 	}
 	
+	private static class PolicyEvaluator<S extends State, X extends FactoredRepresentation<S>,
+					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
+		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
+	{
+		@Override
+		public void writeModel( final int iter )
+		{ }
+
+		@Override
+		public void loadModel( final FactoredRepresenter<S, X> base_repr, final int iter )
+		{ }
+
+		@Override
+		public void trainRepresenter( final Dataset<A> train, final FactoredRepresenter<S, X> base_repr, final int iter )
+		{
+			final Memorizer memorizer = new Memorizer();
+			memorizer.buildClassifier( train.single );
+			classifier_ = memorizer;
+		}
+
+		@Override
+		public Policy<S, A> getControlPolicy( final Configuration config,
+				final Domain<S, X, A, R> domain )
+		{
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public void writeStatisticsHeaders( final Writer csv )
+		{
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void writeStatisticsRecord( final Writer csv )
+		{
+			// TODO Auto-generated method stub
+			
+		}
+	}
+	
 	private static abstract class QDiscovery<S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
 		extends AbstractionDiscoveryAlgorithm<S, X, A, R>
@@ -813,7 +863,7 @@ public class Experiments
 				public void calculate( final S s )
 				{
 					final UctSearch<S, A> search = new UctSearch<S, A>(
-						new ResetAdapter<S, A>( domain.createSimulator( s ) ), getRepresenter( config, domain ),
+						domain.createSimulator( s ), getRepresenter( config, domain ),
 						SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
 						config.uct_c, config.Ntest_episodes,
 						config.rng, domain.getEvaluator(), new DefaultMctsVisitor<S, A>(),
@@ -833,6 +883,11 @@ public class Experiments
 						q.first.add( an.a().get( 0 ) );
 						q.second.add( an.q( 0 ) );
 					}
+					
+//					System.out.println( "****************************************" );
+//					System.out.println( "****************************************" );
+//					search.root().accept( new TreePrinter<S, A>() );
+//					System.out.println( "----------------------------------------" );
 				}
 
 				@Override
@@ -893,6 +948,8 @@ public class Experiments
 		private final TreeStatisticsRecorder<S, A> tree_stats = new TreeStatisticsRecorder<S, A>();
 		private final MeanVarianceAccumulator elapsed_time = new MeanVarianceAccumulator();
 		
+		private final MeanVarianceAccumulator Nsplits_accepted = new MeanVarianceAccumulator();
+		
 		@Override
 		protected final QFunction<S, A> createQFunctionEstimator(
 			final Configuration config, final Domain<S, X, A, R> domain )
@@ -904,17 +961,27 @@ public class Experiments
 				@Override
 				public void calculate( final S s )
 				{
+//					final double split_threshold = config.getDouble( "utree.split_threshold" );
+//					assert( split_threshold < 1.0 );
+//					assert( split_threshold > 0.0 );
+//					final int Nsplit_threshold = (int) Math.ceil( config.Ntest_episodes * split_threshold );
+					
+					final int Nsplit_threshold = config.getInt( "utree.split_threshold" );
+					
+					final int Ntop_actions = config.getInt( "utree.Ntop_actions" );
 					final UTreeSearch<S, A> search = new UTreeSearch<S, A>(
-						ResetAdapter.of( domain.createSimulator( s ) ), domain.getBaseRepresenter(),
+						domain.createSimulator( s ), domain.getBaseRepresenter(),
 						SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
 						config.uct_c, config.Ntest_episodes,
-						domain.getEvaluator(), new DefaultMctsVisitor<S, A>() );
+						domain.getEvaluator(), new DefaultMctsVisitor<S, A>(),
+						Nsplit_threshold, Ntop_actions );
 					
 					final long tstart = System.nanoTime();
 					search.run();
 					final long tend = System.nanoTime();
 					final double elapsed_ms = (tend - tstart) * 1e-6;
 					elapsed_time.add( elapsed_ms );
+					Nsplits_accepted.add( search.Nsplits_accepted() );
 					
 					search.root().accept( tree_stats );
 					q = Pair.makePair( new ArrayList<A>(), (TDoubleList) new TDoubleArrayList() );
@@ -924,6 +991,11 @@ public class Experiments
 						q.first.add( an.a().get( 0 ) );
 						q.second.add( an.q( 0 ) );
 					}
+					
+//					System.out.println( "****************************************" );
+//					System.out.println( "****************************************" );
+//					search.root().accept( new TreePrinter<S, A>() );
+//					System.out.println( "----------------------------------------" );
 				}
 
 				@Override
@@ -943,7 +1015,8 @@ public class Experiments
 			   .cell( "tree_depth_mean" ).cell( "tree_depth_var" )
 			   .cell( "tree_avg_depth_mean" ).cell( "tree_avg_depth_var" )
 			   .cell( "action_visits_mean" ).cell( "action_visits_var" ).cell( "action_visits_conf" )
-			   .cell( "action_visits_per_ms" );
+			   .cell( "action_visits_per_ms" )
+			   .cell( "Nsplits_accepted_mean" ).cell( "Nsplits_accepted_var" ).cell( "Nsplits_accepted_conf" );
 		}
 		
 		@Override
@@ -955,7 +1028,8 @@ public class Experiments
 			   .cell( tree_stats.depth.mean() ).cell( tree_stats.depth.variance() )
 			   .cell( tree_stats.avg_depth.mean() ).cell( tree_stats.avg_depth.variance() )
 			   .cell( tree_stats.action_visits.mean() ).cell( tree_stats.action_visits.variance() ).cell( tree_stats.action_visits.confidence() )
-			   .cell( tree_stats.action_visits.mean() / elapsed_time.mean() );
+			   .cell( tree_stats.action_visits.mean() / elapsed_time.mean() )
+			   .cell( Nsplits_accepted.mean() ).cell( Nsplits_accepted.variance() ).cell( Nsplits_accepted.confidence() );
 			
 			System.out.println( "Time (ms) (mean): " + elapsed_time.mean() );
 			System.out.println( "Time (ms) (var): " + elapsed_time.variance() );
@@ -974,6 +1048,10 @@ public class Experiments
 			System.out.println( "Action visits (var): " + tree_stats.action_visits.variance() );
 			System.out.println( "Action visits (conf): " + tree_stats.action_visits.confidence() );
 			System.out.println( "Action visits per millisecond: " + tree_stats.action_visits.mean() / elapsed_time.mean() );
+			
+			System.out.println( "Nsplits_accepted (mean): " + Nsplits_accepted.mean() );
+			System.out.println( "Nsplits_accepted (var): " + Nsplits_accepted.variance() );
+			System.out.println( "Nsplits_accepted (conf): " + Nsplits_accepted.confidence() );
 		}
 
 		@Override
@@ -1030,7 +1108,7 @@ public class Experiments
 					public JointAction<A> getAction()
 					{
 						final UctSearch<S, A> search = new UctSearch<S, A>(
-							new ResetAdapter<S, A>( domain.createSimulator( s_ ) ), repr.create(),
+							domain.createSimulator( s_ ), repr.create(),
 							SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
 							config.uct_c, config.Ntest_episodes,
 							config.rng, domain.getEvaluator(), new DefaultMctsVisitor<S, A>(),
@@ -1183,7 +1261,7 @@ public class Experiments
 				public A getAction()
 				{
 					final MultiAbstractionUctSearch<S, A> search = new MultiAbstractionUctSearch<S, A>(
-						new ResetAdapter<S, A>( domain.createSimulator( s_ ) ), reprs,
+						domain.createSimulator( s_ ), reprs,
 						SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
 						config.uct_c, config.Ntest_episodes,
 						domain.getEvaluator(), new DefaultMctsVisitor<S, A>() );
@@ -2252,7 +2330,7 @@ public class Experiments
 					A extends VirtualConstructor<A>, R extends Representer<S, ? extends Representation<S>>>
 	{
 		public abstract S initialState();
-		public abstract UndoSimulator<S, A> createSimulator( final S s );
+		public abstract ResetSimulator<S, A> createSimulator( final S s );
 		public abstract R getBaseRepresenter();
 		public abstract ActionGenerator<S, A> getActionGenerator();
 		public abstract EvaluationFunction<S, A> getEvaluator();
@@ -2280,9 +2358,9 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<Irrelevance.State, Irrelevance.Action> createSimulator( final Irrelevance.State s )
+		public ResetSimulator<Irrelevance.State, Irrelevance.Action> createSimulator( final Irrelevance.State s )
 		{
-			return irrelevance_.new Simulator( s );
+			return ResetAdapter.of( irrelevance_.new Simulator( s ) );
 		}
 
 		@Override
@@ -2358,9 +2436,9 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<ChainWalk.State, ChainWalk.Action> createSimulator( final ChainWalk.State s )
+		public ResetSimulator<ChainWalk.State, ChainWalk.Action> createSimulator( final ChainWalk.State s )
 		{
-			return world_.new Simulator( s );
+			return ResetAdapter.of(  world_.new Simulator( s ) );
 		}
 
 		@Override
@@ -2444,9 +2522,9 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<BlackjackState, BlackjackAction> createSimulator( final BlackjackState s )
+		public ResetSimulator<BlackjackState, BlackjackAction> createSimulator( final BlackjackState s )
 		{
-			return new BlackjackSimulator( s );
+			return ResetAdapter.of( new BlackjackSimulator( s ) );
 		}
 
 		@Override
@@ -2526,11 +2604,11 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<TaxiState, TaxiAction> createSimulator( final TaxiState s )
+		public ResetSimulator<TaxiState, TaxiAction> createSimulator( final TaxiState s )
 		{
 			final int T = config_.getInt( "taxi.T" );
 			final TaxiSimulator sim = new TaxiSimulator( config_.rng, s, slip, T );
-			return sim;
+			return ResetAdapter.of( sim );
 		}
 
 		@Override
@@ -2615,9 +2693,9 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<YahtzeeState, YahtzeeAction> createSimulator( final YahtzeeState s )
+		public ResetSimulator<YahtzeeState, YahtzeeAction> createSimulator( final YahtzeeState s )
 		{
-			return new YahtzeeSimulator( s );
+			return ResetAdapter.of( new YahtzeeSimulator( s ) );
 		}
 
 		@Override
@@ -2658,9 +2736,10 @@ public class Experiments
 		@Override
 		public ActionGenerator<YahtzeeState, YahtzeeAction> getActionGenerator()
 		{
-			return new CategoryActionGenerator();
+//			return new CategoryActionGenerator();
 //			return new SmartActionGenerator();
 //			return new YahtzeeActionGenerator();
+			return new YahtzeePhasedActionGenerator();
 		}
 
 		@Override
@@ -2692,9 +2771,9 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<FroggerState, FroggerAction> createSimulator( final FroggerState s )
+		public ResetSimulator<FroggerState, FroggerAction> createSimulator( final FroggerState s )
 		{
-			return new FroggerSimulator( config_.rng, s );
+			return ResetAdapter.of( new FroggerSimulator( config_.rng, s ) );
 		}
 
 		@Override
@@ -2770,11 +2849,11 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<RacegridState, RacegridAction> createSimulator( final RacegridState s )
+		public ResetSimulator<RacegridState, RacegridAction> createSimulator( final RacegridState s )
 		{
 			final RacegridSimulator sim = new RacegridSimulator(
 				config_.rng, s, config_.getDouble( "racegrid.slip" ) );
-			return sim;
+			return ResetAdapter.of( sim );
 		}
 
 		@Override
@@ -2827,12 +2906,12 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<RacetrackState, RacetrackAction> createSimulator()
+		public ResetSimulator<RacetrackState, RacetrackAction> createSimulator()
 		{
 			final RacetrackState s = new RacetrackState( circuit_ );
 			final RacetrackSimulator sim = new RacetrackSimulator(
 				config_.rng, s, config_.getDouble( "race_car.control_noise" ), 0.0 );
-			return sim;
+			return ResetAdapter.of( sim );
 		}
 
 		@Override
@@ -2897,9 +2976,9 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<TamariskState, TamariskAction> createSimulator( final TamariskState s )
+		public ResetSimulator<TamariskState, TamariskAction> createSimulator( final TamariskState s )
 		{
-			return new TamariskSimulator( s );
+			return ResetAdapter.of( new TamariskSimulator( s ) );
 		}
 
 		@Override
@@ -2977,9 +3056,9 @@ public class Experiments
 		}
 		
 		@Override
-		public UndoSimulator<FuelWorldState, FuelWorldAction> createSimulator( final FuelWorldState s )
+		public ResetSimulator<FuelWorldState, FuelWorldAction> createSimulator( final FuelWorldState s )
 		{
-			return new FuelWorldSimulator( s );
+			return ResetAdapter.of( new FuelWorldSimulator( s ) );
 		}
 
 		@Override
@@ -3042,6 +3121,178 @@ public class Experiments
 	
 	// -----------------------------------------------------------------------
 	
+	private static class CliffWorldDomain extends Domain<CliffWorld.State, FactoredRepresentation<CliffWorld.State>,
+													  CliffWorld.Action, CliffWorld.PrimitiveRepresenter>
+	{
+		private final Configuration config_;
+		
+		public CliffWorldDomain( final Configuration config )
+		{
+			config_ = config;
+		}
+		
+		@Override
+		public CliffWorld.State initialState()
+		{
+			final int L = config_.getInt( "cliffworld.L" );
+			return new CliffWorld.State( L );
+		}
+		
+		@Override
+		public ResetSimulator<CliffWorld.State, CliffWorld.Action> createSimulator( final CliffWorld.State s )
+		{
+			return ResetAdapter.of( new CliffWorld.Simulator( s, config_.rng ) );
+		}
+
+		@Override
+		public CliffWorld.PrimitiveRepresenter getBaseRepresenter()
+		{
+			return new CliffWorld.PrimitiveRepresenter();
+		}
+		
+		@Override
+		public ArrayList<double[]> getVariableRanges()
+		{
+			final ArrayList<double[]> ranges = new ArrayList<double[]>();
+			ranges.add( null );
+			ranges.add( null );
+			ranges.add( new double[] { 0, CliffWorld.State.Nwind - 1 } );
+			return ranges;
+		}
+
+		@Override
+		public EvaluationFunction<CliffWorld.State, CliffWorld.Action> getEvaluator()
+		{
+			final int rollout_width = 1;
+			final int rollout_depth = Integer.MAX_VALUE;
+			final Policy<CliffWorld.State, JointAction<CliffWorld.Action>> rollout_policy
+				= new RandomPolicy<CliffWorld.State, JointAction<CliffWorld.Action>>(
+					0 /*Player*/, config_.rng.nextInt(),
+					SingleAgentJointActionGenerator.create( getActionGenerator() ) );
+			final EvaluationFunction<CliffWorld.State, CliffWorld.Action> heuristic
+				= new EvaluationFunction<CliffWorld.State, CliffWorld.Action>() {
+				@Override
+				public double[] evaluate( final Simulator<CliffWorld.State, CliffWorld.Action> sim )
+				{
+					return new double[] { 0.0 };
+				}
+			};
+			final EvaluationFunction<CliffWorld.State, CliffWorld.Action> rollout_evaluator
+				= RolloutEvaluator.create( rollout_policy, config_.discount,
+										   rollout_width, rollout_depth, heuristic );
+			return rollout_evaluator;
+		}
+
+		@Override
+		public EpisodeListener<CliffWorld.State, CliffWorld.Action> getVisualization()
+		{
+			return null;
+		}
+
+		@Override
+		public ActionGenerator<CliffWorld.State, CliffWorld.Action> getActionGenerator()
+		{
+			return new CliffWorld.Actions( config_.rng );
+		}
+
+		@Override
+		public String name()
+		{
+			return "cliffworld";
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
+	private static class RddlDomain extends Domain<RDDLState, FactoredRepresentation<RDDLState>,
+												   RDDLAction, RddlRepresenter>
+	{
+		private final Configuration config_;
+		
+		private final RddlSpec rddl_spec;
+		
+		public RddlDomain( final Configuration config )
+		{
+			config_ = config;
+			
+			final File domain = new File( config.root_directory, config.get( "rddl.domain" ) + ".rddl" );
+			final File instance = new File( config.root_directory, config.get( "rddl.instance" ) + ".rddl" );
+			final int nagents = 1;
+			final int seed = config.rng.nextInt();
+			final String name = config.get( "rddl.instance" );
+			
+			rddl_spec = new RddlSpec( domain, instance, nagents, seed, name );
+		}
+		
+		@Override
+		public RDDLState initialState()
+		{
+			return rddl_spec.createInitialState();
+		}
+		
+		@Override
+		public ResetSimulator<RDDLState, RDDLAction> createSimulator( final RDDLState s )
+		{
+			return new RddlSimulatorAdapter( rddl_spec, s );
+		}
+
+		@Override
+		public RddlRepresenter getBaseRepresenter()
+		{
+			return new RddlRepresenter( rddl_spec );
+		}
+		
+		@Override
+		public ArrayList<double[]> getVariableRanges()
+		{
+			// FIXME:
+			return null;
+		}
+
+		@Override
+		public EvaluationFunction<RDDLState, RDDLAction> getEvaluator()
+		{
+			final int rollout_width = 1;
+			final int rollout_depth = 1; //Integer.MAX_VALUE;
+			final Policy<RDDLState, JointAction<RDDLAction>> rollout_policy
+				= new RandomPolicy<RDDLState, JointAction<RDDLAction>>(
+					0 /*Player*/, config_.rng.nextInt(),
+					SingleAgentJointActionGenerator.create( getActionGenerator() ) );
+			final EvaluationFunction<RDDLState, RDDLAction> heuristic
+				= new EvaluationFunction<RDDLState, RDDLAction>() {
+				@Override
+				public double[] evaluate( final Simulator<RDDLState, RDDLAction> sim )
+				{
+					return new double[] { 0.0 };
+				}
+			};
+			final EvaluationFunction<RDDLState, RDDLAction> rollout_evaluator
+				= RolloutEvaluator.create( rollout_policy, config_.discount,
+										   rollout_width, rollout_depth, heuristic );
+			return rollout_evaluator;
+		}
+
+		@Override
+		public EpisodeListener<RDDLState, RDDLAction> getVisualization()
+		{
+			return null;
+		}
+
+		@Override
+		public ActionGenerator<RDDLState, RDDLAction> getActionGenerator()
+		{
+			return new RddlActionGenerator( rddl_spec );
+		}
+
+		@Override
+		public String name()
+		{
+			return "rddl." + config_.get( "rddl.domain" );
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
 	private static String deriveDatasetName( final String base, final int iter )
 	{
 		if( iter == -1 ) {
@@ -3077,8 +3328,6 @@ public class Experiments
 		
 		for( int iter = 0; iter < config.Niterations; ++iter ) {
 			System.out.println( "Iteration " + iter );
-			
-			final Csv.Writer data_out = createDataWriter( config, discovery, iter );
 			
 			final AbstractionDiscoveryAlgorithm<S, X, A, R> algorithm;
 			if( "create".equals( config.model ) ) {
@@ -3132,6 +3381,7 @@ public class Experiments
 				algorithm = bootstrap;
 			}
 			
+			final Csv.Writer data_out = createDataWriter( config, algorithm, iter );
 			
 			final SolvedStateAccumulator<S, X, A> labeled_states
 				= new SolvedStateAccumulator<S, X, A>( domain.getBaseRepresenter() );
@@ -3169,10 +3419,12 @@ public class Experiments
 					System.out.println( "New dataset size = " + running_dataset.instances.size() );
 				}
 				
-				WekaUtil.writeDataset( config.data_directory, running_dataset.instances );
-				writeActionKey( config, running_dataset, iter );
-				if( running_dataset.qtable != null ) {
-					writeQTable( config, running_dataset, iter );
+				if( config.getBoolean( "output.labels" ) ) {
+					WekaUtil.writeDataset( config.data_directory, running_dataset.instances );
+					writeActionKey( config, running_dataset, iter );
+					if( running_dataset.qtable != null ) {
+						writeQTable( config, running_dataset, iter );
+					}
 				}
 				
 //				WekaUtil.writeDataset( config.data_directory, single.instances );
@@ -3213,13 +3465,11 @@ public class Experiments
 	{
 //		assert( "train".equals( phase ) || "test".equals( phase ) );
 		
-		final int print_interval = 100;
+		final int print_interval = 1000;
 		
 		final MeanVarianceAccumulator ret = new MeanVarianceAccumulator();
 		final MeanVarianceAccumulator steps = new MeanVarianceAccumulator();
 		final MinMaxAccumulator steps_minmax = new MinMaxAccumulator();
-//		final TreeStatisticsRecorder<S, A> tree_stats = new TreeStatisticsRecorder<S, A>();
-//		final MeanVarianceAccumulator elapsed_time = new MeanVarianceAccumulator();
 		
 //		final ArrayList<ArrayList<Pair<A, Double>>> qtable = new ArrayList<ArrayList<Pair<A, Double>>>();
 		
@@ -3231,12 +3481,14 @@ public class Experiments
 			final Policy<S, A> pi = discovery.getControlPolicy( config, domain );
 			
 			final S s0 = domain.initialState();
-			final UndoSimulator<S, A> sim = domain.createSimulator( s0 );
+			final ResetSimulator<S, A> sim = domain.createSimulator( s0 );
 			final Episode<S, A> episode	= new Episode<S, A>( sim, new JointPolicy<S, A>( pi ) );
 			final RewardAccumulator<S, A> racc = new RewardAccumulator<S, A>( sim.nagents(), config.discount );
 			episode.addListener( racc );
+			
 //			final LoggingEpisodeListener<S, A> epi_log = new LoggingEpisodeListener<S, A>();
 //			episode.addListener( epi_log );
+			
 			if( listener != null ) {
 				episode.addListener( listener );
 			}
@@ -3245,11 +3497,7 @@ public class Experiments
 				episode.addListener( vis );
 			}
 			
-//			final long tstart = System.nanoTime();
 			episode.run();
-//			final long tend = System.nanoTime();
-//			final double elapsed_ms = (tend - tstart) * 1e-6;
-//			elapsed_time.add( elapsed_ms );
 			
 			ret.add( racc.v()[0] );
 			steps.add( racc.steps() );
@@ -3438,6 +3686,12 @@ public class Experiments
 		{
 			return config_.getDouble( key );
 		}
+		
+		@Override
+		public boolean getBoolean( final String key )
+		{
+			return config_.getBoolean( key );
+		}
 
 		@Override
 		public Iterable<String> keys()
@@ -3509,6 +3763,14 @@ public class Experiments
 			}
 			else if( "fuelworld".equals( config.domain ) ) {
 				final FuelWorldDomain domain = new FuelWorldDomain( config );
+				runExperiment( config, domain );
+			}
+			else if( "cliffworld".equals( config.domain ) ) {
+				final CliffWorldDomain domain = new CliffWorldDomain( config );
+				runExperiment( config, domain );
+			}
+			else if( "rddl".equals( config.domain ) ) {
+				final RddlDomain domain = new RddlDomain( config );
 				runExperiment( config, domain );
 			}
 			else {

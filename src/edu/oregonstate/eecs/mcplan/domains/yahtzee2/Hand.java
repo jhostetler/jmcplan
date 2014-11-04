@@ -3,9 +3,12 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.yahtzee2;
 
+import java.util.Arrays;
+
 /**
- * @author jhostetler
- *
+ * FIXME: The immutable data for the straights has been removed because it was
+ * subtly incorrect. It can be made correct again, but it's probably not the
+ * most critical thing in terms of performance. The function implementations are correct.
  */
 public class Hand
 {
@@ -22,8 +25,8 @@ public class Hand
 	public final int sum;
 	public final int nok_n;
 	public final int nok_i;
-	public final int straight;
-	public final int straight_len;
+//	public final int straight;
+//	public final int straight_len;
 	public final int fh_pair;
 	
 	public Hand( final int[] dice )
@@ -34,15 +37,15 @@ public class Hand
 		int sum = 0;
 		int nok_n = 0;
 		int nok_i = 0;
-		int straight = 0;
-		int straight_len = 0;
+//		int straight = 0;
+//		int straight_len = 0;
 		int fh_pair = 0;
 		for( int i = 0; i < Nfaces; ++i ) {
 			final int n = dice[i];
 			final int value = i + 1;
 			sum += value * n;
 			if( n > 0 ) {
-				straight_len += 1;
+//				straight_len += 1;
 				if( n == 2 ) {
 					fh_pair = value;
 				}
@@ -51,19 +54,19 @@ public class Hand
 					nok_i = value;
 				}
 			}
-			else if( straight_len >= 4 ) { // It's at least a small straight
-				straight = value - straight_len;
-			}
-			else {
-				straight_len = 0;
-			}
+//			else if( straight_len >= 4 ) { // It's at least a small straight
+//				straight = value - straight_len;
+//			}
+//			else {
+//				straight_len = 0;
+//			}
 		}
 		
 		this.sum = sum;
 		this.nok_n = nok_n;
 		this.nok_i = nok_i;
-		this.straight = straight;
-		this.straight_len = straight_len;
+//		this.straight = straight;
+//		this.straight_len = straight_len;
 		this.fh_pair = fh_pair;
 	}
 	
@@ -106,7 +109,7 @@ public class Hand
 	public int sum()
 	{
 		int s = 0;
-		for( int i = 0; i < Ndice; ++i ) {
+		for( int i = 0; i < Nfaces; ++i ) {
 			s += dice[i] * (i+1);
 		}
 		return s;
@@ -114,7 +117,7 @@ public class Hand
 	
 	public int nOfKind()
 	{
-		for( int i = 0; i < Ndice; ++i ) {
+		for( int i = 0; i < Nfaces; ++i ) {
 			if( dice[i] >= 3 ) {
 				return dice[i];
 			}
@@ -156,5 +159,24 @@ public class Hand
 		else {
 			return null;
 		}
+	}
+	
+	@Override
+	public boolean equals( final Object obj )
+	{
+		final Hand that = (Hand) obj;
+		return Arrays.equals( this.dice, that.dice );
+	}
+	
+	@Override
+	public int hashCode()
+	{
+		return Arrays.hashCode( dice );
+	}
+	
+	@Override
+	public String toString()
+	{
+		return Arrays.toString( dice );
 	}
 }

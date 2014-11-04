@@ -89,7 +89,21 @@ public class YahtzeeActionGenerator extends ActionGenerator<YahtzeeState, Yahtze
 	@Override
 	public int size()
 	{
-		final int Nrerolls = (rerolls_ ? 32 - 1 : 0); // 2^5, -1 not to count "reroll none"
+		final int Nrerolls;
+		if( rerolls_ ) {
+			int r = 1;
+			for( int i = 0; i < Hand.Nfaces; ++i ) {
+				r *= (s_.hand().dice[i] + 1);
+			}
+			Nrerolls = r - 1; // -1 because "reroll none" is not allowed
+		}
+		else {
+			Nrerolls = 0;
+		}
+		
+		// Note: Old, wrong code:
+//		final int Nrerolls = (rerolls_ ? 32 - 1 : 0); // 2^5, -1 not to count "reroll none"
+		
 		final int Nscore = unfilled_;
 		return Nrerolls + Nscore;
 	}

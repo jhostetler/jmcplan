@@ -82,14 +82,14 @@ public class YahtzeeSimulator implements UndoSimulator<YahtzeeState, YahtzeeActi
 	@Override
 	public double[] reward()
 	{
-//		return new double[] { s_.score() - scores_.peek() };
+		return new double[] { s_.score() - scores_.peek() };
 		
-		if( s_.isTerminal() ) {
-			return new double[] { s_.score() };
-		}
-		else {
-			return new double[] { 0 };
-		}
+//		if( s_.isTerminal() ) {
+//			return new double[] { s_.score() };
+//		}
+//		else {
+//			return new double[] { 0 };
+//		}
 	}
 
 	@Override

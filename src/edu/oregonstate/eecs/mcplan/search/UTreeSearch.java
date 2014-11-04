@@ -4,12 +4,14 @@
 package edu.oregonstate.eecs.mcplan.search;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
 
 import org.apache.commons.math3.random.MersenneTwister;
@@ -19,6 +21,7 @@ import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
 import edu.oregonstate.eecs.mcplan.JointAction;
+import edu.oregonstate.eecs.mcplan.Pair;
 import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.RandomPolicy;
 import edu.oregonstate.eecs.mcplan.Representation;
@@ -28,7 +31,9 @@ import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.domains.fuelworld.FuelWorldAction;
 import edu.oregonstate.eecs.mcplan.domains.fuelworld.FuelWorldActionGenerator;
+import edu.oregonstate.eecs.mcplan.domains.fuelworld.FuelWorldSimulator;
 import edu.oregonstate.eecs.mcplan.domains.fuelworld.FuelWorldState;
+import edu.oregonstate.eecs.mcplan.domains.fuelworld.PrimitiveFuelWorldRepresenter;
 import edu.oregonstate.eecs.mcplan.domains.toy.ChainWalk;
 import edu.oregonstate.eecs.mcplan.sim.ResetAdapter;
 import edu.oregonstate.eecs.mcplan.sim.ResetSimulator;
@@ -113,6 +118,22 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 
 		public boolean isTerminal()
 		{ return factored_x instanceof LeafRepresentation<?>; }
+		
+//		@Override
+//		public boolean equals( final Object obj )
+//		{
+//			if( !(obj instanceof UTreeSearch.PrimitiveStateNode) ) {
+//				return false;
+//			}
+//			final UTreeSearch<S, A>.PrimitiveStateNode that = (UTreeSearch<S, A>.PrimitiveStateNode) obj;
+//			return factored_x.equals( that.factored_x );
+//		}
+//
+//		@Override
+//		public int hashCode()
+//		{
+//			return factored_x.hashCode();
+//		}
 	}
 	
 	private class PrimitiveActionNode extends MutableActionNode<S, A>
@@ -176,6 +197,8 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 		
 		private int split_threshold_ = split_threshold;
 		
+		private final double[] v;
+		
 		public AggregateStateNode( final Set<PrimitiveStateNode> nodes,
 								   final ActionGenerator<S, JointAction<A>> actions,
 								   final int nagents, final int[] turn )
@@ -184,10 +207,44 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 			this.nodes = nodes;
 			this.actions = actions;
 			
+			v = new double[nagents];
+			
+//			check();
+			
 			rv_ = new VectorMeanVarianceAccumulator( nagents );
 			
 			for( final PrimitiveStateNode ps : nodes ) {
 				addSubtree( ps );
+			}
+		}
+		
+		public void setV( final double[] v )
+		{
+			Fn.memcpy( this.v, v, nagents );
+		}
+		
+		public double[] v()
+		{
+			return v;
+		}
+		
+		public void addPrimitiveState( final PrimitiveStateNode ps )
+		{
+			nodes.add( ps );
+//			check();
+		}
+		
+		private void check()
+		{
+			final Set<Representation<S>> xs = new HashSet<Representation<S>>();
+			for( final PrimitiveStateNode ps : nodes ) {
+				if( xs.contains( ps.factored_x ) ) {
+					System.out.println( "!! Duplicates in as@" + this );
+					System.out.println( "\t" + ps.factored_x );
+					System.out.println( "\t" + nodes );
+					throw new IllegalStateException( "Duplicates in as@" + this );
+				}
+				xs.add( ps.factored_x );
 			}
 		}
 		
@@ -199,7 +256,11 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 		
 		@Override
 		public String toString()
-		{ return nodes.toString(); }
+		{
+			return "{" + Integer.toHexString( System.identityHashCode( this ) )
+					+ "; r: " + Arrays.toString( r() )
+					+ "; v: " + Arrays.toString( v ) + "->" + nodes.toString() + "}";
+		}
 		
 		public AggregateActionNode successor( final JointAction<A> a, final int nagents,
 				final FactoredRepresenter<S, ? extends FactoredRepresentation<S>> repr )
@@ -230,6 +291,7 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 					aa.updateQ( pa.q() );
 					aa.updateR( pa.r() );
 				}
+				
 				for( final MutableStateNode<S, A> msprime : Fn.in( pa.successors() ) ) {
 					final PrimitiveStateNode psprime = (PrimitiveStateNode) msprime;
 					final AggregateStateNode asprime;
@@ -242,6 +304,12 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 					}
 				}
 			}
+			
+			final ActionNode<S, A> an = BackupRules.MaxAction( this );
+			if( an != null ) {
+				this.setV( Fn.copy( an.q() ) );
+			}
+			// TODO: What should we do if it is null?
 		}
 
 		public void visit()
@@ -276,6 +344,11 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 		@Override
 		public Generator<? extends ActionNode<S, A>> successors()
 		{ return Generator.fromIterator( children.values().iterator() ); }
+		
+		public int nsuccessors()
+		{
+			return children.size();
+		}
 
 		@Override
 		public ActionNode<S, A> getActionNode( final JointAction<A> a )
@@ -290,8 +363,8 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 		private AggregateStateNode TheTerminalNode = null;
 		
 		private int n_ = 0;
-		private final VectorMeanVarianceAccumulator qv_;
-		private final VectorMeanVarianceAccumulator rv_;
+		private VectorMeanVarianceAccumulator qv_;
+		private VectorMeanVarianceAccumulator rv_;
 		
 		private final Set<AggregateStateNode> children = new HashSet<AggregateStateNode>();
 		
@@ -306,8 +379,20 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 			rv_ = new VectorMeanVarianceAccumulator( nagents );
 		}
 		
+		public void setQ( final double[] q, final int n )
+		{
+			qv_ = new VectorMeanVarianceAccumulator( nagents );
+			qv_.add( q, n );
+		}
+		
+		public void setR( final double[] r, final int n )
+		{
+			rv_ = new VectorMeanVarianceAccumulator( nagents );
+			rv_.add( r, n );
+		}
+		
 		@Override
-		public Generator<? extends StateNode<S, A>> successors()
+		public Generator<AggregateStateNode> successors()
 		{ return Generator.fromIterator( children.iterator() ); }
 		
 		public void visit()
@@ -330,20 +415,31 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 				TheTerminalNode = new AggregateStateNode(
 					new HashSet<PrimitiveStateNode>(), null, ps.nagents, ps.turn );
 			}
-			TheTerminalNode.nodes.add( ps );
+			TheTerminalNode.addPrimitiveState( ps );
 			return TheTerminalNode;
 		}
 		
 		public AggregateStateNode successorNonTerminal( final FactoredRepresentation<S> x, final PrimitiveStateNode ps )
 		{
 			final DataNode dn = classify( x, ps.nagents, ps.turn, ps.action_gen_ );
-			dn.aggregate.nodes.add( ps );
+			dn.aggregate.addPrimitiveState( ps );
 			return dn.aggregate;
+		}
+		
+		private boolean new_split = false;
+		
+		public boolean consumeNewSplitFlag()
+		{
+			final boolean b = new_split;
+			new_split = false;
+			return b;
 		}
 		
 		public DataNode classify( final FactoredRepresentation<S> x, final int nagents,
 								  final int[] turn, final ActionGenerator<S, JointAction<A>> action_gen )
 		{
+			new_split = false;
+			
 			final double[] phi = x.phi();
 			DataNode dn = dt_root;
 			while( dn.split != null ) {
@@ -357,12 +453,14 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 			}
 			
 			if( dn.aggregate.n() >= dn.aggregate.splitThreshold() ) {
+//				System.out.println( " Splitting " + x );
 //				System.out.println( "! dn.aggregate.n() = " + dn.aggregate.n() );
-				System.out.println( " Splitting " + x );
-				System.out.println( "! " + dn.aggregate );
+//				System.out.println( "! " + dn.aggregate );
 				
 				final SplitNode split = createSplit( dn, nagents, turn, action_gen );
 				if( split != null ) {
+					Nsplits_accepted += 1;
+					
 					dn.split = split;
 					// Allow GC to collect references
 					children.remove( dn.aggregate );
@@ -373,12 +471,18 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 						children.add( succ.aggregate );
 					}
 					
-					System.out.println( "****************************************" );
-					System.out.println( "****************************************" );
-					root().accept( new TreePrinter<S, A>() );
-					System.out.println( "----------------------------------------" );
-					Ptree_root_action_.successors().next().accept( new TreePrinter<S, A>() );
-					System.out.println( "****************************************" );
+					// FIXME: Here we need to update the value of the action
+					// since it will be higher after splitting. It would
+					// also be a good place to mess with the exploration constant.
+					
+					new_split = true;
+					
+//					System.out.println( "****************************************" );
+//					System.out.println( "****************************************" );
+//					root().accept( new TreePrinter<S, A>() );
+//					System.out.println( "----------------------------------------" );
+//					Ptree_root_action_.successors().next().accept( new TreePrinter<S, A>() );
+//					System.out.println( "****************************************" );
 				}
 				else {
 					// Didn't find a good split -> increase threshold
@@ -394,32 +498,40 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 		private SplitNode createSplit( final DataNode dn, final int nagents,
 									   final int[] turn, final ActionGenerator<S, JointAction<A>> action_gen )
 		{
-//			System.out.println( "createSplit()" );
+			// Find the most-played actions
+			final Set<JointAction<A>> relevant_actions = new HashSet<JointAction<A>>();
+			
+			final int Nactions = dn.aggregate.nsuccessors();
+			if( Nactions == 1 ) {
+				return null;
+			}
+			else if( Nactions <= top_actions ) {
+				for( final ActionNode<S, A> an : Fn.in( dn.aggregate.successors() ) ) {
+					relevant_actions.add( an.a() );
+				}
+			}
+			else {
+				final PriorityQueue<ActionNode<S, A>> pq = new PriorityQueue<ActionNode<S, A>>( Nactions,
+					new Comparator<ActionNode<S, A>>() {
+						@Override
+						public int compare( final ActionNode<S, A> a, final ActionNode<S, A> b )
+						{ return (int) -Math.signum( a.n() - b.n() ); }
+					} );
+				for( final ActionNode<S, A> an : Fn.in( dn.aggregate.successors() ) ) {
+					pq.add( an );
+				}
+
+				for( int i = 0; i < Math.min( top_actions, pq.size() ); ++i ) {
+					relevant_actions.add( pq.poll().a() );
+				}
+			}
 			
 			int split_idx = -1;
-			double split_threshold = 0;
+			double split_value = 0;
 			double value = -Double.MAX_VALUE;
 			ArrayList<PrimitiveStateNode> Ustar = null;
 			ArrayList<PrimitiveStateNode> Vstar = null;
 			final ArrayList<PrimitiveStateNode> dn_list = new ArrayList<PrimitiveStateNode>( dn.aggregate.nodes );
-			
-			// Find the most-played actions
-			final ArrayList<? extends ActionNode<S, A>> aas = Fn.takeAll( dn.aggregate.successors() );
-			Collections.sort( aas, new Comparator<ActionNode<S, A>>() {
-				@Override
-				public int compare( final ActionNode<S, A> a, final ActionNode<S, A> b )
-				{ return (int) -Math.signum( a.n() - b.n() ); }
-			} );
-			final int Nactions = (int) Math.ceil( dn.aggregate.n() * action_quantile );
-			int nactions = 0;
-			final Set<JointAction<A>> relevant_actions = new HashSet<JointAction<A>>();
-			for( final ActionNode<S, A> an : aas ) {
-				relevant_actions.add( an.a() );
-				nactions += an.n();
-				if( nactions >= Nactions ) {
-					break;
-				}
-			}
 			
 			// Test all attributes for split quality
 			for( int i = 0; i < factored_repr.attributes().size(); ++i ) {
@@ -433,8 +545,10 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 				} );
 				
 				// Test all split points for quality
-				double v0 = dn_list.get( 0 ).factored_x.phi()[i];
-				for( int j = 1; j < dn_list.size(); ++j ) {
+				final int start = 0; //(int) Math.floor( dn_list.size() / 3.0 );
+				final int end = dn_list.size(); //(int) Math.ceil( dn_list.size() / 1.5 );
+				double v0 = dn_list.get( start ).factored_x.phi()[i];
+				for( int j = start + 1; j < end; ++j ) {
 					final double v1 = dn_list.get( j ).factored_x.phi()[i];
 					if( v1 > v0 ) {
 						final ArrayList<PrimitiveStateNode> U = new ArrayList<PrimitiveStateNode>();
@@ -449,12 +563,15 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 						for( int k = j; k < dn_list.size(); ++k ) {
 							V.add( dn_list.get( k ) );
 						}
-						
 						final double score = evaluateSplit( U, V, relevant_actions );
+						
+//						final double score = Math.min( j, dn_list.size() - j )
+//											 / ((double) Math.max( j, dn_list.size() - j ));
+						
 						assert( score >= 0.0 );
 						if( score > value ) {
 							split_idx = i;
-							split_threshold = split;
+							split_value = split;
 							value = score;
 							Ustar = U;
 							Vstar = V;
@@ -465,22 +582,24 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 				}
 			}
 			
+//			System.out.println( "\t" + dn_list );
+			
 			if( value == 0.0 ) {
-				System.out.println( "\t ! No profitable splits" );
+//				System.out.println( "\t ! No profitable splits" );
 				return null;
 			}
 			
 			if( Ustar == null || Vstar == null ) {
-				System.out.println( "\t ! Homogeneous cluster" );
+//				System.out.println( "\t ! Homogeneous cluster" );
 				return null;
 			}
 			
-			System.out.println( "\tActions: " + relevant_actions );
-			System.out.println( "\t Selected " + split_idx + " @ " + split_threshold );
-			System.out.println( "\t score = " + value );
-			System.out.println( "\t" + dn_list );
+//			System.out.println( "\tState: " + dn.aggregate );
+//			System.out.println( "\tActions: " + relevant_actions );
+//			System.out.println( "\t Selected " + split_idx + " @ " + split_value );
+//			System.out.println( "\t score = " + value );
 			
-			final BinarySplitNode split = new BinarySplitNode( split_idx, split_threshold );
+			final BinarySplitNode split = new BinarySplitNode( split_idx, split_value );
 			
 			split.left = new DataNode();
 			split.left.aggregate = new AggregateStateNode( new HashSet<PrimitiveStateNode>( Ustar ),
@@ -542,7 +661,9 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 				final double du = qu[ustar] - qu[vstar];
 				final double dv = qv[vstar] - qv[ustar];
 				final double D = Math.max( du, dv );
-				return D*R; // + size_regularization*R;
+//				return D;
+				return D*R;
+//				return D + size_regularization*R;
 			}
 			else {
 				return 0;
@@ -597,6 +718,65 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 		{
 			assert( q.length == qv_.Ndim );
 			qv_.add( q );
+		}
+
+		/**
+		 * Corrects node statistics after splitting a child node. The idea is
+		 * that if the node was split, then the old value of this action is
+		 * too low because not splitting the child states led to an
+		 * under-estimate. This function changes this node's statistics to
+		 * include only the max Q values of successor states. This will be
+		 * an optimistic estimate, and combined with the reduction in sample
+		 * count for this node will result in additional exploration.
+		 * @param path
+		 */
+		public void correctForNewSplit(
+			final ArrayList<Pair<AggregateActionNode, AggregateStateNode>> path )
+		{
+//			System.out.println( "!!!!! Old Q value for " + a() + ": " + qv_ );
+			
+			qv_ = new VectorMeanVarianceAccumulator( nagents );
+			rv_ = new VectorMeanVarianceAccumulator( nagents );
+			
+			int n = 0;
+			for( final StateNode<S, A> s : Fn.in( successors() ) ) {
+				final ActionNode<S, A> astar = BackupRules.MaxAction( s );
+				if( astar == null ) {
+					continue;
+				}
+				n += astar.n();
+				qv_.add( astar.q(), astar.n() );
+			}
+			
+			rv_.add( new double[nagents], n );
+			
+			n_ = n;
+			
+			// FIXME: Single agent only
+			final double q = qv_.mean()[0];
+			
+			for( int i = path.size() - 1; i >= 0; --i ) {
+				final Pair<AggregateActionNode, AggregateStateNode> t = path.get( i );
+				final AggregateActionNode an = t.first;
+				final AggregateStateNode sn = t.second;
+				
+				final double[] maxq = Fn.copy( BackupRules.MaxQ( sn ) );
+				sn.setV( maxq );
+				
+				final double[] qa = new double[nagents];
+				for( final AggregateStateNode succ : Fn.in( an.successors() ) ) {
+					final double p = succ.n() / ((double) an.n());
+					final double[] vi = succ.v();
+					Fn.vplus_ax_inplace( qa, p, vi );
+				}
+//				System.out.println( "!!! Setting q = " + Arrays.toString( qa ) + " " + an );
+				an.setQ( qa, an.n() );
+				// TODO: ActionNode R is never non-zero in the current implementation,
+				// so I'm not bothering to compute it here.
+				an.setR( new double[nagents], an.n() );
+			}
+			
+//			System.out.println( "!!!!! New Q value for " + a() + ": " + qv_ );
 		}
 	}
 	
@@ -673,13 +853,17 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 	// TODO: Should be parameters
 	private final double discount = 1.0;
 	/** Minimum # of samples before considering a split. */
-	private final int split_threshold = 10;
+	private final int split_threshold;
 	/** Split threshold multiplier applied after a rejected split. */
 	private final double backoff = 2.0;
 	/** Split based on actions with # of trials in the top quantile. */
-	private final double action_quantile = 0.5;
+//	private final double action_quantile = 1.0;
+	private final int top_actions;
 	/** Regularization factor; larger value encourages similar cluster sizes. */
 	private final double size_regularization = 0; //1000.0; //10000.0;
+	
+	// TODO: Make this a parameter
+	private final boolean max_uct = false;
 	
 	private boolean complete_ = false;
 	
@@ -691,12 +875,15 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 	
 	private int max_depth_ = Integer.MAX_VALUE;
 	
+	private int Nsplits_accepted = 0;
+	
 	public UTreeSearch( final ResetSimulator<S, A> sim,
 					  final FactoredRepresenter<S, ? extends FactoredRepresentation<S>> repr,
 					  final ActionGenerator<S, JointAction<A>> actions,
 					  final double c, final int episode_limit,
 					  final EvaluationFunction<S, A> eval,
-					  final MctsVisitor<S, A> visitor )
+					  final MctsVisitor<S, A> visitor,
+					  final int split_threshold, final int top_actions )
 	{
 		sim_ = sim;
 		repr_ = repr;
@@ -705,6 +892,9 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 		episode_limit_ = episode_limit;
 		eval_ = eval;
 		visitor_ = visitor;
+		
+		this.split_threshold = split_threshold;
+		this.top_actions = top_actions;
 		
 		Ptree_root_action_ = new PrimitiveActionNode( null, 0, repr.create() );
 		Atree_root_action_ = new AggregateActionNode( null, 0, repr.create() );
@@ -722,20 +912,26 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 	public void setMaxDepth( final int max )
 	{ max_depth_ = max; }
 	
+	public int Nsplits_accepted()
+	{
+		return Nsplits_accepted;
+	}
+	
 	@Override
 	public void run()
 	{
 		int episode_count = 0;
 		while( episode_count++ < episode_limit_ && action_visits_ < max_action_visits_ ) {
-			visit( Ptree_root_action_, Atree_root_action_, 0, visitor_ );
+			visit( Ptree_root_action_, Atree_root_action_, 0, visitor_,
+				   new ArrayList<Pair<AggregateActionNode, AggregateStateNode>>() );
 			sim_.reset();
 			
-			System.out.println( "****************************************" );
-			System.out.println( "****************************************" );
-			root().accept( new TreePrinter<S, A>() );
-			System.out.println( "----------------------------------------" );
-			Ptree_root_action_.successors().next().accept( new TreePrinter<S, A>() );
-			System.out.println( "****************************************" );
+//			System.out.println( "****************************************" );
+//			System.out.println( "****************************************" );
+//			root().accept( new TreePrinter<S, A>() );
+//			System.out.println( "----------------------------------------" );
+//			Ptree_root_action_.successors().next().accept( new TreePrinter<S, A>() );
+//			System.out.println( "****************************************" );
 		}
 		
 		complete_ = true;
@@ -743,7 +939,8 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 	
 	private double[] visit(
 		final PrimitiveActionNode P_an, final AggregateActionNode A_an,
-		final int depth, final MctsVisitor<S, A> visitor )
+		final int depth, final MctsVisitor<S, A> visitor,
+		final ArrayList<Pair<AggregateActionNode, AggregateStateNode>> path )
 	{
 		final S s = sim_.state();
 		final int[] turn = sim_.turn();
@@ -760,7 +957,21 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 		final PrimitiveStateNode P_sn = (PrimitiveStateNode) P_an.successor( s, nagents, turn, actions_.create() );
 		P_sn.visit();
 		final AggregateStateNode A_sn = A_an.successor( s, P_sn );
+		if( A_an.consumeNewSplitFlag() ) {
+			// A split was actually added. The value estimate for A_an is likely
+			// to be an under-estimate. We need to increase it to make sure
+			// that A_an is adequately explored after the split.
+			A_an.correctForNewSplit( path );
+//			System.out.println( "!!!!! There was a split" );
+			
+//			System.out.println( "****************************************" );
+//			root().accept( new TreePrinter<S, A>() );
+//			System.out.println( "----------------------------------------" );
+			
+//			System.exit( 0 );
+		}
 		A_sn.visit();
+		path.add( Pair.makePair( A_an, A_sn ) );
 		
 		final double[] r = sim_.reward();
 		P_sn.updateR( r );
@@ -794,12 +1005,24 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 			A_sa.updateR( zero );
 			
 			sim_.takeAction( A_sa.a().create() );
-			final double[] z = visit( P_sa, A_sa, depth + 1, visitor );
+			final double[] z = visit( P_sa, A_sa, depth + 1, visitor, path );
 			P_sa.updateQ( z );
 			A_sa.updateQ( z );
-			Fn.scalar_multiply_inplace( z, discount );
-			Fn.vplus_inplace( r, z );
-			return r;
+			
+			final double[] maxq = Fn.copy( BackupRules.MaxQ( A_sn ) );
+			Fn.scalar_multiply_inplace( maxq, discount );
+			final double[] rr  = Fn.copy( r );
+			Fn.vplus_inplace( rr, maxq );
+			A_sn.setV( rr );
+			
+			if( max_uct ) {
+				return rr;
+			}
+			else {
+				Fn.scalar_multiply_inplace( z, discount );
+				Fn.vplus_inplace( r, z );
+				return r;
+			}
 		}
 	}
 	
@@ -915,42 +1138,45 @@ public class UTreeSearch<S extends State, A extends VirtualConstructor<A>>
 		final MersenneTwister rng = new MersenneTwister( 43 );
 		final double c = 100.0;
 		final int Ngames = 1;
-		final int Nepisodes = 40;
+		final int Nepisodes = 512;
+		final int split_threshold = 50;
+		final int top_actions = 2;
 		
-		final ChainWalk cw = new ChainWalk( 2, 0.2, 10 );
-		final ChainWalk.Simulator sim = cw.new Simulator();
-		final ChainWalk.ActionGen action_gen = cw.new ActionGen( rng );
-		final UTreeSearch<ChainWalk.State, ChainWalk.Action> ut
-			= new UTreeSearch<ChainWalk.State, ChainWalk.Action>(
-				ResetAdapter.of( sim ), new ChainWalk.IdentityRepresenter(),
-				SingleAgentJointActionGenerator.create( action_gen ), c, Nepisodes,
-				getChainWalkEvaluator( rng, action_gen.create() ),
-				new DefaultMctsVisitor<ChainWalk.State, ChainWalk.Action>() );
-		ut.run();
+//		final ChainWalk cw = new ChainWalk( 2, 0.2, 10 );
+//		final ChainWalk.Simulator sim = cw.new Simulator( cw.new State() );
+//		final ChainWalk.ActionGen action_gen = cw.new ActionGen( rng );
+//		final UTreeSearch<ChainWalk.State, ChainWalk.Action> ut
+//			= new UTreeSearch<ChainWalk.State, ChainWalk.Action>(
+//				ResetAdapter.of( sim ), new ChainWalk.IdentityRepresenter(),
+//				SingleAgentJointActionGenerator.create( action_gen ), c, Nepisodes,
+//				getChainWalkEvaluator( rng, action_gen.create() ),
+//				new DefaultMctsVisitor<ChainWalk.State, ChainWalk.Action>() );
+//		ut.run();
 		
-//		for( int i = 0; i < Ngames; ++i ) {
-//			final FuelWorldState fw = FuelWorldState.createDefaultWithChoices( rng );
-//			final FuelWorldSimulator sim = new FuelWorldSimulator( fw );
-//			final FuelWorldActionGenerator action_gen = new FuelWorldActionGenerator();
-//
-//			while( !fw.isTerminal() ) {
-//				final UTreeSearch<FuelWorldState, FuelWorldAction> ut
-//					= new UTreeSearch<FuelWorldState, FuelWorldAction>(
-//						ResetAdapter.of( sim ), new PrimitiveFuelWorldRepresenter(),
-//						SingleAgentJointActionGenerator.create( action_gen ), c, Nepisodes,
-//						getFuelWorldEvaluator( rng, action_gen.create() ),
-//						new DefaultMctsVisitor<FuelWorldState, FuelWorldAction>() );
-//
-//				ut.run();
-//
-//				final JointAction<FuelWorldAction> astar = BackupRules.MaxAction( ut.root() ).a();
-//				System.out.println( astar );
-//				System.out.println( "********************" );
-//				sim.takeAction( astar );
-//
-//				break;
-//			}
-//		}
+		for( int i = 0; i < Ngames; ++i ) {
+			final FuelWorldState fw = FuelWorldState.createDefaultWithChoices( rng );
+			final FuelWorldSimulator sim = new FuelWorldSimulator( fw );
+			final FuelWorldActionGenerator action_gen = new FuelWorldActionGenerator();
+
+			while( !fw.isTerminal() ) {
+				final UTreeSearch<FuelWorldState, FuelWorldAction> ut
+					= new UTreeSearch<FuelWorldState, FuelWorldAction>(
+						ResetAdapter.of( sim ), new PrimitiveFuelWorldRepresenter(),
+						SingleAgentJointActionGenerator.create( action_gen ), c, Nepisodes,
+						getFuelWorldEvaluator( rng, action_gen.create() ),
+						new DefaultMctsVisitor<FuelWorldState, FuelWorldAction>(),
+						split_threshold, top_actions );
+
+				ut.run();
+
+				final JointAction<FuelWorldAction> astar = BackupRules.MaxAction( ut.root() ).a();
+				System.out.println( astar );
+				System.out.println( "********************" );
+				sim.takeAction( astar );
+
+				break;
+			}
+		}
 		
 //		ut.root().accept( new TreePrinter<FuelWorldState, FuelWorldAction>() );
 	}

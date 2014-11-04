@@ -157,7 +157,7 @@ public enum YahtzeeScores implements YahtzeeScoreCategory
 	SmallStraight {
 		@Override
 		public boolean isSatisfiedBy( final Hand h )
-		{ return h.straight_len >= 4; }
+		{ return h.straight() >= 4; }
 		
 		@Override
 		public int score( final Hand h )
@@ -174,7 +174,7 @@ public enum YahtzeeScores implements YahtzeeScoreCategory
 	LargeStraight {
 		@Override
 		public boolean isSatisfiedBy( final Hand h )
-		{ return h.straight_len >= 5; }
+		{ return h.straight() >= 5; }
 
 		@Override
 		public int score( final Hand h )

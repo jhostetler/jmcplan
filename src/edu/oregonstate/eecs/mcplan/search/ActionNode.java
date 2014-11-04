@@ -71,7 +71,7 @@ public abstract class ActionNode<S, A extends VirtualConstructor<A>>
 	
 	@Override
 	public String toString()
-	{ return a_.toString(); }
+	{ return (a_ != null ? a_.toString() : "null"); }
 
 	@Override
 	public void accept( final GameTreeVisitor<S, A> visitor )

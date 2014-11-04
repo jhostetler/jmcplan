@@ -8,7 +8,8 @@ package edu.oregonstate.eecs.mcplan;
  * @author jhostetler
  *
  */
-public class PolicyAction<S, A extends UndoableAction<S>> implements UndoableAction<S>
+public class PolicyAction<S, A extends UndoableAction<S>>
+	implements UndoableAction<S>, VirtualConstructor<PolicyAction<S, A>>
 {
 	private final Policy<S, A> pi_;
 	private final long t_;

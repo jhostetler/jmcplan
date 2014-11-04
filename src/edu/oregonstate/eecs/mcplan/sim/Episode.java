@@ -71,7 +71,6 @@ public class Episode<S, A extends VirtualConstructor<A>> implements Runnable
 			pi_.actionResult( sim_.state(), sim_.reward() );
 			fireActionsTaken( sim_.state(), sim_.reward() );
 			if( sim_.isTerminalState( ) ) {
-//				System.out.println( "[Episode] Terminal state" );
 				break;
 			}
 		}

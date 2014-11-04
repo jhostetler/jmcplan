@@ -5,6 +5,7 @@ package edu.oregonstate.eecs.mcplan.domains.yahtzee2;
 
 import java.util.Arrays;
 
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.State;
@@ -37,6 +38,21 @@ public class YahtzeeState implements State
 		// action, which would be the only action available whenever it is
 		// legal.
 		setHand( new Hand( roll( Hand.Ndice ) ), Hand.Nrerolls );
+	}
+	
+	public YahtzeeState( final YahtzeeState that )
+	{
+		hand_ = new Hand( that.hand().dice );
+		
+		Fn.memcpy( this.scores, that.scores );
+		Fn.memcpy( this.filled, that.filled );
+		this.upper_total = that.upper_total;
+		this.total = that.total;
+		this.yahtzee_bonus = that.yahtzee_bonus;
+		this.upper_bonus = that.upper_bonus;
+		this.rerolls = that.rerolls;
+		
+		rng_ = that.rng_;
 	}
 	
 	public int score()
@@ -110,6 +126,37 @@ public class YahtzeeState implements State
 	public boolean isTerminal()
 	{
 		return Fn.all( filled );
+	}
+	
+	@Override
+	public boolean equals( final Object obj )
+	{
+		final YahtzeeState that = (YahtzeeState) obj;
+		
+		return ( this.rerolls == that.rerolls
+				 && this.total == that.total
+				 && this.upper_total == that.upper_total
+				 && Arrays.equals( this.filled, that.filled )
+				 && Arrays.equals( this.scores, that.scores )
+				 && hand_.equals( that.hand_ )
+				 && this.yahtzee_bonus == that.yahtzee_bonus
+				 && this.upper_bonus == that.upper_bonus );
+	}
+	
+	@Override
+	public int hashCode()
+	{
+		final HashCodeBuilder hb = new HashCodeBuilder( 3, 7 );
+		hb.append( scores );
+		hb.append( filled );
+		hb.append( hand_ );
+		hb.append( upper_total );
+		hb.append( total );
+		hb.append( yahtzee_bonus );
+		hb.append( upper_bonus );
+		hb.append( rerolls );
+		
+		return hb.toHashCode();
 	}
 	
 	@Override

@@ -206,7 +206,13 @@ public class FuelWorldMDP extends MarkovDecisionProblem<FuelWorldState, FuelWorl
 		final MeanVarianceAccumulator steps = new MeanVarianceAccumulator();
 		final int Ngames = 100000;
 		for( int i = 0; i < Ngames; ++i ) {
-			final FuelWorldState s0 = FuelWorldState.createDefaultWithChoices( rng );
+			final FuelWorldState s0;
+			if( choices ) {
+				s0 = FuelWorldState.createDefaultWithChoices( rng );
+			}
+			else {
+				s0 = FuelWorldState.createDefault( rng );
+			}
 			final FuelWorldSimulator sim = new FuelWorldSimulator( s0 );
 			
 			final Episode<FuelWorldState, FuelWorldAction> episode
