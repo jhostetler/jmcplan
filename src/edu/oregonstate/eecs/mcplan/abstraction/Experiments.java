@@ -80,6 +80,7 @@ import edu.oregonstate.eecs.mcplan.domains.racegrid.RacegridActionGenerator;
 import edu.oregonstate.eecs.mcplan.domains.racegrid.RacegridCircuits;
 import edu.oregonstate.eecs.mcplan.domains.racegrid.RacegridSimulator;
 import edu.oregonstate.eecs.mcplan.domains.racegrid.RacegridState;
+import edu.oregonstate.eecs.mcplan.domains.racegrid.RacegridVisualization;
 import edu.oregonstate.eecs.mcplan.domains.racegrid.ShortestPathHeuristic;
 import edu.oregonstate.eecs.mcplan.domains.racegrid.TerrainType;
 import edu.oregonstate.eecs.mcplan.domains.racetrack.Circuit;
@@ -886,7 +887,7 @@ public class Experiments
 					
 //					System.out.println( "****************************************" );
 //					System.out.println( "****************************************" );
-//					search.root().accept( new TreePrinter<S, A>() );
+//					search.root().accept( new TreePrinter<S, A>( 4 ) );
 //					System.out.println( "----------------------------------------" );
 				}
 
@@ -967,14 +968,15 @@ public class Experiments
 //					final int Nsplit_threshold = (int) Math.ceil( config.Ntest_episodes * split_threshold );
 					
 					final int Nsplit_threshold = config.getInt( "utree.split_threshold" );
-					
 					final int Ntop_actions = config.getInt( "utree.Ntop_actions" );
+					final double size_regularization = config.getDouble( "utree.size_regularization" );
+					
 					final UTreeSearch<S, A> search = new UTreeSearch<S, A>(
 						domain.createSimulator( s ), domain.getBaseRepresenter(),
 						SingleAgentJointActionGenerator.create( domain.getActionGenerator() ),
 						config.uct_c, config.Ntest_episodes,
 						domain.getEvaluator(), new DefaultMctsVisitor<S, A>(),
-						Nsplit_threshold, Ntop_actions );
+						Nsplit_threshold, Ntop_actions, size_regularization );
 					
 					final long tstart = System.nanoTime();
 					search.run();
@@ -994,7 +996,7 @@ public class Experiments
 					
 //					System.out.println( "****************************************" );
 //					System.out.println( "****************************************" );
-//					search.root().accept( new TreePrinter<S, A>() );
+//					search.root().accept( new TreePrinter<S, A>( 4 ) );
 //					System.out.println( "----------------------------------------" );
 				}
 
@@ -2828,24 +2830,25 @@ public class Experiments
 		{
 			config_ = config;
 			circuit_name_ = config.get( "racegrid.circuit" );
-			if( "bbs_small".equals( circuit_name_ ) ) {
-				circuit_ = RacegridCircuits.barto_bradke_singh_SmallTrack();
-			}
-			else if( "bbs_large".equals( circuit_name_ ) ) {
-				circuit_ = RacegridCircuits.barto_bradke_singh_LargeTrack();
-			}
-			else {
-				throw new IllegalArgumentException( "racegrid.circuit = " + circuit_name_ );
-			}
 			
-			final RacegridState s = new RacegridState( circuit_ );
-			heuristic_ = new ShortestPathHeuristic( s, 3 );
+			final RacegridState s = initialState();
+			circuit_ = s.terrain;
+			heuristic_ = new ShortestPathHeuristic( s, 2*config_.getInt( "racegrid.scale" ) );
 		}
 		
 		@Override
 		public RacegridState initialState()
 		{
-			return new RacegridState( circuit_ );
+			final int scale = config_.getInt( "racegrid.scale" );
+			if( "bbs_small".equals( circuit_name_ ) ) {
+				return RacegridCircuits.barto_bradtke_singh_SmallTrack( config_.rng, scale );
+			}
+			else if( "bbs_large".equals( circuit_name_ ) ) {
+				return RacegridCircuits.barto_bradtke_singh_LargeTrack( config_.rng, scale );
+			}
+			else {
+				throw new IllegalArgumentException( "racegrid.circuit = " + circuit_name_ );
+			}
 		}
 		
 		@Override
@@ -2871,10 +2874,8 @@ public class Experiments
 		@Override
 		public EpisodeListener<RacegridState, RacegridAction> getVisualization()
 		{
-//			final RacegridVisualization vis = new RacegridVisualization( null, circuit_, 10 );
-//			return vis.updater( 500 );
-			
-			return null;
+			final RacegridVisualization vis = new RacegridVisualization( null, circuit_, 10 );
+			return vis.updater( 500 );
 		}
 
 		@Override
@@ -3253,7 +3254,7 @@ public class Experiments
 		public EvaluationFunction<RDDLState, RDDLAction> getEvaluator()
 		{
 			final int rollout_width = 1;
-			final int rollout_depth = 1; //Integer.MAX_VALUE;
+			final int rollout_depth = config_.getInt( "rddl.rollout.depth" ); // 1; //Integer.MAX_VALUE;
 			final Policy<RDDLState, JointAction<RDDLAction>> rollout_policy
 				= new RandomPolicy<RDDLState, JointAction<RDDLAction>>(
 					0 /*Player*/, config_.rng.nextInt(),
@@ -3470,6 +3471,7 @@ public class Experiments
 		final MeanVarianceAccumulator ret = new MeanVarianceAccumulator();
 		final MeanVarianceAccumulator steps = new MeanVarianceAccumulator();
 		final MinMaxAccumulator steps_minmax = new MinMaxAccumulator();
+		final boolean use_visualization = config.getBoolean( "log.visualization" );
 		
 //		final ArrayList<ArrayList<Pair<A, Double>>> qtable = new ArrayList<ArrayList<Pair<A, Double>>>();
 		
@@ -3492,9 +3494,14 @@ public class Experiments
 			if( listener != null ) {
 				episode.addListener( listener );
 			}
-			final EpisodeListener<S, A> vis = domain.getVisualization();
-			if( vis != null ) {
-				episode.addListener( vis );
+			if( use_visualization ) {
+				final EpisodeListener<S, A> vis = domain.getVisualization();
+				if( vis != null ) {
+					episode.addListener( vis );
+				}
+				else {
+					System.out.println( "Warning: No visualization implemented" );
+				}
 			}
 			
 			episode.run();

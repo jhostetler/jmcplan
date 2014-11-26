@@ -4,7 +4,6 @@
 package edu.oregonstate.eecs.mcplan.domains.taxi;
 
 import java.util.ArrayDeque;
-import java.util.Arrays;
 import java.util.Deque;
 
 import org.apache.commons.math3.random.RandomGenerator;
@@ -40,18 +39,23 @@ public class TaxiSimulator implements UndoSimulator<TaxiState, TaxiAction>
 			assert( old_taxis_ == null );
 			old_taxis_ = Fn.copy( s.other_taxis );
 			
+			final int[] rs = Fn.range( 0, 5 );
 			for( int i = 0; i < s.other_taxis.length; ++i ) {
-				final int r = rng_.nextInt( 5 );
-				final int[] new_pos = Arrays.copyOf( s.other_taxis[i], s.other_taxis[i].length );
-				switch( r ) {
-					case 0: new_pos[0] -= 1; break;
-					case 1: new_pos[0] += 1; break;
-					case 2: new_pos[1] -= 1; break;
-					case 3: new_pos[1] += 1; break;
-					default: assert( r == 4 ); break;
-				}
-				if( s.isLegalMove( i, s.other_taxis[i], new_pos ) ) {
-					s.other_taxis[i] = new_pos;
+				Fn.shuffle( rng_, rs );
+				final int[] new_pos = new int[2];
+				for( final int r : rs ) {
+					Fn.memcpy( new_pos, s.other_taxis[i] );
+					switch( r ) {
+						case 0: new_pos[0] -= 1; break;
+						case 1: new_pos[0] += 1; break;
+						case 2: new_pos[1] -= 1; break;
+						case 3: new_pos[1] += 1; break;
+						default: assert( r == 4 ); break;
+					}
+					if( s.isLegalMove( i, s.other_taxis[i], new_pos ) ) {
+						s.other_taxis[i] = new_pos;
+						break;
+					}
 				}
 			}
 		}

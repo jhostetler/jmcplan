@@ -1520,6 +1520,30 @@ public final class Fn
 	// misc
 	// -----------------------------------------------------------------------
 	
+	public static double inner_product( final double[] x, final double[] y )
+	{
+		assert( x.length == y.length );
+		double d = 0;
+		for( int i = 0; i < x.length; ++i ) {
+			d += x[i]*y[i];
+		}
+		return d;
+	}
+	
+	public static double scalar_projection( final double[] a, final double[] b )
+	{
+		final double n = inner_product( a, b );
+		final double d = inner_product( b, b );
+		return n / d;
+	}
+	
+	public static double[] projection( final double[] a, final double[] b )
+	{
+		final double n = inner_product( a, b );
+		final double d = inner_product( b, b );
+		return Fn.scalar_multiply( b, (n / d) );
+	}
+	
 	public static double distance_l2( final double[] x, final double[] y )
 	{
 		assert( x.length == y.length );

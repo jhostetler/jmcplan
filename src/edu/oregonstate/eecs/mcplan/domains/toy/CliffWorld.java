@@ -40,19 +40,20 @@ public class CliffWorld
 	
 	public static class State implements edu.oregonstate.eecs.mcplan.State
 	{
-		public static final int Nwind = 3;
-		public static final double p = 0.75;
-		
 		public final int L;
+		public final int W;
+		public final int F;
 		
 		public Path path = Path.Start;
 		public int location = 0;
 		public int wind = 0;
-		public boolean slipping = false;
+		public int slip = 0;
 		
-		public State( final int L )
+		public State( final int L, final int W, final int F )
 		{
 			this.L = L;
+			this.W = W;
+			this.F = F;
 		}
 		
 		@Override
@@ -75,7 +76,7 @@ public class CliffWorld
 		@Override
 		public String toString()
 		{
-			return "path: " + path + ", location: " + location + ", wind: " + wind + ", slipping: " + slipping;
+			return "path: " + path + ", location: " + location + ", wind: " + wind + ", slip: " + slip;
 		}
 	}
 	
@@ -174,8 +175,7 @@ public class CliffWorld
 	{
 		private boolean done = false;
 		private int old_location = -1;
-		private Path old_path = Path.Dead;
-		private boolean old_slipping = false;
+		private int old_slip = 0;
 		
 		@Override
 		public void undoAction( final State s )
@@ -183,8 +183,7 @@ public class CliffWorld
 			assert( done );
 			assert( s.location > 0 );
 			s.location = old_location;
-			s.path = old_path;
-			s.slipping = old_slipping;
+			s.slip = old_slip;
 			done = false;
 		}
 
@@ -193,14 +192,13 @@ public class CliffWorld
 		{
 			assert( !done );
 			old_location = s.location;
-			old_path = s.path;
-			old_slipping = s.slipping;
+			old_slip = s.slip;
 			
-			if( s.slipping ) {
-				s.path = Path.Dead;
+			if( s.slip == 0 ) {
+				s.location += 1;
 			}
 			else {
-				s.location += 1;
+				s.slip += 2;
 			}
 			
 			done = true;
@@ -231,8 +229,7 @@ public class CliffWorld
 	{
 		private boolean done = false;
 		private int old_location = -1;
-		private Path old_path = Path.Dead;
-		private boolean old_slipping = false;
+		private int old_slip = 0;
 		
 		private final RandomGenerator rng;
 		
@@ -247,8 +244,7 @@ public class CliffWorld
 			assert( done );
 			assert( s.location > 0 || s.path == Path.Dead );
 			s.location = old_location;
-			s.path = old_path;
-			s.slipping = old_slipping;
+			s.slip = old_slip;
 			done = false;
 		}
 
@@ -257,21 +253,20 @@ public class CliffWorld
 		{
 			assert( !done );
 			old_location = s.location;
-			old_path = s.path;
-			old_slipping = s.slipping;
+			old_slip = s.slip;
 			
-			if( s.slipping ) {
-				s.path = Path.Dead;
-			}
-			else {
+			if( s.slip == 0 ) {
+				s.location += 1;
+				
 				if( s.path == Path.Cliff ) {
-					final double Pslip = 1.0 - Math.pow( State.p, 1 + s.wind );
+					final double Pslip = s.wind / ((double) s.W);
 					if( rng.nextDouble() < Pslip ) {
-						s.slipping = true;
+						s.slip += 1;
 					}
 				}
-				
-				s.location += 1;
+			}
+			else {
+				s.slip += 2;
 			}
 			
 			done = true;
@@ -301,13 +296,13 @@ public class CliffWorld
 	public static class SteadyAction extends Action
 	{
 		private boolean done = false;
-		private boolean old_slipping = false;
+		private int old_slip = 0;
 		
 		@Override
 		public void undoAction( final State s )
 		{
 			assert( done );
-			s.slipping = old_slipping;
+			s.slip = old_slip;
 			done = false;
 		}
 
@@ -315,8 +310,13 @@ public class CliffWorld
 		public void doAction( final State s )
 		{
 			assert( !done );
-			old_slipping = s.slipping;
-			s.slipping = false;
+			old_slip = s.slip;
+			if( s.slip > 0 ) {
+				s.slip -= 1;
+			}
+			if( s.slip > 0 ) {
+				s.slip += 2;
+			}
 			done = true;
 		}
 
@@ -355,7 +355,7 @@ public class CliffWorld
 		}
 		
 		@Override
-		public ActionGenerator<State, Action> create()
+		public Actions create()
 		{ return new Actions( rng ); }
 
 		@Override
@@ -410,14 +410,15 @@ public class CliffWorld
 		}
 	}
 	
-	private static class ChangeWindAction extends Action
+	private static class PostDynamicsAction extends Action
 	{
 		private boolean done = false;
 		private int old_wind = -1;
+		private Path old_path = Path.Start;
 		
 		private final int new_wind;
 		
-		public ChangeWindAction( final int new_wind )
+		public PostDynamicsAction( final int new_wind )
 		{
 			this.new_wind = new_wind;
 		}
@@ -427,6 +428,7 @@ public class CliffWorld
 		{
 			assert( done );
 			s.wind = old_wind;
+			s.path = old_path;
 			done = false;
 		}
 
@@ -435,7 +437,11 @@ public class CliffWorld
 		{
 			assert( !done );
 			old_wind = s.wind;
+			old_path = s.path;
 			s.wind = new_wind;
+			if( s.slip >= s.F ) {
+				s.path = Path.Dead;
+			}
 			done = true;
 		}
 
@@ -445,7 +451,7 @@ public class CliffWorld
 
 		@Override
 		public Action create()
-		{ return new ChangeWindAction( new_wind ); }
+		{ return new PostDynamicsAction( new_wind ); }
 	}
 	
 	// -----------------------------------------------------------------------
@@ -456,7 +462,7 @@ public class CliffWorld
 		
 		private final RandomGenerator rng;
 		private final Deque<Action> action_history = new ArrayDeque<Action>();
-		private final Deque<Action> dynamics_history = new ArrayDeque<Action>();
+		private final Deque<Action> postdynamics_history = new ArrayDeque<Action>();
 		
 		public Simulator( final State s, final RandomGenerator rng )
 		{
@@ -475,14 +481,14 @@ public class CliffWorld
 			ai.doAction( s );
 			action_history.push( ai );
 			
-			final ChangeWindAction cw = new ChangeWindAction( rng.nextInt( State.Nwind ) );
-			cw.doAction( s );
-			dynamics_history.push( cw );
+			final PostDynamicsAction post = new PostDynamicsAction( rng.nextInt( s.W ) );
+			post.doAction( s );
+			postdynamics_history.push( post );
 		}
 
 		@Override
 		public long depth()
-		{ return action_history.size() + dynamics_history.size(); }
+		{ return action_history.size() + postdynamics_history.size(); }
 
 		@Override
 		public long t()
@@ -517,7 +523,7 @@ public class CliffWorld
 				return new double[] { -2 };
 			}
 			else if( a instanceof SteadyAction ) {
-				return new double[] { -2 };
+				return new double[] { -2.5 };
 			}
 			else {
 				return new double[] { -1 };
@@ -539,8 +545,8 @@ public class CliffWorld
 		@Override
 		public void untakeLastAction()
 		{
-			final Action d = dynamics_history.pop();
-			d.undoAction( s );
+			final Action post = postdynamics_history.pop();
+			post.undoAction( s );
 			
 			final Action a = action_history.pop();
 			a.undoAction( s );
@@ -560,7 +566,7 @@ public class CliffWorld
 			phi[idx++] = s.path.ordinal();
 			phi[idx++] = s.location;
 			phi[idx++] = s.wind;
-			phi[idx++] = s.slipping ? 1 : 0;
+			phi[idx++] = s.slip;
 		}
 		
 		private PrimitiveRepresentation( final double[] phi )
@@ -624,7 +630,9 @@ public class CliffWorld
 	public static void main( final String[] argv ) throws NumberFormatException, IOException
 	{
 		final int L = 7;
-		final State s = new State( L );
+		final int W = 4;
+		final int F = 5;
+		final State s = new State( L, W, F );
 		final RandomGenerator rng = new MersenneTwister( 42 );
 		final Simulator sim = new Simulator( s, rng );
 		

@@ -6,7 +6,6 @@ package edu.oregonstate.eecs.mcplan.domains.taxi;
 import java.util.Arrays;
 
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
-import edu.oregonstate.eecs.mcplan.Representation;
 
 /**
  * @author jhostetler
@@ -49,7 +48,7 @@ public class PrimitiveTaxiRepresentation extends FactoredRepresentation<TaxiStat
 	}
 
 	@Override
-	public Representation<TaxiState> copy()
+	public PrimitiveTaxiRepresentation copy()
 	{
 		return new PrimitiveTaxiRepresentation( this );
 	}

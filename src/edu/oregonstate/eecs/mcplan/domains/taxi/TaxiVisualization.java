@@ -448,7 +448,7 @@ public class TaxiVisualization
 		
 		final int Nother_taxis = 1;
 		final double slip = 0.1;
-		final TaxiState state = TaxiWorlds.dietterich2000( Nother_taxis, slip );
+		final TaxiState state = TaxiWorlds.dietterich2000( rng, Nother_taxis, slip );
 		final int T = 100;
 		final TaxiSimulator sim = new TaxiSimulator( rng, state, slip, T );
 		final int scale = 20;

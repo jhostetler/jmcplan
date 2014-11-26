@@ -24,6 +24,8 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 		private int old_y_ = 0;
 		private int old_dx_ = 0;
 		private int old_dy_ = 0;
+		private int old_ddx_ = 0;
+		private int old_ddy_ = 0;
 		private boolean old_crashed_ = false;
 		private boolean old_goal_ = false;
 		
@@ -32,57 +34,39 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 		@Override
 		public void undoAction( final RacegridState s )
 		{
+			assert( done_ );
 			s.x = old_x_;
 			s.y = old_y_;
 			s.dx = old_dx_;
 			s.dy = old_dy_;
+			s.ddx = old_ddx_;
+			s.ddy = old_ddy_;
 			s.crashed = old_crashed_;
 			s.goal = old_goal_;
 			done_ = false;
 		}
-
-		@Override
-		public void doAction( final RacegridState s )
+		
+		private void applyBigNoise( final RacegridState s )
 		{
-//			System.out.println( "*** Step" );
-			
-			// Store state
-			old_x_ = s.x;
-			old_y_ = s.y;
-			old_dx_ = s.dx;
-			old_dy_ = s.dy;
-			old_crashed_ = s.crashed;
-			old_goal_ = s.goal;
-
 			final int noisy_ddx;
-			if( slip_ > 0 ) {
-				final double ddx_sample = rng_.nextDouble();
-				if( ddx_sample < slip_ ) {
-					noisy_ddx = s.ddx - 1;
-				}
-				else if( ddx_sample > (1.0 - slip_) ) {
-					noisy_ddx = s.ddx + 1;
-				}
-				else {
-					noisy_ddx = s.ddx;
-				}
+			final double ddx_sample = rng_.nextDouble();
+			if( ddx_sample < slip_ ) {
+				noisy_ddx = s.ddx - 1;
+			}
+			else if( ddx_sample > (1.0 - slip_) ) {
+				noisy_ddx = s.ddx + 1;
 			}
 			else {
 				noisy_ddx = s.ddx;
 			}
 			
 			final int noisy_ddy;
-			if( slip_ > 0 ) {
-				final double ddy_sample = rng_.nextDouble();
-				if( ddy_sample < slip_ ) {
-					noisy_ddy = s.ddy - 1;
-				}
-				else if( ddy_sample > (1.0 - slip_) ) {
-					noisy_ddy = s.ddy + 1;
-				}
-				else {
-					noisy_ddy = s.ddy;
-				}
+			final double ddy_sample = rng_.nextDouble();
+			if( ddy_sample < slip_ ) {
+				noisy_ddy = s.ddy - 1;
+			}
+			else if( ddy_sample > (1.0 - slip_) ) {
+				noisy_ddy = s.ddy + 1;
 			}
 			else {
 				noisy_ddy = s.ddy;
@@ -90,6 +74,45 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 			
 			s.dx += noisy_ddx;
 			s.dy += noisy_ddy;
+		}
+		
+		private void applySmallNoise( final RacegridState s )
+		{
+			final double r = rng_.nextDouble();
+			if( r < slip_ ) {
+				// Don't update dx/dy
+			}
+			else {
+				s.dx += s.ddx;
+				s.dy += s.ddy;
+			}
+		}
+
+		@Override
+		public void doAction( final RacegridState s )
+		{
+			assert( !done_ );
+//			System.out.println( "*** Step" );
+			
+			// Store state
+			old_x_ = s.x;
+			old_y_ = s.y;
+			old_dx_ = s.dx;
+			old_dy_ = s.dy;
+			old_ddx_ = s.ddx;
+			old_ddy_ = s.ddy;
+			old_crashed_ = s.crashed;
+			old_goal_ = s.goal;
+
+			if( slip_ > 0 ) {
+//				applyBigNoise( s );
+				applySmallNoise( s );
+			}
+			else {
+				s.dx += s.ddx;
+				s.dy += s.ddy;
+			}
+			
 			s.ddx = 0;
 			s.ddy = 0;
 			
@@ -279,11 +302,6 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 		rng_ = rng;
 		s_ = s;
 		slip_ = slip;
-		
-		final int start_idx = rng_.nextInt( s_.starts.size() );
-		final int[] start = s_.starts.get( start_idx );
-		s_.x = start[0];
-		s_.y = start[1];
 	}
 	
 	@Override
@@ -350,10 +368,9 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 	public double[] reward()
 	{
 		if( s_.crashed ) {
-			return new double[] { -10 };
+			return new double[] { -s_.T }; // { -(s_.T - s_.t) - 10 }; //{ -10 };
 		}
-		else
-		if( s_.goal ) {
+		else if( s_.goal ) {
 			return new double[] { 0 };
 		}
 		else {

@@ -48,6 +48,8 @@ public class RacegridVisualization
 	private DrawPanel draw_panel_ = null;
 	private ControlPanel control_panel_ = null;
 	
+	private JFrame frame = null;
+	
 	public RacegridVisualization( final RacegridSimulator sim, final TerrainType[][] circuit, final int scale )
 	{
 		if( sim != null ) {
@@ -62,7 +64,7 @@ public class RacegridVisualization
 				@Override
 				public void run()
 				{
-					final JFrame frame = new JFrame();
+					frame = new JFrame();
 					final Container cp = frame.getContentPane();
 					cp.setLayout( new BorderLayout() );
 					
@@ -119,6 +121,8 @@ public class RacegridVisualization
 	
 	public void updateStateOnEDT( final RacegridState s )
 	{
+//		System.out.println( "[Visualization]: " + s );
+		
 		final int x = s.x;
 		final int y = s.y;
 		final int dx = s.dx;
@@ -179,7 +183,10 @@ public class RacegridVisualization
 
 		@Override
 		public void endState( final RacegridState s )
-		{ }
+		{
+			frame.setVisible( false );
+			frame.dispose();
+		}
 	}
 	
 	private class UserActionN extends AbstractAction
@@ -429,11 +436,11 @@ public class RacegridVisualization
 	{
 		final RandomGenerator rng = new MersenneTwister( 42 );
 		
-		final TerrainType[][] circuit = RacegridCircuits.barto_bradke_singh_SmallTrack();
-		final RacegridState state = new RacegridState( circuit );
-		final double slip = 0.0;
+		final RacegridState state = RacegridCircuits.barto_bradtke_singh_SmallTrack( rng, 1 );
+		final TerrainType[][] circuit = state.terrain;
+		final double slip = 0.1;
 		final RacegridSimulator sim = new RacegridSimulator( rng, state, slip );
-		final int scale = 20;
+		final int scale = 10;
 		final RacegridVisualization vis = new RacegridVisualization( sim, circuit, scale );
 	}
 }

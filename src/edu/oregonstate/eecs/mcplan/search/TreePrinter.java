@@ -25,6 +25,8 @@ public class TreePrinter<S, A extends VirtualConstructor<A>>
 	private int d_ = 0;
 	private int[] turn_ = null;
 	
+	private final int depth_limit;
+	
 	public TreePrinter()
 	{
 		this( System.out );
@@ -32,9 +34,20 @@ public class TreePrinter<S, A extends VirtualConstructor<A>>
 	
 	public TreePrinter( final PrintStream out )
 	{
-		out_ = out;
+		this( out, Integer.MAX_VALUE );
 	}
 	
+	public TreePrinter( final int depth_limit )
+	{
+		this( System.out, depth_limit );
+	}
+	
+	public TreePrinter( final PrintStream out, final int depth_limit )
+	{
+		this.out_ = out;
+		this.depth_limit = depth_limit;
+	}
+
 	@Override
 	public void visit( final StateNode<S, A> s )
 	{
@@ -56,8 +69,10 @@ public class TreePrinter<S, A extends VirtualConstructor<A>>
 		d_ += 1;
 		final int[] old_turn = turn_;
 		turn_ = s.turn;
-		for( final ActionNode<S, A> a : Fn.in( s.successors() ) ) {
-			a.accept( this );
+		if( d_ < depth_limit ) {
+			for( final ActionNode<S, A> a : Fn.in( s.successors() ) ) {
+				a.accept( this );
+			}
 		}
 		d_ -= 1;
 		turn_ = old_turn;
@@ -71,6 +86,7 @@ public class TreePrinter<S, A extends VirtualConstructor<A>>
 		}
 		out_.print( "A" );
 		out_.print( d_ / 2 );
+		out_.print( ": @" + Integer.toHexString( System.identityHashCode( a ) ) );
 		out_.print( ": n = " );
 		out_.print( a.n() );
 		out_.print( ": " );
@@ -86,8 +102,10 @@ public class TreePrinter<S, A extends VirtualConstructor<A>>
 		out_.print( "]" );
 		out_.println();
 		d_ += 1;
-		for( final StateNode<S, A> s : Fn.in( a.successors() ) ) {
-			s.accept( this );
+		if( d_ < depth_limit ) {
+			for( final StateNode<S, A> s : Fn.in( a.successors() ) ) {
+				s.accept( this );
+			}
 		}
 		d_ -= 1;
 	}

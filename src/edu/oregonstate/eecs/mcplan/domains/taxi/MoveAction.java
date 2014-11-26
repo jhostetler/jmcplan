@@ -58,27 +58,36 @@ public class MoveAction extends TaxiAction
 			new_pos = new int[] { s.taxi[0] + dx, s.taxi[1] + dy };
 		}
 		else {
-			// Slip actions move orthogonally to the intended direction
 			final double r = rng.nextDouble();
+			
+			// Slip actions are no-ops
 			if( r < s.slip ) {
-				if( dx != 0 ) {
-					new_pos = new int[] { s.taxi[0], s.taxi[1] - 1 };
-				}
-				else {
-					new_pos = new int[] { s.taxi[0] - 1, s.taxi[1] };
-				}
-			}
-			else if( r < 2*s.slip ) {
-				if( dx != 0 ) {
-					new_pos = new int[] { s.taxi[0], s.taxi[1] + 1 };
-				}
-				else {
-					new_pos = new int[] { s.taxi[0] + 1, s.taxi[1] };
-				}
+				new_pos = new int[] { s.taxi[0], s.taxi[1] };
 			}
 			else {
 				new_pos = new int[] { s.taxi[0] + dx, s.taxi[1] + dy };
 			}
+			
+//			// Slip actions move orthogonally to the intended direction
+//			if( r < s.slip ) {
+//				if( dx != 0 ) {
+//					new_pos = new int[] { s.taxi[0], s.taxi[1] - 1 };
+//				}
+//				else {
+//					new_pos = new int[] { s.taxi[0] - 1, s.taxi[1] };
+//				}
+//			}
+//			else if( r < 2*s.slip ) {
+//				if( dx != 0 ) {
+//					new_pos = new int[] { s.taxi[0], s.taxi[1] + 1 };
+//				}
+//				else {
+//					new_pos = new int[] { s.taxi[0] + 1, s.taxi[1] };
+//				}
+//			}
+//			else {
+//				new_pos = new int[] { s.taxi[0] + dx, s.taxi[1] + dy };
+//			}
 		}
 		
 		if( s.isLegalMove( s.taxi, new_pos ) ) {

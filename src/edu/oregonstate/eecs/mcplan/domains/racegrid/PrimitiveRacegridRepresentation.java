@@ -6,7 +6,6 @@ package edu.oregonstate.eecs.mcplan.domains.racegrid;
 import java.util.Arrays;
 
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
-import edu.oregonstate.eecs.mcplan.Representation;
 
 /**
  * @author jhostetler
@@ -38,7 +37,7 @@ public class PrimitiveRacegridRepresentation extends FactoredRepresentation<Race
 	}
 
 	@Override
-	public Representation<RacegridState> copy()
+	public PrimitiveRacegridRepresentation copy()
 	{
 		return new PrimitiveRacegridRepresentation( this );
 	}

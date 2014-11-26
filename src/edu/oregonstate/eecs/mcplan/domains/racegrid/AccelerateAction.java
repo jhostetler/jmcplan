@@ -13,7 +13,7 @@ public class AccelerateAction extends RacegridAction
 	public final int ddx;
 	public final int ddy;
 	
-	private final boolean old_crashed_ = false;
+	private boolean old_crashed_ = false;
 	private boolean done_ = false;
 	
 	public AccelerateAction( final int ddx, final int ddy )
@@ -48,6 +48,9 @@ public class AccelerateAction extends RacegridAction
 	public void doAction( final RacegridState s )
 	{
 		assert( !done_ );
+		
+		old_crashed_ = s.crashed;
+		
 		s.ddx = ddx;
 		s.ddy = ddy;
 		s.crashed = false;
@@ -67,6 +70,7 @@ public class AccelerateAction extends RacegridAction
 		s.ddx = 0;
 		s.ddy = 0;
 		s.crashed = old_crashed_;
+		done_ = false;
 	}
 	
 	@Override

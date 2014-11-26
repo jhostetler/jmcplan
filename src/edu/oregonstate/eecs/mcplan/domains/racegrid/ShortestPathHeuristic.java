@@ -25,6 +25,11 @@ public class ShortestPathHeuristic implements EvaluationFunction<RacegridState, 
 	private final int height_;
 	private final int width_;
 	
+	private final ArrayList<Integer> goals = new ArrayList<Integer>();
+	
+	// TODO: Make this a parameter
+	private final boolean allow_diagonals = false;
+	
 	public ShortestPathHeuristic( final RacegridState s, final double velocity )
 	{
 		velocity_ = velocity;
@@ -34,21 +39,22 @@ public class ShortestPathHeuristic implements EvaluationFunction<RacegridState, 
 		final UndirectedGraph<Integer, DefaultEdge> g
 			= new SimpleGraph<Integer, DefaultEdge>( DefaultEdge.class );
 		
-		final ArrayList<Integer> goals = new ArrayList<Integer>();
 		for( int y = 0; y < s.height; ++y ) {
 			for( int x = 0; x < s.width; ++x ) {
 				final TerrainType t = s.terrain[y][x];
 				if( t != TerrainType.Wall ) {
 					final int cur = index( x, y );
 					g.addVertex( cur );
-					if( y > 0 && s.terrain[y-1][x] != TerrainType.Wall ) {
-						g.addEdge( cur, index( x, y - 1 ) );
-						if( x > 0 && s.terrain[y-1][x-1] != TerrainType.Wall ) {
-							g.addEdge( cur, index( x - 1, y - 1 ) );
-						}
-					}
 					if( x > 0 && s.terrain[y][x-1] != TerrainType.Wall ) {
 						g.addEdge( cur, index( x - 1, y ) );
+					}
+					if( y > 0 && s.terrain[y-1][x] != TerrainType.Wall ) {
+						g.addEdge( cur, index( x, y - 1 ) );
+					}
+					if( allow_diagonals ) {
+						if( x > 0 && y > 0 && s.terrain[y-1][x-1] != TerrainType.Wall ) {
+							g.addEdge( cur, index( x - 1, y - 1 ) );
+						}
 					}
 					
 					if( t == TerrainType.Goal ) {
@@ -89,13 +95,30 @@ public class ShortestPathHeuristic implements EvaluationFunction<RacegridState, 
 	
 	private int index( final int x, final int y )
 	{
-		return y*height_ + x;
+		return y*width_ + x;
 	}
 	
 	@Override
 	public double[] evaluate( final Simulator<RacegridState, RacegridAction> sim )
 	{
 		final RacegridState s = sim.state();
+		if( s.goal ) {
+			return new double[] { 0 };
+		}
+		
+//		final double[] v = new double[] { s.dx, s.dy };
+//		final double[] d = new double[] { 0, 0 };
+//		for( final int[] g : s.goals ) {
+//			d[0] += g[0];
+//			d[1] += g[1];
+//		}
+//		d[0] /= s.goals.size();
+//		d[1] /= s.goals.size();
+//		d[0] -= s.x;
+//		d[1] -= s.y;
+//		final double vd = Fn.scalar_projection( v, d );
+//		return new double[] { -distance_[index( s.x, s.y )] / (1.0 + vd) };
+		
 		return new double[] { -distance_[index( s.x, s.y )] / velocity_ };
 	}
 }

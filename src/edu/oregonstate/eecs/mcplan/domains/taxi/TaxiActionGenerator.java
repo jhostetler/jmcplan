@@ -27,7 +27,7 @@ public class TaxiActionGenerator extends ActionGenerator<TaxiState, TaxiAction>
 	private int idx_ = 0;
 	
 	@Override
-	public ActionGenerator<TaxiState, TaxiAction> create()
+	public TaxiActionGenerator create()
 	{
 		return new TaxiActionGenerator();
 	}

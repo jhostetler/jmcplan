@@ -57,8 +57,6 @@ public final class RolloutEvaluator<S extends State, A extends VirtualConstructo
 			double running_discount = 1.0;
 			int count = 0;
 			while( true ) {
-				running_discount *= discount;
-				
 				if( sim.isTerminalState() ) {
 					break;
 				}
@@ -77,6 +75,8 @@ public final class RolloutEvaluator<S extends State, A extends VirtualConstructo
 				Fn.scalar_multiply_inplace( r, running_discount );
 				Fn.vplus_inplace( q, r );
 				count += 1;
+				
+				running_discount *= discount;
 			}
 
 			Fn.vplus_inplace( qbar, q );
