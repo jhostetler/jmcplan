@@ -9,6 +9,8 @@ import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.MarkovDecisionProblem;
 import edu.oregonstate.eecs.mcplan.Pair;
 import edu.oregonstate.eecs.mcplan.Policy;
+import edu.oregonstate.eecs.mcplan.domains.cards.Deck;
+import edu.oregonstate.eecs.mcplan.domains.cards.InfiniteDeck;
 import edu.oregonstate.eecs.mcplan.dp.GreedyPolicy;
 import edu.oregonstate.eecs.mcplan.dp.SparseValueIterationSolver;
 import edu.oregonstate.eecs.mcplan.dp.ValueFunction;

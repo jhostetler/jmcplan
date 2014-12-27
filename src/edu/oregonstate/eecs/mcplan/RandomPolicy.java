@@ -1,6 +1,6 @@
 package edu.oregonstate.eecs.mcplan;
 
-import org.apache.commons.math3.random.MersenneTwister;
+import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
@@ -8,20 +8,18 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
 public class RandomPolicy<S, A> extends AnytimePolicy<S, A>
 {
 	public static <S, A>
-	RandomPolicy<S, A> create( final int turn, final long seed, final ActionGenerator<S, A> action_gen )
+	RandomPolicy<S, A> create( final RandomGenerator rng, final ActionGenerator<S, A> action_gen )
 	{
-		return new RandomPolicy<S, A>( turn, seed, action_gen );
+		return new RandomPolicy<S, A>( rng, action_gen );
 	}
 	
-	private final int turn_;
 	private final ActionGenerator<S, ? extends A> action_gen_;
-	private final MersenneTwister rng_;
+	private final RandomGenerator rng_;
 	
-	public RandomPolicy( final int turn, final long seed, final ActionGenerator<S, ? extends A> action_gen )
+	public RandomPolicy( final RandomGenerator rng, final ActionGenerator<S, ? extends A> action_gen )
 	{
-		turn_ = turn;
 		action_gen_ = action_gen;
-		rng_ = new MersenneTwister( seed );
+		rng_ = rng;
 	}
 	
 	@Override
@@ -44,18 +42,13 @@ public class RandomPolicy<S, A> extends AnytimePolicy<S, A>
 	@Override
 	public void setState( final S s, final long t )
 	{
-		action_gen_.setState( s, t, new int[] { turn_ } );
+		action_gen_.setState( s, t );
 	}
 
 	@Override
 	public A getAction()
 	{
-//		int i = rng_.nextInt( action_gen_.size() );
-//		while( i-- > 0 ) {
-//			action_gen_.next();
-//		}
 		final A a = Fn.uniform_choice( rng_, action_gen_ );
-//		System.out.println( "Random action: " + a ); // TODO: Debugging
 		return a;
 	}
 

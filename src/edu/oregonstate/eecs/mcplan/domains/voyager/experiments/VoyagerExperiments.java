@@ -468,7 +468,7 @@ public class VoyagerExperiments
 					{
 						@Override
 						protected JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>> selectAction(
-							final StateNode<Representation<VoyagerState, IdentityRepresenter>,
+							final FsssStateNode<Representation<VoyagerState, IdentityRepresenter>,
 											JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>> root )
 						{
 							return BackupRules.MaxMinAction( root ).a;
@@ -494,7 +494,7 @@ public class VoyagerExperiments
 					{
 						@Override
 						protected JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>> selectAction(
-							final StateNode<Representation<VoyagerState, NullRepresenter>,
+							final FsssStateNode<Representation<VoyagerState, NullRepresenter>,
 											JointAction<Option<VoyagerState, UndoableAction<VoyagerState>>>> root )
 						{
 							return BackupRules.MaxMinAction( root ).a;

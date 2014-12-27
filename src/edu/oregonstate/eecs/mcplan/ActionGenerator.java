@@ -22,7 +22,7 @@ public abstract class ActionGenerator<S, A> extends Generator<A>
 	 */
 	public abstract ActionGenerator<S, A> create();
 	
-	public abstract void setState( final S s, final long t, final int turn[] );
+	public abstract void setState( final S s, final long t );
 	
 	public abstract int size();
 	

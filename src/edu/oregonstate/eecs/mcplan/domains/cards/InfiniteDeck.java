@@ -1,10 +1,11 @@
 /**
  * 
  */
-package edu.oregonstate.eecs.mcplan.domains.blackjack;
+package edu.oregonstate.eecs.mcplan.domains.cards;
 
 import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
+
 
 /**
  * @author jhostetler
@@ -35,5 +36,12 @@ public final class InfiniteDeck implements Deck
 	public void undeal( final Card c )
 	{
 		// Nothing to do
+	}
+
+	@Override
+	public Deck copy()
+	{
+		// Since the deck is infinite, it has no meaningful state.
+		return this;
 	}
 }

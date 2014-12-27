@@ -1,7 +1,7 @@
 /**
  * 
  */
-package edu.oregonstate.eecs.mcplan.domains.blackjack;
+package edu.oregonstate.eecs.mcplan.domains.cards;
 
 /**
  * @author jhostetler
@@ -9,6 +9,8 @@ package edu.oregonstate.eecs.mcplan.domains.blackjack;
  */
 public enum Rank
 {
+	R_X,
+	
 	R_A,
 	R_2,
 	R_3,
@@ -21,9 +23,7 @@ public enum Rank
 	R_T,
 	R_J,
 	R_Q,
-	R_K,
-	
-	R_X;
+	R_K;
 	
 	@Override
 	public String toString()

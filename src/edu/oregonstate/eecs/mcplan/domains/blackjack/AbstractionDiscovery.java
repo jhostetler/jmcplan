@@ -35,6 +35,8 @@ import edu.oregonstate.eecs.mcplan.RandomPolicy;
 import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.abstraction.ClusterAbstraction;
 import edu.oregonstate.eecs.mcplan.abstraction.PairwiseSimilarityRepresenter;
+import edu.oregonstate.eecs.mcplan.domains.cards.Deck;
+import edu.oregonstate.eecs.mcplan.domains.cards.InfiniteDeck;
 import edu.oregonstate.eecs.mcplan.ml.InformationTheoreticMetricLearner;
 import edu.oregonstate.eecs.mcplan.ml.MetricConstrainedKMeans;
 import edu.oregonstate.eecs.mcplan.ml.VoronoiClassifier;

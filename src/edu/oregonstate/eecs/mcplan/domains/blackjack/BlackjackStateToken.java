@@ -6,6 +6,7 @@ package edu.oregonstate.eecs.mcplan.domains.blackjack;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
+import edu.oregonstate.eecs.mcplan.domains.cards.Card;
 
 /**
  * @author jhostetler

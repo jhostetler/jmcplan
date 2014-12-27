@@ -1,7 +1,10 @@
 /**
  * 
  */
-package edu.oregonstate.eecs.mcplan.domains.blackjack;
+package edu.oregonstate.eecs.mcplan.domains.cards;
+
+import java.util.Comparator;
+
 
 /**
  * @author jhostetler
@@ -40,23 +43,22 @@ public enum Card
 		return rank.toString() + suit.toString();
 	}
 	
+	public static final Comparator<Card> TheAceHighRankComparator = new Comparator<Card>() {
+		@Override
+		public int compare( final Card a, final Card b )
+		{
+			final int c = a.AceHighRank() - b.AceHighRank();
+			return (int) Math.signum( c );
+		}
+	};
+	
 	public int AceHighRank()
 	{
-		switch( this ) {
-			case C_2c: case  C_2d: case  C_2h: case  C_2s: return 2;
-			case C_3c: case  C_3d: case  C_3h: case  C_3s: return 3;
-			case C_4c: case  C_4d: case  C_4h: case  C_4s: return 4;
-			case C_5c: case  C_5d: case  C_5h: case  C_5s: return 5;
-			case C_6c: case  C_6d: case  C_6h: case  C_6s: return 6;
-			case C_7c: case  C_7d: case  C_7h: case  C_7s: return 7;
-			case C_8c: case  C_8d: case  C_8h: case  C_8s: return 8;
-			case C_9c: case  C_9d: case  C_9h: case  C_9s: return 9;
-			case C_Tc: case  C_Td: case  C_Th: case  C_Ts: return 10;
-			case C_Jc: case  C_Jd: case  C_Jh: case  C_Js: return 11;
-			case C_Qc: case  C_Qd: case  C_Qh: case  C_Qs: return 12;
-			case C_Kc: case  C_Kd: case  C_Kh: case  C_Ks: return 13;
-			case C_Ac: case  C_Ad: case  C_Ah: case  C_As: return 14;
-			case C_X: default: return 0;
+		if( this.rank == Rank.R_A ) {
+			return Rank.R_K.ordinal() + 1;
+		}
+		else {
+			return this.rank.ordinal();
 		}
 	}
 	

@@ -5,6 +5,8 @@ package edu.oregonstate.eecs.mcplan.domains.blackjack;
 
 import java.util.ArrayList;
 
+import edu.oregonstate.eecs.mcplan.domains.cards.Card;
+
 /**
  * @author jhostetler
  *

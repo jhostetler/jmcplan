@@ -6,6 +6,8 @@ package edu.oregonstate.eecs.mcplan.domains.blackjack;
 import java.util.ArrayList;
 
 import edu.oregonstate.eecs.mcplan.State;
+import edu.oregonstate.eecs.mcplan.domains.cards.Card;
+import edu.oregonstate.eecs.mcplan.domains.cards.Deck;
 
 /**
  * @author jhostetler

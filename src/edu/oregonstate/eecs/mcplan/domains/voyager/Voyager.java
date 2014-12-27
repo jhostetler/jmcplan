@@ -133,7 +133,7 @@ public final class Voyager
 					if( dmg >= Unit.values()[u].hp() ) {
 						r[u] -= 1;
 						tpop -= 1;
-						dmg -= Unit.values()[i].hp();
+						dmg -= Unit.values()[u].hp(); // Note: 'u' used to be 'i', which was incorrect but somehow still worked!
 						break;
 					}
 					else {

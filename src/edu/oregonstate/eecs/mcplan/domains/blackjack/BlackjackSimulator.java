@@ -12,6 +12,9 @@ import java.util.Arrays;
 import java.util.Deque;
 
 import edu.oregonstate.eecs.mcplan.JointAction;
+import edu.oregonstate.eecs.mcplan.domains.cards.Card;
+import edu.oregonstate.eecs.mcplan.domains.cards.Deck;
+import edu.oregonstate.eecs.mcplan.domains.cards.InfiniteDeck;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 
 /**

@@ -1168,6 +1168,22 @@ public final class Fn
 		return dest;
 	}
 	
+	public static <T> T[] memcpy( final T[] dest, final T[] src )
+	{
+		assert( dest.length == src.length );
+		for( int i = 0; i < dest.length; ++i ) {
+			dest[i] = src[i];
+		}
+		return dest;
+	}
+	
+	public static <T> ArrayList<T> copy( final ArrayList<T> x )
+	{
+		final ArrayList<T> c = new ArrayList<T>( x.size() );
+		c.addAll( x );
+		return c;
+	}
+	
 	public static boolean[] copy( final boolean[] x )
 	{
 		return Arrays.copyOf( x, x.length );

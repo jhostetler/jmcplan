@@ -1,7 +1,7 @@
 /**
  * 
  */
-package edu.oregonstate.eecs.mcplan.domains.blackjack;
+package edu.oregonstate.eecs.mcplan.domains.cards;
 
 /**
  * @author jhostetler

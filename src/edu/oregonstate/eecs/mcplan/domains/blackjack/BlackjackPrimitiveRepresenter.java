@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import weka.core.Attribute;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
+import edu.oregonstate.eecs.mcplan.domains.cards.Card;
 
 public class BlackjackPrimitiveRepresenter implements FactoredRepresenter<BlackjackState, FactoredRepresentation<BlackjackState>>
 {

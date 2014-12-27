@@ -3,6 +3,9 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.blackjack;
 
+import edu.oregonstate.eecs.mcplan.domains.cards.Card;
+import edu.oregonstate.eecs.mcplan.domains.cards.Rank;
+
 /**
  * @author jhostetler
  *

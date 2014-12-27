@@ -16,6 +16,8 @@ import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.RandomPolicy;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
+import edu.oregonstate.eecs.mcplan.domains.cards.Deck;
+import edu.oregonstate.eecs.mcplan.domains.cards.InfiniteDeck;
 import edu.oregonstate.eecs.mcplan.search.BackupRule;
 import edu.oregonstate.eecs.mcplan.search.BackupRules;
 import edu.oregonstate.eecs.mcplan.search.DefaultMctsVisitor;
