@@ -115,18 +115,6 @@ public class RefineablePartitionTreeRepresenter<S extends State, A extends Virtu
 		}
 	}
 	
-	private class StateRepresentation
-	{
-		public final S s;
-		public final FactoredRepresentation<S> x;
-		
-		public StateRepresentation( final S s, final FactoredRepresentation<S> x )
-		{
-			this.s = s;
-			this.x = x;
-		}
-	}
-	
 	// -----------------------------------------------------------------------
 	
 	private final FsssModel<S, A> model;
@@ -185,6 +173,9 @@ public class RefineablePartitionTreeRepresenter<S extends State, A extends Virtu
 					dup_dn.split.right = dup.dn_factory.createDataNode();
 					dup_stack.push( dup_dn.split.left );
 					dup_stack.push( dup_dn.split.right );
+				}
+				else {
+					dup.dt_leaves.add( dup_dn );
 				}
 			}
 		}

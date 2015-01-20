@@ -31,4 +31,6 @@ public abstract class FsssModel<S extends State, A>
 	public abstract Iterable<A> actions( final S s );
 	public abstract S sampleTransition( final S s, final A a );
 	public abstract double reward( final S s, final A a );
+	
+	public abstract int sampleCount();
 }

@@ -60,6 +60,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		final StringBuilder sb = new StringBuilder();
 		sb.append( "[@" ).append( Integer.toHexString( System.identityHashCode( this ) ) )
 		  .append( ": " ).append( x )
+		  .append( "; nvisits: " ).append( nvisits() )
 		  .append( "; states.size(): " ).append( states.size() )
 		  .append( "; U: " ).append( U )
 		  .append( "; L: " ).append( L )
@@ -67,7 +68,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		
 		// TODO: Debugging code
 		for( final FsssStateNode<S, A> gsn : states ) {
-			sb.append( "; " ).append( gsn.s() );
+			sb.append( "; " ).append( gsn );
 		}
 		
 		return sb.toString();
@@ -136,6 +137,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	
 	public void backup()
 	{
+		assert( nsuccessors() > 0 );
 		double max_u = -Double.MAX_VALUE;
 		double max_l = -Double.MAX_VALUE;
 		for( final FsssAbstractActionNode<S, A> an : successors() ) {
@@ -205,14 +207,17 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	 */
 	public void upSample( final ArrayList<FsssStateNode<S, A>> added, final int width )
 	{
-		visit();
-		for( final FsssAbstractActionNode<S, A> aan : successors() ) {
-			for( final FsssStateNode<S, A> s : added ) {
-				final FsssActionNode<S, A> gan = s.createActionNode( aan.a() );
+		for( final FsssStateNode<S, A> gsn : added ) {
+			assert( gsn.nsuccessors() == 0 );
+			gsn.createActionNodes( model.actions( gsn.s() ) );
+			for( final FsssActionNode<S, A> gan : gsn.successors() ) {
+				FsssAbstractActionNode<S, A> aan = successors.get( gan.a() );
+				if( aan == null ) {
+					aan = new FsssAbstractActionNode<S, A>( this, model, abstraction, gan.a(), abstraction.createRepresenter() );
+					successors.put( gan.a(), aan );
+				}
 				aan.addGroundActionNode( gan );
 			}
-			
-//			aan.sample( width );
 		}
 	}
 	
@@ -239,13 +244,17 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	
 	public void buildSubtree2( final FsssStateNode<S, A> gsn, final FsssAbstractStateNode<S, A> old_asn )
 	{
-		System.out.println( "ASN.buildSubtree2( " + gsn + ", " + old_asn + " )" );
+//		if( old_asn.nvisits() == 0 ) {
+//			System.out.println( "!\tbuildSubtree2() on unvisited ASN " + old_asn );
+//			System.out.println( "\t\t asn: " + old_asn.nsuccessors() + " successors" );
+//			System.out.println( "\t\t gsn: " + gsn.nsuccessors() + " successors" );
+////			assert( false );
+//		}
+//		System.out.println( "ASN.buildSubtree2( " + gsn + ", " + old_asn + " )" );
 		assert( old_asn.states.contains( gsn ) );
 		for( final FsssActionNode<S, A> gan : gsn.successors() ) {
 			final FsssAbstractActionNode<S, A> old_succ = old_asn.successor( gan.a() );
-			if( old_succ == null ) {
-				System.out.println( "!\t" + old_asn + " has no successor for " + gan.a() );
-			}
+			assert( old_succ != null );
 			final FsssAbstractActionNode<S, A> aan = requireSuccessor( gan, old_succ );
 			aan.buildSubtree2( gan, old_succ );
 		}
@@ -255,6 +264,8 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	{
 		FsssAbstractActionNode<S, A> succ = successors.get( gan.a() );
 		if( succ == null ) {
+			// FIXME: The 'aggregate' members of the new decision tree should
+			// be set here (or somewhere else?)
 			final RefineablePartitionTreeRepresenter<S, A> repr = old_aan.repr.emptyInstance();
 			succ = new FsssAbstractActionNode<S, A>( this, model, abstraction, gan.a(), repr );
 			successors.put( gan.a(), succ );
@@ -291,8 +302,6 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 				this, model, abstraction, a, repr );
 			final FsssAbstractActionNode<S, A> check = successors.put( a, an );
 			assert( check == null );
-			
-			
 		}
 		
 		for( final FsssStateNode<S, A> gsn : states ) {
@@ -313,8 +322,6 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 			final FsssAbstractActionNode<S, A> union_a = union.successor( an.a() );
 			an.buildSubtree( union_a );
 		}
-		
-//		backup();
 	}
 	
 	public void leaf( final Iterable<A> actions )
@@ -322,9 +329,9 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		visit();
 		createActionNodes( actions );
 		for( final FsssAbstractActionNode<S, A> an : successors() ) {
-			for( final FsssActionNode<S, A> gan : an.actions ) {
-				gan.leaf();
-			}
+//			for( final FsssActionNode<S, A> gan : an.actions ) {
+//				gan.leaf();
+//			}
 			an.leaf();
 		}
 	}

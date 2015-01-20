@@ -19,6 +19,8 @@ public class SpBjFsssModel extends FsssModel<SpBjState, SpBjAction>
 	private final SpBjNullRepresenter base_repr = new SpBjNullRepresenter();
 	private final SpBjActionSetRepresenter action_repr = new SpBjActionSetRepresenter();
 	
+	private int sample_count = 0;
+	
 	@Override
 	public double Vmin()
 	{ return -Vmax(); }
@@ -42,13 +44,13 @@ public class SpBjFsssModel extends FsssModel<SpBjState, SpBjAction>
 	@Override
 	public SpBjState sampleTransition( final SpBjState s, final SpBjAction a )
 	{
+		sample_count += 1;
 		final SpBjState sprime = s.copy();
 		a.create().doAction( sprime );
 		return sprime;
 	}
 
 	/**
-	 * FIXME: Reward bonus for 678 / 777 is not being applied.
 	 * @see edu.oregonstate.eecs.mcplan.search.fsss.FsssModel#reward(edu.oregonstate.eecs.mcplan.State, java.lang.Object)
 	 */
 	@Override
@@ -67,5 +69,11 @@ public class SpBjFsssModel extends FsssModel<SpBjState, SpBjAction>
 	public Representer<SpBjState, ? extends Representation<SpBjState>> action_repr()
 	{
 		return action_repr;
+	}
+
+	@Override
+	public int sampleCount()
+	{
+		return sample_count;
 	}
 }

@@ -63,6 +63,12 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		  .append( "; L: " ).append( L )
 		  .append( "; actions.size(): " ).append( actions.size() )
 		  .append( "]" );
+		
+		// TODO: Debugging code
+		for( final FsssActionNode<S, A> gan : actions ) {
+			sb.append( "; " ).append( gan );
+		}
+		
 		return sb.toString();
 	}
 	
@@ -103,17 +109,13 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 			}
 		}
 		
-		// TODO: Debugging code
-		if( sstar == null ) {
-			System.out.println( "! sstar == null in " + this );
-		}
-		
 		assert( sstar != null );
 		return sstar;
 	}
 	
 	public void backup()
 	{
+		assert( nsuccessors() > 0 );
 		double u = 0;
 		double l = 0;
 		int N = 0;
@@ -141,6 +143,11 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		return successors.get( x );
 	}
 	
+	public int nsuccessors()
+	{
+		return successors.size();
+	}
+	
 	public void addGroundActionNode( final FsssActionNode<S, A> gan )
 	{
 		assert( gan.a().equals( this.a() ) );
@@ -150,16 +157,12 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 	
 	public void sample( final int width )
 	{
-//		System.out.println( "Sampling AAN " + this );
 		while( n < width ) {
 			int N = 0;
 			for( final FsssActionNode<S, A> gan : actions ) {
-	//			System.out.println( "\tSampling " + gan );
 				final FsssStateNode<S, A> gsn = gan.sample();
-//				final Representation<S> x = repr.encode( gsn.s() );
 				final RefineablePartitionTreeRepresenter<S, A>.DataNode dn
 					= repr.addTrainingSample( this, gsn.s(), model.base_repr().encode( gsn.s() ) );
-//				System.out.println( "\tEncoded as " + dn.aggregate.x() );
 				FsssAbstractStateNode<S, A> sn = successors.get( dn.aggregate.x() );
 				if( sn == null ) {
 					sn = dn.aggregate;
@@ -174,11 +177,10 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 	
 	public Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> upSample( final int width )
 	{
-//		System.out.println( "Sampling AAN " + this );
 		final Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> added
 			= new HashMap<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>>();
 		while( n < width ) {
-			System.out.println( "\tAAN @" + hashCode() + ": n = " + n );
+//			System.out.println( "\tAAN @" + hashCode() + ": n = " + n );
 			int N = 0;
 			for( final FsssActionNode<S, A> gan : actions ) {
 				// Sample ground successor
@@ -212,8 +214,6 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 	public void splitSuccessor( final FsssAbstractStateNode<S, A> sn, final ArrayList<FsssAbstractStateNode<S, A>> parts )
 	{
 		final FsssAbstractStateNode<S, A> check = successors.remove( sn.x() );
-		System.out.println( "sn = " + sn );
-		System.out.println( "check = " + check );
 		assert( sn == check );
 		
 		for( final FsssAbstractStateNode<S, A> p : parts ) {
@@ -222,23 +222,36 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 				assert( sn.states().contains( gsn ) );
 				p.buildSubtree2( gsn, sn );
 			}
-//			p.buildSubtree( sn );
 		}
-		
-//		backup();
 	}
 	
 	public void buildSubtree2( final FsssActionNode<S, A> gan, final FsssAbstractActionNode<S, A> old_aan )
 	{
-		System.out.println( "AAN.buildSubtree2( " + gan + ", " + old_aan + " )" );
+//		System.out.println( "AAN.buildSubtree2( " + gan + ", " + old_aan + " )" );
 		assert( old_aan.actions.contains( gan ) );
 		for( final FsssStateNode<S, A> gsn : gan.successors() ) {
 			final FsssAbstractStateNode<S, A> asn = requireSuccessor( gsn );
 			final FsssAbstractStateNode<S, A> old_succ = old_aan.successor( old_aan.repr.encode( gsn.s() ) );
-			asn.buildSubtree2( gsn, old_succ );
+			if( old_succ.nvisits() > 0 ) {
+				asn.visit();
+				asn.buildSubtree2( gsn, old_succ );
+			}
 		}
 		
-		
+		// TODO: Debugging code
+//		boolean null_leaf = false;
+//		for( final RefineablePartitionTreeRepresenter<S, A>.DataNode dn : repr.dt_leaves ) {
+//			if( dn.aggregate == null ) {
+//				null_leaf = true;
+//				break;
+//			}
+//		}
+//		if( null_leaf ) {
+//			System.out.println( "!\trepr leaf is null:" );
+//			for( final RefineablePartitionTreeRepresenter<S, A>.DataNode dn : repr.dt_leaves ) {
+//				System.out.println( "\t\t" + dn.aggregate );
+//			}
+//		}
 	}
 	
 	public void buildSubtree( final FsssAbstractActionNode<S, A> union )
@@ -271,20 +284,15 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		final FsssAbstractStateNode<S, A> check = successors.put( dn.aggregate.x(), dn.aggregate );
 		assert( check == dn.aggregate || check == null );
 		return dn.aggregate;
-		
-			//( gsn.s(), gsn.x() );
-//		FsssAbstractStateNode<S, A> sn = successors.get( dn.aggregate.x() );
-//		if( sn == null ) {
-//			sn = new FsssAbstractStateNode<S, A>( model, abstraction, dn. );
-//			successors.put( x, sn );
-//		}
-//		sn.addGroundStateNode( gsn );
 	}
 	
 	public void leaf()
 	{
-//		System.out.println( "AAN: leaf()" );
 		L = R.mean();
 		U = L;
+		
+		for( final FsssActionNode<S, A> gan : actions ) {
+			gan.leaf();
+		}
 	}
 }

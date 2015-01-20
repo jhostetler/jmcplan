@@ -53,7 +53,7 @@ public class FsssTreeBuilder<S extends State, A>
 	private void fsss( final FsssStateNode<S, A> sn, final int d )
 	{
 		if( d > 1 && !sn.s().isTerminal() ) {
-			if( sn.n() == 0 ) {
+			if( sn.nvisits() == 0 ) {
 //				System.out.println( "Expanding " + sn.s() + " at depth " + d );
 				sn.expand( m.actions( sn.s() ), width );
 			}

@@ -121,7 +121,7 @@ public class FsssActionNode<S extends State, A>
 	
 	public void leaf()
 	{
-		L = model.reward( s, a );
+		L = r;
 		U = L;
 	}
 }

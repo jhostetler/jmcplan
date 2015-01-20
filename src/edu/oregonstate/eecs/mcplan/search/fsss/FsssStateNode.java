@@ -19,7 +19,7 @@ public class FsssStateNode<S extends State, A>
 	private final FsssModel<S, A> model;
 	private final S s;
 	private final FactoredRepresentation<S> x;
-	private int n = 0;
+	private int nvisits = 0;
 	
 	private double U;
 	private double L;
@@ -40,7 +40,7 @@ public class FsssStateNode<S extends State, A>
 	{
 		final StringBuilder sb = new StringBuilder();
 		sb.append( "[" ).append( s )
-		  .append( "; n: " ).append( n )
+		  .append( "; nvisits: " ).append( nvisits )
 		  .append( "; U: " ).append( U )
 		  .append( "; L: " ).append( L )
 		  .append( "]" );
@@ -57,14 +57,19 @@ public class FsssStateNode<S extends State, A>
 		return x;
 	}
 	
-	public int n()
+//	public int n()
+//	{
+//		return n;
+//	}
+	
+	public int nvisits()
 	{
-		return n;
+		return nvisits;
 	}
 	
 	public void visit()
 	{
-		n += 1;
+		nvisits += 1;
 	}
 	
 	public double U()
@@ -79,6 +84,7 @@ public class FsssStateNode<S extends State, A>
 	
 	public void backup()
 	{
+		assert( nsuccessors() > 0 );
 		double max_u = -Double.MAX_VALUE;
 		double max_l = -Double.MAX_VALUE;
 		for( final FsssActionNode<S, A> an : successors() ) {
