@@ -67,7 +67,7 @@ public class SpBjHand
 	public final boolean[] passed = new boolean[max_hands];
 	public int Nhands = 0;
 	/**
-	 * Stores the index of the hand split of from this hand.
+	 * Stores the index of the hand split off from this hand.
 	 */
 	public final int[] children = new int[max_hands];
 	
@@ -132,6 +132,9 @@ public class SpBjHand
 			}
 			sb.append( bets[i] ).append( "$" );
 			sb.append( hands.get( i ) );
+			if( passed[i] ) {
+				sb.append( ":passed" );
+			}
 		}
 		sb.append( "}" );
 		return sb.toString();

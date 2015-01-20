@@ -286,7 +286,7 @@ public class UctSearch<S extends State, A extends VirtualConstructor<A>>
 		
 		double max_value = -Double.MAX_VALUE;
 		MutableActionNode<S, A> max_an = null;
-		sn.action_gen_.setState( s, t, turn );
+		sn.action_gen_.setState( s, t );
 		while( sn.action_gen_.hasNext() ) {
 			final JointAction<A> a = sn.action_gen_.next();
 			final MutableActionNode<S, A> an = sn.successor( a, sim_.nagents(), repr_.create() );

@@ -359,7 +359,7 @@ public class CliffWorld
 		{ return new Actions( rng ); }
 
 		@Override
-		public void setState( final State s, final long t, final int[] turn )
+		public void setState( final State s, final long t )
 		{
 			path = s.path;
 			n = 0;
@@ -640,7 +640,7 @@ public class CliffWorld
 		
 		while( !sim.state().isTerminal() ) {
 			System.out.println( s );
-			actions.setState( sim.state(), sim.t(), sim.turn() );
+			actions.setState( sim.state(), sim.t() );
 			final ArrayList<Action> action_list = Fn.takeAll( actions );
 			for( int i = 0; i < action_list.size(); ++i ) {
 				System.out.println( i + ": " + action_list.get( i ) );

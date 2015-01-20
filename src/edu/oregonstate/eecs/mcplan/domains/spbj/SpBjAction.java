@@ -31,6 +31,19 @@ public class SpBjAction implements UndoableAction<SpBjState>, VirtualConstructor
 	}
 	
 	@Override
+	public int hashCode()
+	{
+		return Arrays.hashCode( cat );
+	}
+	
+	@Override
+	public boolean equals( final Object obj )
+	{
+		final SpBjAction that = (SpBjAction) obj;
+		return Arrays.equals( cat, that.cat );
+	}
+	
+	@Override
 	public SpBjAction create()
 	{
 		final SpBjActionCategory[] copy = new SpBjActionCategory[cat.length];

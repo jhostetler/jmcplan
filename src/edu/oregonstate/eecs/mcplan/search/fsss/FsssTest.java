@@ -3,15 +3,15 @@
  */
 package edu.oregonstate.eecs.mcplan.search.fsss;
 
+import java.io.PrintStream;
+
 import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.domains.cards.InfiniteSpanishDeck;
 import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjAction;
-import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjActionGenerator;
-import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjHand;
+import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjFsssModel;
 import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjState;
-import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * @author jhostetler
@@ -19,58 +19,47 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  */
 public class FsssTest
 {
-	private static class SpBjFsssModel extends FsssModel<SpBjState, SpBjAction>
+	public static void printTree( final FsssStateNode<?, ?> sn, final PrintStream out, final int ws )
 	{
-		private final int depth;
-		private final int width;
-		
-		public SpBjFsssModel( final int depth, final int width )
-		{
-			this.depth = depth;
-			this.width = width;
+		for( int i = 0; i < ws; ++i ) {
+			out.print( "-+" );
 		}
-		
-		@Override
-		public int depth()
-		{ return depth; }
-
-		@Override
-		public int width()
-		{ return width; }
-
-		@Override
-		public double Vmin()
-		{ return -Vmax(); }
-
-		@Override
-		public double Vmax()
-		{ return SpBjHand.max_bet * SpBjHand.max_hands; }
-
-		@Override
-		public double discount()
-		{ return 1.0; }
-
-		@Override
-		public Iterable<SpBjAction> actions( final FsssStateNode<SpBjState, SpBjAction> sn )
-		{
-			final SpBjActionGenerator actions = new SpBjActionGenerator();
-			actions.setState( sn.s(), 0L );
-			return Fn.takeAll( actions );
+		out.println( sn );
+		for( final FsssActionNode<?, ?> an : sn.successors() ) {
+			printTree( an, out, ws + 1 );
 		}
-
-		@Override
-		public FsssStateNode<SpBjState, SpBjAction> sampleTransition(
-				final SpBjState s, final SpBjAction a )
-		{
-			final SpBjState sprime = s.copy();
-			a.create().doAction( sprime );
-			return new FsssStateNode<SpBjState, SpBjAction>( this, sprime );
+	}
+	
+	public static void printTree( final FsssActionNode<?, ?> an, final PrintStream out, final int ws )
+	{
+		for( int i = 0; i < ws; ++i ) {
+			out.print( "-+" );
 		}
-
-		@Override
-		public double reward( final SpBjState s, final SpBjAction a )
-		{
-			return s.r;
+		out.println( an );
+		for( final FsssStateNode<?, ?> sn : an.successors() ) {
+			printTree( sn, out, ws + 1 );
+		}
+	}
+	
+	public static void printTree( final FsssAbstractStateNode<?, ?> sn, final PrintStream out, final int ws )
+	{
+		for( int i = 0; i < ws; ++i ) {
+			out.print( "-+" );
+		}
+		out.println( sn );
+		for( final FsssAbstractActionNode<?, ?> an : sn.successors() ) {
+			printTree( an, out, ws + 1 );
+		}
+	}
+	
+	public static void printTree( final FsssAbstractActionNode<?, ?> an, final PrintStream out, final int ws )
+	{
+		for( int i = 0; i < ws; ++i ) {
+			out.print( "-+" );
+		}
+		out.println( an );
+		for( final FsssAbstractStateNode<?, ?> sn : an.successors() ) {
+			printTree( sn, out, ws + 1 );
 		}
 	}
 	
@@ -79,11 +68,15 @@ public class FsssTest
 	 */
 	public static void main( final String[] args )
 	{
-		final SpBjFsssModel model = new SpBjFsssModel( 10, 10 );
+		final int width = 10;
+		final int depth = 10;
+		final SpBjFsssModel model = new SpBjFsssModel();
 		final RandomGenerator rng = new MersenneTwister( 43 );
 		final InfiniteSpanishDeck deck = new InfiniteSpanishDeck( rng );
 		final SpBjState s0 = new SpBjState( deck );
 		s0.init();
-		model.buildTree( s0 );
+		final FsssTreeBuilder<SpBjState, SpBjAction> tb
+			= new FsssTreeBuilder<SpBjState, SpBjAction>( model, width, depth );
+		tb.buildTree( s0 );
 	}
 }

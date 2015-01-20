@@ -5,7 +5,9 @@ package edu.oregonstate.eecs.mcplan.search.fsss;
 
 import java.util.ArrayList;
 
+import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.State;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 
 
 /**
@@ -16,6 +18,7 @@ public class FsssStateNode<S extends State, A>
 {
 	private final FsssModel<S, A> model;
 	private final S s;
+	private final FactoredRepresentation<S> x;
 	private int n = 0;
 	
 	private double U;
@@ -27,13 +30,31 @@ public class FsssStateNode<S extends State, A>
 	{
 		this.model = model;
 		this.s = s;
+		this.x = model.base_repr().encode( s );
 		this.U = model.Vmax();
 		this.L = model.Vmin();
+	}
+	
+	@Override
+	public String toString()
+	{
+		final StringBuilder sb = new StringBuilder();
+		sb.append( "[" ).append( s )
+		  .append( "; n: " ).append( n )
+		  .append( "; U: " ).append( U )
+		  .append( "; L: " ).append( L )
+		  .append( "]" );
+		return sb.toString();
 	}
 	
 	public S s()
 	{
 		return s;
+	}
+	
+	public FactoredRepresentation<S> x()
+	{
+		return x;
 	}
 	
 	public int n()
@@ -90,18 +111,56 @@ public class FsssStateNode<S extends State, A>
 		return astar;
 	}
 	
+	/**
+	 * Successors are returned in insertion order.
+	 * @return
+	 */
 	public Iterable<FsssActionNode<S, A>> successors()
 	{
 		return successors;
 	}
 	
-	public void expand( final Iterable<A> actions )
+	public int nsuccessors()
+	{
+		return successors.size();
+	}
+	
+	public void expand( final Iterable<A> actions, final int width )
+	{
+		createActionNodes( actions );
+		for( final FsssActionNode<S, A> an : successors() ) {
+			for( int i = 0; i < width; ++i ) {
+				an.sample();
+			}
+		}
+	}
+	
+	public FsssActionNode<S, A> createActionNode( final A a )
+	{
+		// TODO: Debugging code
+		if( !Fn.takeAll( model.actions( s() ) ).contains( a ) ) {
+			System.out.println( "!\t In GSN " + this + ": illegal action " + a );
+			assert( false );
+		}
+		
+		final FsssActionNode<S, A> an = new FsssActionNode<S, A>( model, s, a );
+		successors.add( an );
+		return an;
+	}
+	
+	public void createActionNodes( final Iterable<A> actions )
 	{
 		for( final A a : actions ) {
 //			System.out.println( "StateNode.expand(): Action " + a );
 			final FsssActionNode<S, A> an = new FsssActionNode<S, A>( model, s, a );
 			successors.add( an );
-			an.expand();
+		}
+	}
+	
+	public void sample()
+	{
+		for( final FsssActionNode<S, A> an : successors() ) {
+			an.sample();
 		}
 	}
 	

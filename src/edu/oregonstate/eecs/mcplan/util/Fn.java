@@ -981,6 +981,15 @@ public final class Fn
 		return result;
 	}
 	
+	public static <T> ArrayList<T> takeAll( final Iterable<T> xs )
+	{
+		final ArrayList<T> result = new ArrayList<T>();
+		for( final T t : xs ) {
+			result.add( t );
+		}
+		return result;
+	}
+	
 	public static <T> ArrayList<T> takeAll( final Enumeration<T> xs )
 	{
 		final ArrayList<T> result = new ArrayList<T>();
@@ -1577,7 +1586,7 @@ public final class Fn
 		double d = 0;
 		for( int i = 0; i < x.length; ++i ) {
 			final double diff = Math.abs( x[i] - y[i] );
-			d += diff*diff;
+			d += diff;
 		}
 		return d;
 	}
@@ -1588,7 +1597,7 @@ public final class Fn
 		int d = 0;
 		for( int i = 0; i < x.length; ++i ) {
 			final int diff = Math.abs( x[i] - y[i] );
-			d += diff*diff;
+			d += diff;
 		}
 		return d;
 	}

@@ -17,6 +17,7 @@ public class FsssActionNode<S extends State, A>
 	private final FsssModel<S, A> model;
 	private final S s;
 	private final A a;
+	public final double r;
 	
 	private double U;
 	private double L;
@@ -28,8 +29,21 @@ public class FsssActionNode<S extends State, A>
 		this.model = model;
 		this.s = s;
 		this.a = a;
+		this.r = model.reward( s, a );
 		this.U = model.Vmax();
 		this.L = model.Vmin();
+	}
+	
+	@Override
+	public String toString()
+	{
+		final StringBuilder sb = new StringBuilder();
+		sb.append( "[" ).append( a )
+		  .append( "; r: " ).append( r )
+		  .append( "; U: " ).append( U )
+		  .append( "; L: " ).append( L )
+		  .append( "]" );
+		return sb.toString();
 	}
 	
 	public A a()
@@ -65,27 +79,44 @@ public class FsssActionNode<S extends State, A>
 	
 	public void backup()
 	{
+		assert( nsuccessors() > 0 );
+		
 		double u = 0;
 		double l = 0;
 		for( final FsssStateNode<S, A> sn : successors() ) {
 			u += sn.U();
 			l += sn.L();
 		}
-		U = model.discount() * u / model.width();
-		L = model.discount() * l / model.width();
+		U = r + model.discount() * u / nsuccessors();
+		L = r + model.discount() * l / nsuccessors();
 	}
 	
+	/**
+	 * Successors are returned in insertion order.
+	 * @return
+	 */
 	public Iterable<FsssStateNode<S, A>> successors()
 	{
 		return successors;
 	}
 	
-	public void expand()
+	public int nsuccessors()
 	{
-		for( int i = 0; i < model.width(); ++i ) {
-			final FsssStateNode<S, A> snprime = model.sampleTransition( s, a );
-			successors.add( snprime );
-		}
+		return successors.size();
+	}
+	
+	/**
+	 * Samples a state transition, adds the result state to 'successors',
+	 * and returns the result state.
+	 * @return
+	 */
+	public FsssStateNode<S, A> sample()
+	{
+//		System.out.println( "Sampling " + a + " in " + s + "; nsuccessors = " + nsuccessors() );
+		final S sprime = model.sampleTransition( s, a );
+		final FsssStateNode<S, A> snprime = new FsssStateNode<S, A>( model, sprime );
+		successors.add( snprime );
+		return snprime;
 	}
 	
 	public void leaf()

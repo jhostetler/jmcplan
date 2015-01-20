@@ -30,4 +30,9 @@ public class TrivialRepresentation<S> extends Representation<S>
 		return 3;
 	}
 
+	@Override
+	public String toString()
+	{
+		return "TrivialRepresentation@" + Integer.toHexString( System.identityHashCode( this ) );
+	}
 }

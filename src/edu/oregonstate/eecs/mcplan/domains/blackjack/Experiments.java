@@ -81,7 +81,7 @@ public class Experiments
 				BlackjackState, X, BlackjackAction
 			> factory
 				= new UctSearch.Factory<BlackjackState, X, BlackjackAction>(
-					sim, repr.create(), action_gen, c, Nepisodes, rng,
+					sim, base_repr.create(), action_gen, c, Nepisodes, rng,
 					rollout_evaluator, backup, default_value );
 			
 			final SearchPolicy<BlackjackState, X, BlackjackAction>
