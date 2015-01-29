@@ -4,10 +4,12 @@
 package edu.oregonstate.eecs.mcplan.util;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.math3.distribution.AbstractIntegerDistribution;
 import org.apache.commons.math3.exception.OutOfRangeException;
+import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
 /**
@@ -16,21 +18,35 @@ import org.apache.commons.math3.random.RandomGenerator;
  */
 public class GibbsDistribution extends AbstractIntegerDistribution
 {
+	public final double beta;
+	
 	private final List<Double> xs_ = new ArrayList<Double>();
 	private double Z_ = 0.0;
+	private double Z_tminus1 = 0.0;
 	private double mean_ = 0;
 	private double var_ = 0;
 	private boolean mv_dirty_ = false;
 	
-	public GibbsDistribution( final RandomGenerator rng )
+	/**
+	 * The Gibbs distribution models the probability of a configuration with
+	 * energy x as:
+	 * 		P(x) = e^{-\beta x} / Z(\beta)
+	 * where Z is the normalizing constant.
+	 * 
+	 * @param rng
+	 * @param beta The "inverse temperature" parameter
+	 */
+	public GibbsDistribution( final RandomGenerator rng, final double beta )
 	{
 		super( rng );
+		this.beta = beta;
 	}
 	
 	public void add( final double x )
 	{
-		final double e = Math.exp( x );
+		final double e = Math.exp( -beta * x );
 		xs_.add( e );
+		Z_tminus1 = Z_;
 		Z_ += e;
 		mv_dirty_ = true;
 	}
@@ -119,7 +135,65 @@ public class GibbsDistribution extends AbstractIntegerDistribution
 	@Override
 	public double probability( final int i )
 	{
-		final double p = xs_.get( i ) / Z_;
-		return p;
+		if( i == getSupportUpperBound() ) {
+			return 1 - (Z_tminus1 / Z_);
+		}
+		else {
+			final double p = xs_.get( i ) / Z_;
+			return p;
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
+	public static void main( final String[] argv )
+	{
+		final RandomGenerator rng = new MersenneTwister( 42 );
+		
+		final double[] E = new double[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+		
+		final GibbsDistribution low_temp = new GibbsDistribution( rng, 1.0 / 0.01 );
+		final GibbsDistribution mid_temp = new GibbsDistribution( rng, 1.0 / 1.0 );
+		final GibbsDistribution high_temp = new GibbsDistribution( rng, 1.0 / 100.0 );
+		
+		for( final double e : E ) {
+			low_temp.add( e );
+			mid_temp.add( e );
+			high_temp.add( e );
+		}
+		
+		final double[] p_low = new double[E.length];
+		final double[] p_mid = new double[E.length];
+		final double[] p_high = new double[E.length];
+		for( int i = 0; i < E.length; ++i ) {
+			p_low[i] = low_temp.probability( i );
+			p_mid[i] = mid_temp.probability( i );
+			p_high[i] = high_temp.probability( i );
+		}
+		
+		System.out.println( "probability():" );
+		System.out.println( Arrays.toString( p_low ) );
+		System.out.println( Arrays.toString( p_mid ) );
+		System.out.println( Arrays.toString( p_high ) );
+		
+		final int Nsamples = 100000;
+		final double[] counts_low = new double[E.length];
+		final double[] counts_mid = new double[E.length];
+		final double[] counts_high = new double[E.length];
+		for( int i = 0; i < Nsamples; ++i ) {
+			counts_low[low_temp.sample()] += 1;
+			counts_mid[mid_temp.sample()] += 1;
+			counts_high[high_temp.sample()] += 1;
+		}
+		for( int i = 0; i < E.length; ++i ) {
+			counts_low[i] /= Nsamples;
+			counts_mid[i] /= Nsamples;
+			counts_high[i] /= Nsamples;
+		}
+		
+		System.out.println( "Empirical:" );
+		System.out.println( Arrays.toString( counts_low ) );
+		System.out.println( Arrays.toString( counts_mid ) );
+		System.out.println( Arrays.toString( counts_high ) );
 	}
 }

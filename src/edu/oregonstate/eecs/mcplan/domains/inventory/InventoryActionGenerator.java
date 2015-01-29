@@ -18,6 +18,7 @@ public class InventoryActionGenerator extends ActionGenerator<InventoryState, In
 {
 	private final ArrayList<InventoryAction> actions = new ArrayList<InventoryAction>();
 	private Iterator<InventoryAction> itr = null;
+	int next = 0;
 	
 	@Override
 	public ActionGenerator<InventoryState, InventoryAction> create()
@@ -29,16 +30,23 @@ public class InventoryActionGenerator extends ActionGenerator<InventoryState, In
 	public void setState( final InventoryState s, final long t )
 	{
 		actions.clear();
+		next = 0;
+		
+		actions.add( new InventoryNothingAction() );
+		
 		final Fn.IntSlice g = PreferredNumbers.Series_1_2_5();
-		while( g.hasNext() ) {
-			final int n = g.next();
-			if( n > s.problem.max_order ) {
+		while( next < s.problem.min_order ) {
+			next = g.next();
+		}
+		do {
+			if( next > s.problem.max_order ) {
 				break;
 			}
 			for( int i = 0; i < s.problem.Nproducts; ++i ) {
-				actions.add( new InventoryOrderAction( i, n ) );
+				actions.add( new InventoryOrderAction( i, next ) );
 			}
-		}
+			next = g.next();
+		} while( g.hasNext() );
 		itr = actions.iterator();
 	}
 

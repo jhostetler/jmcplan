@@ -7,6 +7,7 @@ import java.util.ArrayList;
 
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.State;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 
@@ -14,8 +15,9 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  * @author jhostetler
  *
  */
-public class FsssStateNode<S extends State, A>
+public class FsssStateNode<S extends State, A extends VirtualConstructor<A>>
 {
+	private final FsssActionNode<S, A> predecessor;
 	private final FsssModel<S, A> model;
 	private final S s;
 	private final FactoredRepresentation<S> x;
@@ -23,23 +25,41 @@ public class FsssStateNode<S extends State, A>
 	
 	private double U;
 	private double L;
+	public final double r;
+	public final int depth;
 	
 	private final ArrayList<FsssActionNode<S, A>> successors = new ArrayList<FsssActionNode<S, A>>();
 	
-	public FsssStateNode( final FsssModel<S, A> model, final S s )
+	public FsssStateNode( final FsssActionNode<S, A> predecessor, final FsssModel<S, A> model, final S s )
 	{
+		this.predecessor = predecessor;
 		this.model = model;
 		this.s = s;
 		this.x = model.base_repr().encode( s );
+		this.r = model.reward( s );
 		this.U = model.Vmax();
 		this.L = model.Vmin();
+		this.depth = predecessor.depth - 1;
+	}
+	
+	public FsssStateNode( final int depth, final FsssModel<S, A> model, final S s )
+	{
+		this.predecessor = null;
+		this.model = model;
+		this.s = s;
+		this.x = model.base_repr().encode( s );
+		this.r = model.reward( s );
+		this.U = model.Vmax();
+		this.L = model.Vmin();
+		this.depth = depth;
 	}
 	
 	@Override
 	public String toString()
 	{
 		final StringBuilder sb = new StringBuilder();
-		sb.append( "[" ).append( s )
+		sb.append( "[@" ).append( Integer.toHexString( hashCode() ) )
+		  .append( ": " ).append( s )
 		  .append( "; nvisits: " ).append( nvisits )
 		  .append( "; U: " ).append( U )
 		  .append( "; L: " ).append( L )
@@ -98,8 +118,8 @@ public class FsssStateNode<S extends State, A>
 				max_l = l;
 			}
 		}
-		U = max_u;
-		L = max_l;
+		U = r + max_u;
+		L = r + max_l;
 	}
 	
 	public FsssActionNode<S, A> astar()
@@ -149,7 +169,7 @@ public class FsssStateNode<S extends State, A>
 			assert( false );
 		}
 		
-		final FsssActionNode<S, A> an = new FsssActionNode<S, A>( model, s, a );
+		final FsssActionNode<S, A> an = new FsssActionNode<S, A>( this, model, s, a );
 		successors.add( an );
 		return an;
 	}
@@ -158,7 +178,7 @@ public class FsssStateNode<S extends State, A>
 	{
 		for( final A a : actions ) {
 //			System.out.println( "StateNode.expand(): Action " + a );
-			final FsssActionNode<S, A> an = new FsssActionNode<S, A>( model, s, a );
+			final FsssActionNode<S, A> an = new FsssActionNode<S, A>( this, model, s, a );
 			successors.add( an );
 		}
 	}
@@ -170,12 +190,22 @@ public class FsssStateNode<S extends State, A>
 		}
 	}
 	
+	public void leaf()
+	{
+		U = L = r;
+	}
+	
 	public void leaf( final Iterable<A> actions )
 	{
 		for( final A a : actions ) {
-			final FsssActionNode<S, A> an = new FsssActionNode<S, A>( model, s, a );
+			final FsssActionNode<S, A> an = new FsssActionNode<S, A>( this, model, s, a );
 			successors.add( an );
 			an.leaf();
 		}
+	}
+	
+	public boolean isTerminal()
+	{
+		return depth == 1 || s.isTerminal();
 	}
 }

@@ -26,7 +26,7 @@ import gnu.trove.stack.array.TDoubleArrayStack;
  */
 public class InventorySimulator implements UndoSimulator<InventoryState, InventoryAction>
 {
-	private static final class DynamicsAction extends InventoryAction
+	public static final class DynamicsAction extends InventoryAction
 	{
 		private double old_r = 0;
 		private boolean done = false;
@@ -212,13 +212,14 @@ public class InventorySimulator implements UndoSimulator<InventoryState, Invento
 		final int Nproducts = 2;
 		final int max_inventory = 10;
 		final double warehouse_cost = 1;
+		final int min_order = 1;
 		final int max_order = 2;
 		final double delivery_probability = 0.5;
 		final int max_demand = 5;
 		final int[] price = new int[] { 1, 2 };
 		
 		final InventoryProblem problem = new InventoryProblem(
-			Nproducts, price, max_inventory, warehouse_cost, max_order, delivery_probability, max_demand );
+			Nproducts, price, max_inventory, warehouse_cost, min_order, max_order, delivery_probability, max_demand );
 		
 		while( true ) {
 			

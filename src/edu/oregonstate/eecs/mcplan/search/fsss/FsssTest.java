@@ -8,6 +8,8 @@ import java.io.PrintStream;
 import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
+import edu.oregonstate.eecs.mcplan.State;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.domains.cards.InfiniteSpanishDeck;
 import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjAction;
 import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjFsssModel;
@@ -63,6 +65,18 @@ public class FsssTest
 		}
 	}
 	
+	public static <S extends State, A extends VirtualConstructor<A>>
+	FsssAbstractStateNode<S, A> findRoot( final FsssAbstractActionNode<S, A> aan )
+	{
+		final FsssAbstractStateNode<S, A> pred = aan.predecessor;
+		if( pred.predecessor == null ) {
+			return pred;
+		}
+		else {
+			return findRoot( pred.predecessor );
+		}
+	}
+	
 	/**
 	 * @param args
 	 */
@@ -70,8 +84,8 @@ public class FsssTest
 	{
 		final int width = 10;
 		final int depth = 10;
-		final SpBjFsssModel model = new SpBjFsssModel();
 		final RandomGenerator rng = new MersenneTwister( 43 );
+		final SpBjFsssModel model = new SpBjFsssModel( rng );
 		final InfiniteSpanishDeck deck = new InfiniteSpanishDeck( rng );
 		final SpBjState s0 = new SpBjState( deck );
 		s0.init();

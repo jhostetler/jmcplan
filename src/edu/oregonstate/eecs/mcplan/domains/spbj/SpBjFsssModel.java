@@ -3,10 +3,13 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.spbj;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
+import edu.oregonstate.eecs.mcplan.domains.cards.InfiniteSpanishDeck;
 import edu.oregonstate.eecs.mcplan.search.fsss.FsssModel;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
@@ -16,10 +19,19 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  */
 public class SpBjFsssModel extends FsssModel<SpBjState, SpBjAction>
 {
+	private final RandomGenerator rng;
 	private final SpBjNullRepresenter base_repr = new SpBjNullRepresenter();
 	private final SpBjActionSetRepresenter action_repr = new SpBjActionSetRepresenter();
 	
 	private int sample_count = 0;
+	
+	private final InfiniteSpanishDeck deck;
+	
+	public SpBjFsssModel( final RandomGenerator rng )
+	{
+		this.rng = rng;
+		deck = new InfiniteSpanishDeck( rng );
+	}
 	
 	@Override
 	public double Vmin()
@@ -32,13 +44,21 @@ public class SpBjFsssModel extends FsssModel<SpBjState, SpBjAction>
 	@Override
 	public double discount()
 	{ return 1.0; }
+	
+	@Override
+	public SpBjState initialState()
+	{
+		final SpBjState s0 = new SpBjState( deck );
+		s0.init();
+		return s0;
+	}
 
 	@Override
 	public Iterable<SpBjAction> actions( final SpBjState s )
 	{
 		final SpBjActionGenerator actions = new SpBjActionGenerator();
 		actions.setState( s, 0L );
-		return Fn.takeAll( actions );
+		return Fn.in( actions );
 	}
 
 	@Override
@@ -49,6 +69,12 @@ public class SpBjFsssModel extends FsssModel<SpBjState, SpBjAction>
 		a.create().doAction( sprime );
 		return sprime;
 	}
+	
+	@Override
+	public double reward( final SpBjState s )
+	{
+		return s.r;
+	}
 
 	/**
 	 * @see edu.oregonstate.eecs.mcplan.search.fsss.FsssModel#reward(edu.oregonstate.eecs.mcplan.State, java.lang.Object)
@@ -56,7 +82,8 @@ public class SpBjFsssModel extends FsssModel<SpBjState, SpBjAction>
 	@Override
 	public double reward( final SpBjState s, final SpBjAction a )
 	{
-		return s.r;
+//		return s.r;
+		return 0;
 	}
 
 	@Override
@@ -75,5 +102,17 @@ public class SpBjFsssModel extends FsssModel<SpBjState, SpBjAction>
 	public int sampleCount()
 	{
 		return sample_count;
+	}
+
+	@Override
+	public void resetSampleCount()
+	{
+		sample_count = 0;
+	}
+
+	@Override
+	public RandomGenerator rng()
+	{
+		return rng;
 	}
 }

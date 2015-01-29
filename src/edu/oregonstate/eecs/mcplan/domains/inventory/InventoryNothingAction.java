@@ -48,4 +48,10 @@ public class InventoryNothingAction extends InventoryAction
 	{
 		return obj instanceof InventoryNothingAction;
 	}
+	
+	@Override
+	public String toString()
+	{
+		return "Nothing";
+	}
 }

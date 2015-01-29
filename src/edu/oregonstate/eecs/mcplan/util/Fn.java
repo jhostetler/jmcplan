@@ -3,6 +3,7 @@
  */
 package edu.oregonstate.eecs.mcplan.util;
 
+import gnu.trove.list.TIntList;
 import gnu.trove.list.array.TDoubleArrayList;
 
 import java.lang.reflect.Array;
@@ -915,6 +916,33 @@ public final class Fn
 		for( int i = 0; i < n; ++i ) {
 			final int j = i + rng.nextInt( n - i );
 			final T temp = a.get( j );
+			a.set( j,  a.get( i ) );
+			a.set( i, temp );
+		}
+	}
+	
+	/**
+	 * Fisher-Yates shuffle.
+	 * @param rng
+	 * @param a
+	 */
+	public static void shuffle( final RandomGenerator rng, final TIntList a )
+	{
+		shuffle( rng, a, a.size() );
+	}
+	
+	/**
+	 * Fisher-Yates shuffle. This version does only 'n' swaps, so the first
+	 * 'n' elements of the array will be randomly selected from among the
+	 * entire array.
+	 * @param rng
+	 * @param a
+	 */
+	public static void shuffle( final RandomGenerator rng, final TIntList a, final int n )
+	{
+		for( int i = 0; i < n; ++i ) {
+			final int j = i + rng.nextInt( n - i );
+			final int temp = a.get( j );
 			a.set( j,  a.get( i ) );
 			a.set( i, temp );
 		}

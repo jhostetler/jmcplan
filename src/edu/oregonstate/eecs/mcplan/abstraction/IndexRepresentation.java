@@ -32,6 +32,12 @@ public class IndexRepresentation<S> extends Representation<S>
 		}
 		@SuppressWarnings( "unchecked" )
 		final IndexRepresentation<S> that = (IndexRepresentation<S>) obj;
+		
+		// TODO: Debugging code
+		if( index == that.index ) {
+			assert( hashCode() == that.hashCode() );
+		}
+		
 		return index == that.index;
 	}
 

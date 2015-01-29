@@ -3,9 +3,13 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.inventory;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
-import edu.oregonstate.eecs.mcplan.JointAction;
+import edu.oregonstate.eecs.mcplan.Representation;
+import edu.oregonstate.eecs.mcplan.Representer;
+import edu.oregonstate.eecs.mcplan.TrivialRepresenter;
 import edu.oregonstate.eecs.mcplan.search.fsss.FsssModel;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
@@ -15,6 +19,7 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  */
 public class InventoryFsssModel extends FsssModel<InventoryState, InventoryAction>
 {
+	private final RandomGenerator rng;
 	public final InventoryProblem problem;
 	
 	private final double Vmin;
@@ -22,8 +27,11 @@ public class InventoryFsssModel extends FsssModel<InventoryState, InventoryActio
 	
 	private final InventoryNullRepresenter base_repr;
 	
-	public InventoryFsssModel( final InventoryProblem problem )
+	private int sample_count = 0;
+	
+	public InventoryFsssModel( final RandomGenerator rng, final InventoryProblem problem )
 	{
+		this.rng = rng;
 		this.problem = problem;
 		base_repr = new InventoryNullRepresenter( problem );
 		
@@ -31,7 +39,7 @@ public class InventoryFsssModel extends FsssModel<InventoryState, InventoryActio
 		assert( gamma < 1.0 );
 		
 		// +1 for per-order cost
-		Vmin = (1.0 / (1.0 - gamma)) * -(problem.max_inventory*problem.warehouse_cost + 1);
+		Vmin = (1.0 / (1.0 - gamma)) * -(problem.Nproducts*problem.max_inventory*problem.warehouse_cost + 1);
 		double r = 0;
 		for( int i = 0; i < problem.Nproducts; ++i ) {
 			r += problem.price[i] * problem.max_demand;
@@ -56,6 +64,18 @@ public class InventoryFsssModel extends FsssModel<InventoryState, InventoryActio
 	{
 		return 0.9;
 	}
+	
+	@Override
+	public RandomGenerator rng()
+	{
+		return rng;
+	}
+
+	@Override
+	public InventoryState initialState()
+	{
+		return new InventoryState( rng, problem );
+	}
 
 	@Override
 	public Iterable<InventoryAction> actions( final InventoryState s )
@@ -68,16 +88,25 @@ public class InventoryFsssModel extends FsssModel<InventoryState, InventoryActio
 	@Override
 	public InventoryState sampleTransition( final InventoryState s, final InventoryAction a )
 	{
+		sample_count += 1;
+		
 		final InventoryState sprime = s.copy();
-		final InventorySimulator sim = new InventorySimulator( sprime );
-		sim.takeAction( new JointAction<InventoryAction>( a.create() ) );
+		a.create().doAction( sprime );
+		InventorySimulator.applyDynamics( sprime );
+		
 		return sprime;
+	}
+	
+	@Override
+	public double reward( final InventoryState s )
+	{
+		return s.r;
 	}
 
 	@Override
 	public double reward( final InventoryState s, final InventoryAction a )
 	{
-		return s.r + a.reward();
+		return a.reward();
 	}
 
 	@Override
@@ -86,4 +115,21 @@ public class InventoryFsssModel extends FsssModel<InventoryState, InventoryActio
 		return base_repr;
 	}
 
+	@Override
+	public Representer<InventoryState, ? extends Representation<InventoryState>> action_repr()
+	{
+		return new TrivialRepresenter<InventoryState>();
+	}
+
+	@Override
+	public int sampleCount()
+	{
+		return sample_count;
+	}
+	
+	@Override
+	public void resetSampleCount()
+	{
+		sample_count = 0;
+	}
 }

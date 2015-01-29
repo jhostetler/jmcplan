@@ -72,6 +72,7 @@ public class SpBjAction implements UndoableAction<SpBjState>, VirtualConstructor
 				break;
 			case Split:
 				assert( !h.passed[i] );
+				assert( h.canSplit( i ) );
 				final ArrayList<Card> old_hand = h.hands.get( i );
 				assert( old_hand.size() == 2 );
 				assert( old_hand.get( 0 ).rank == old_hand.get( 1 ).rank );
@@ -80,7 +81,7 @@ public class SpBjAction implements UndoableAction<SpBjState>, VirtualConstructor
 				h.Nhands += 1;
 				h.children[i] = j;
 				h.bets[j] = h.bets[i];
-				final Card c = old_hand.remove( h.hands.size() - 1 );
+				final Card c = old_hand.remove( 1 );
 				new_hand.add( c );
 				h.hands.add( new_hand );
 				h.passed[j] = false;

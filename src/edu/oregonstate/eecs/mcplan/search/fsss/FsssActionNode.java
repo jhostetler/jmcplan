@@ -6,32 +6,37 @@ package edu.oregonstate.eecs.mcplan.search.fsss;
 import java.util.ArrayList;
 
 import edu.oregonstate.eecs.mcplan.State;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
 
 /**
  * @author jhostetler
  *
  */
-public class FsssActionNode<S extends State, A>
+public class FsssActionNode<S extends State, A extends VirtualConstructor<A>>
 {
+	private final FsssStateNode<S, A> predecessor;
 	private final FsssModel<S, A> model;
 	private final S s;
 	private final A a;
 	public final double r;
+	public final int depth;
 	
 	private double U;
 	private double L;
 	
 	private final ArrayList<FsssStateNode<S, A>> successors = new ArrayList<FsssStateNode<S, A>>();
 	
-	public FsssActionNode( final FsssModel<S, A> model, final S s, final A a )
+	public FsssActionNode( final FsssStateNode<S, A> predecessor, final FsssModel<S, A> model, final S s, final A a )
 	{
+		this.predecessor = predecessor;
 		this.model = model;
 		this.s = s;
 		this.a = a;
 		this.r = model.reward( s, a );
 		this.U = model.Vmax();
 		this.L = model.Vmin();
+		this.depth = predecessor.depth;
 	}
 	
 	@Override
@@ -114,7 +119,8 @@ public class FsssActionNode<S extends State, A>
 	{
 //		System.out.println( "Sampling " + a + " in " + s + "; nsuccessors = " + nsuccessors() );
 		final S sprime = model.sampleTransition( s, a );
-		final FsssStateNode<S, A> snprime = new FsssStateNode<S, A>( model, sprime );
+		final FsssStateNode<S, A> snprime = new FsssStateNode<S, A>( this, model, sprime );
+		snprime.visit();
 		successors.add( snprime );
 		return snprime;
 	}

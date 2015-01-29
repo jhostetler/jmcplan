@@ -25,6 +25,15 @@ public class SpBjNullRepresenter implements FactoredRepresenter<SpBjState, Facto
 	private static final int Nfeatures;
 	private static final int Nplayer_hand_features = 13;
 	
+	// FIXME: This representation is not sound, because there is no way to know
+	// if you're one card away from a 3-card bonus. The right representation is:
+	// - remove the _678 and _777 indicators
+	// + add a single "has 2-of-3 bonus" indicator for {off, suit, spade}
+	// + add a single "has 3-of-3 bonus" indicator (don't need to discriminate sub-categories)
+	//
+	// When you fix this, since you have to re-run anyway, consider changing
+	// the rules to the "official rules":
+	// http://www.wsgc.wa.gov/activities/game-rules.aspx
 	static {
 		attributes = new ArrayList<Attribute>();
 		// Player attributes
@@ -113,6 +122,8 @@ public class SpBjNullRepresenter implements FactoredRepresenter<SpBjState, Facto
 		int idx = 0;
 		// Player attributes
 		final SpBjHand h = s.player_hand;
+		final boolean[] busted = new boolean[h.hands.size()];
+		final int busted_score = 22;
 		for( int i = 0; i < SpBjHand.max_hands; ++i ) {
 			// No i'th hand
 			if( i >= h.hands.size() ) {
@@ -127,7 +138,12 @@ public class SpBjNullRepresenter implements FactoredRepresenter<SpBjState, Facto
 //			attributes.add( new Attribute( "bet" + i ) );
 			phi[idx++] = h.bets[i];
 //			attributes.add( new Attribute( "value" + i ) );
-			phi[idx++] = v[0];
+			
+			final int capped_value = Math.min( v[0], busted_score );
+			if( capped_value == busted_score ) {
+				busted[i] = true;
+			}
+			phi[idx++] = capped_value;
 //			attributes.add( new Attribute( "cards" + i ) );
 			phi[idx++] = h.hands.get( i ).size();
 //			attributes.add( new Attribute( "soft_aces" + i ) );
@@ -159,18 +175,21 @@ public class SpBjNullRepresenter implements FactoredRepresenter<SpBjState, Facto
 			}
 		}
 		
-		// Dealer attributes
-//		attributes.add( new Attribute( "dealer_showing" ) );
-		phi[idx++] = s.dealerUpcard().BlackjackValue();
-//		attributes.add( new Attribute( "dealer_value" ) );
-		if( s.isTerminal() ) {
-			phi[idx++] = SpBjHand.handValue( s.dealerHand() )[0];
-		}
-		else {
-			phi[idx++] = 0;
+		// Dealer attributes -- leave them at 0 if player busted
+		if( !Fn.all( busted ) ) {
+	//		attributes.add( new Attribute( "dealer_showing" ) );
+			phi[idx++] = s.dealerUpcard().BlackjackValue();
+	//		attributes.add( new Attribute( "dealer_value" ) );
+			if( s.isTerminal() ) {
+				phi[idx++] = SpBjHand.handValue( s.dealerHand() )[0];
+			}
+			else {
+				phi[idx++] = 0;
+			}
 		}
 		
-		assert( idx == phi.length );
+		// Assertion doesn't hold if we skip the dealer due to busting
+//		assert( idx == phi.length );
 		return new ArrayFactoredRepresentation<SpBjState>( phi );
 	}
 

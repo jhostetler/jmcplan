@@ -6,7 +6,9 @@ package edu.oregonstate.eecs.mcplan;
 import edu.oregonstate.eecs.mcplan.util.Generator;
 
 /**
- * An Generator that yields the legal actions in a state.
+ * A Generator that yields the legal actions in a state.
+ * 
+ * Actions *must* be returned in a consistent order.
  * 
  * The implementation must *not* require initialization specific to a
  * particular state or player. That's what the parameters in setState() are

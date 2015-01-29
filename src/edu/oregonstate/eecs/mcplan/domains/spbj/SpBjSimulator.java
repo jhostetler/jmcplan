@@ -3,7 +3,9 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.spbj;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,8 +17,9 @@ import org.apache.commons.math3.random.RandomGenerator;
 import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.domains.cards.Card;
 import edu.oregonstate.eecs.mcplan.domains.cards.Deck;
-import edu.oregonstate.eecs.mcplan.domains.cards.InfiniteSpanishDeck;
+import edu.oregonstate.eecs.mcplan.domains.cards.StackedDeck;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * Simulator for "Spanish 21". Rules for Spanish 21 are somewhat variable. We
@@ -257,68 +260,45 @@ public class SpBjSimulator implements UndoSimulator<SpBjState, SpBjAction>
 	{
 		final int seed = 43;
 		final RandomGenerator rng = new MersenneTwister( seed );
-		final Deck deck = new InfiniteSpanishDeck( rng );
+//		final Deck deck = new InfiniteSpanishDeck( rng );
 		
-		final ArrayList<ArrayList<Card>> test_hands = new ArrayList<ArrayList<Card>>();
-		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_Kc, Card.C_9h, Card.C_2c ) ) );
-		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_6c, Card.C_7h, Card.C_8c ) ) );
-		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_6c, Card.C_7c, Card.C_8c ) ) );
-		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_6s, Card.C_7s, Card.C_8s ) ) );
-		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_7c, Card.C_7h, Card.C_7c ) ) );
-		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_7c, Card.C_7c, Card.C_7c ) ) );
-		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_7s, Card.C_7s, Card.C_7s ) ) );
-		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_9c ) ) );
-		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_6c ) ) );
-		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c ) ) );
-		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_2c, Card.C_Ac ) ) );
-		
-		final ArrayList<ArrayList<Card>> dealer_test_hands = new ArrayList<ArrayList<Card>>();
-		dealer_test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_Kc, Card.C_Kc ) ) );
-		dealer_test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_Kc, Card.C_Ac ) ) );
-		
-		for( final ArrayList<Card> dealer_cards : dealer_test_hands ) {
-			for( final ArrayList<Card> cards : test_hands ) {
-				final SpBjState s = new SpBjState( deck );
-				s.init();
-				s.dealer_hand.clear();
-				s.dealer_hand.addAll( dealer_cards );
-				s.player_hand.hands.set( 0, cards );
-				final SpBjSimulator sim = new SpBjSimulator( s );
-				sim.takeAction( new JointAction<SpBjAction>(
-					new SpBjAction( new SpBjActionCategory[] { SpBjActionCategory.Pass } ) ) );
-				
-				System.out.print( "Hand: " );
-				System.out.print( sim.state().player_hand );
-				System.out.print( " (" );
-				final ArrayList<int[]> values = sim.state().player_hand.values();
-				for( int i = 0; i < values.size(); ++i ) {
-					if( i > 0 ) {
-						System.out.print( ", " );
-					}
-					System.out.print( Arrays.toString( values.get( i ) ) );
-				}
-				System.out.println( ")" );
-	
-				System.out.print( "Reward: " );
-				System.out.println( Arrays.toString( sim.reward() ) );
-				System.out.print( "Dealer hand: " );
-				System.out.print( sim.state().dealerHand().toString() );
-				System.out.print( " (" );
-				System.out.print( SpBjHand.handValue( sim.state().dealerHand() )[0] );
-				System.out.println( ")" );
-				System.out.println( "----------------------------------------" );
-			}
+		// TODO: Debugging code
+		final Deque<Card> stacked = new ArrayDeque<Card>();
+		for( int i = 0; i < 20; ++i ) {
+			stacked.push( Card.C_2c );
+			stacked.push( Card.C_2d );
+			stacked.push( Card.C_2h );
+			stacked.push( Card.C_2s );
 		}
+		final Deck deck = new StackedDeck( stacked );
 		
-//		while( true ) {
-//			final SpBjState s = new SpBjState( deck );
-//			s.init();
-//			final SpBjSimulator sim = new SpBjSimulator( s );
+//		final ArrayList<ArrayList<Card>> test_hands = new ArrayList<ArrayList<Card>>();
+//		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_Kc, Card.C_9h, Card.C_2c ) ) );
+//		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_6c, Card.C_7h, Card.C_8c ) ) );
+//		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_6c, Card.C_7c, Card.C_8c ) ) );
+//		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_6s, Card.C_7s, Card.C_8s ) ) );
+//		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_7c, Card.C_7h, Card.C_7c ) ) );
+//		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_7c, Card.C_7c, Card.C_7c ) ) );
+//		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_7s, Card.C_7s, Card.C_7s ) ) );
+//		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_9c ) ) );
+//		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_6c ) ) );
+//		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c ) ) );
+//		test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_3c, Card.C_2c, Card.C_Ac ) ) );
 //
-//			final BufferedReader reader = new BufferedReader( new InputStreamReader( System.in ) );
-//			while( !s.isTerminal() ) {
-//				System.out.print( "Dealer showing: " );
-//				System.out.println( sim.state().dealerUpcard() );
+//		final ArrayList<ArrayList<Card>> dealer_test_hands = new ArrayList<ArrayList<Card>>();
+//		dealer_test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_Kc, Card.C_Kc ) ) );
+//		dealer_test_hands.add( new ArrayList<Card>( Arrays.asList( Card.C_Kc, Card.C_Ac ) ) );
+//
+//		for( final ArrayList<Card> dealer_cards : dealer_test_hands ) {
+//			for( final ArrayList<Card> cards : test_hands ) {
+//				final SpBjState s = new SpBjState( deck );
+//				s.init();
+//				s.dealer_hand.clear();
+//				s.dealer_hand.addAll( dealer_cards );
+//				s.player_hand.hands.set( 0, cards );
+//				final SpBjSimulator sim = new SpBjSimulator( s );
+//				sim.takeAction( new JointAction<SpBjAction>(
+//					new SpBjAction( new SpBjActionCategory[] { SpBjActionCategory.Pass } ) ) );
 //
 //				System.out.print( "Hand: " );
 //				System.out.print( sim.state().player_hand );
@@ -332,46 +312,86 @@ public class SpBjSimulator implements UndoSimulator<SpBjState, SpBjAction>
 //				}
 //				System.out.println( ")" );
 //
-//				final String cmd = reader.readLine();
-//				final SpBjActionCategory[] cat = new SpBjActionCategory[cmd.length()];
-//				for( int i = 0; i < cmd.length(); ++i ) {
-//					final char c = cmd.charAt( i );
-//					if( 'h' == c ) {
-//						cat[i] = SpBjActionCategory.Hit;
-//					}
-//					else if( 'p' == c ) {
-//						cat[i] = SpBjActionCategory.Pass;
-//					}
-//					else if( 'd' == c ) {
-//						cat[i] = SpBjActionCategory.Double;
-//					}
-//					else if( 's' == c ) {
-//						cat[i] = SpBjActionCategory.Split;
-//					}
-//				}
-//				sim.takeAction( new JointAction<SpBjAction>( new SpBjAction( cat ) ) );
+//				System.out.print( "Reward: " );
+//				System.out.println( Arrays.toString( sim.reward() ) );
+//				System.out.print( "Dealer hand: " );
+//				System.out.print( sim.state().dealerHand().toString() );
+//				System.out.print( " (" );
+//				System.out.print( SpBjHand.handValue( sim.state().dealerHand() )[0] );
+//				System.out.println( ")" );
+//				System.out.println( "----------------------------------------" );
 //			}
-//
-//			System.out.print( "Hand: " );
-//			System.out.print( sim.state().player_hand );
-//			System.out.print( " (" );
-//			final ArrayList<int[]> values = sim.state().player_hand.values();
-//			for( int i = 0; i < values.size(); ++i ) {
-//				if( i > 0 ) {
-//					System.out.print( ", " );
-//				}
-//				System.out.print( Arrays.toString( values.get( i ) ) );
-//			}
-//			System.out.println( ")" );
-//
-//			System.out.print( "Reward: " );
-//			System.out.println( Arrays.toString( sim.reward() ) );
-//			System.out.print( "Dealer hand: " );
-//			System.out.print( sim.state().dealerHand().toString() );
-//			System.out.print( " (" );
-//			System.out.print( SpBjHand.handValue( sim.state().dealerHand() )[0] );
-//			System.out.println( ")" );
-//			System.out.println( "----------------------------------------" );
 //		}
+		
+		while( true ) {
+			final SpBjState s = new SpBjState( deck );
+			s.init();
+			final SpBjSimulator sim = new SpBjSimulator( s );
+
+			final BufferedReader reader = new BufferedReader( new InputStreamReader( System.in ) );
+			while( !s.isTerminal() ) {
+				System.out.print( "Dealer showing: " );
+				System.out.println( sim.state().dealerUpcard() );
+
+				System.out.print( "Hand: " );
+				System.out.print( sim.state().player_hand );
+				System.out.print( " (" );
+				final ArrayList<int[]> values = sim.state().player_hand.values();
+				for( int i = 0; i < values.size(); ++i ) {
+					if( i > 0 ) {
+						System.out.print( ", " );
+					}
+					System.out.print( Arrays.toString( values.get( i ) ) );
+				}
+				System.out.println( ")" );
+				
+				final SpBjActionGenerator actions = new SpBjActionGenerator();
+				actions.setState( sim.state(), 0 );
+				for( final SpBjAction a : Fn.in( actions ) ) {
+					System.out.println( a );
+				}
+
+				final String cmd = reader.readLine();
+				assert( cmd.length() == sim.state().player_hand.Nhands );
+				final SpBjActionCategory[] cat = new SpBjActionCategory[cmd.length()];
+				for( int i = 0; i < cmd.length(); ++i ) {
+					final char c = cmd.charAt( i );
+					if( 'h' == c ) {
+						cat[i] = SpBjActionCategory.Hit;
+					}
+					else if( 'p' == c ) {
+						cat[i] = SpBjActionCategory.Pass;
+					}
+					else if( 'd' == c ) {
+						cat[i] = SpBjActionCategory.Double;
+					}
+					else if( 's' == c ) {
+						cat[i] = SpBjActionCategory.Split;
+					}
+				}
+				sim.takeAction( new JointAction<SpBjAction>( new SpBjAction( cat ) ) );
+			}
+
+			System.out.print( "Hand: " );
+			System.out.print( sim.state().player_hand );
+			System.out.print( " (" );
+			final ArrayList<int[]> values = sim.state().player_hand.values();
+			for( int i = 0; i < values.size(); ++i ) {
+				if( i > 0 ) {
+					System.out.print( ", " );
+				}
+				System.out.print( Arrays.toString( values.get( i ) ) );
+			}
+			System.out.println( ")" );
+
+			System.out.print( "Reward: " );
+			System.out.println( Arrays.toString( sim.reward() ) );
+			System.out.print( "Dealer hand: " );
+			System.out.print( sim.state().dealerHand().toString() );
+			System.out.print( " (" );
+			System.out.print( SpBjHand.handValue( sim.state().dealerHand() )[0] );
+			System.out.println( ")" );
+			System.out.println( "----------------------------------------" );
+		}
 	}
 }

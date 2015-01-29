@@ -38,6 +38,13 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 	private final Map<Representation<S>, FsssAbstractStateNode<S, A>> successors
 		= new HashMap<Representation<S>, FsssAbstractStateNode<S, A>>();
 	
+	/**
+	 * This list is used to provide a deterministic iteration order for the
+	 * successors
+	 */
+	private final ArrayList<FsssAbstractStateNode<S, A>> ordered_successors
+		= new ArrayList<FsssAbstractStateNode<S, A>>();
+	
 	public FsssAbstractActionNode( final FsssAbstractStateNode<S, A> predecessor,
 								   final FsssModel<S, A> model, final FsssAbstraction<S, A> abstraction,
 								   final A a, final Representer<S, ? extends Representation<S>> repr )
@@ -70,6 +77,23 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		}
 		
 		return sb.toString();
+	}
+	
+	/**
+	 * Adds a successor node mapping 'a => aan' to both the successor map
+	 * and the ordered successor list. Returns the previous mapping. No change
+	 * is made to 'ordered_successors' if 'aan' was already in 'successors'.
+	 * @param a
+	 * @param aan
+	 * @return
+	 */
+	private FsssAbstractStateNode<S, A> addSuccessor( final Representation<S> x, final FsssAbstractStateNode<S, A> asn )
+	{
+		final FsssAbstractStateNode<S, A> previous = successors.put( x, asn );
+		if( previous == null ) {
+			ordered_successors.add( asn );
+		}
+		return previous;
 	}
 	
 	public A a()
@@ -135,7 +159,8 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 	
 	public Iterable<FsssAbstractStateNode<S, A>> successors()
 	{
-		return successors.values();
+//		return successors.values();
+		return ordered_successors;
 	}
 	
 	public FsssAbstractStateNode<S, A> successor( final Representation<S> x )
@@ -161,14 +186,16 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 			int N = 0;
 			for( final FsssActionNode<S, A> gan : actions ) {
 				final FsssStateNode<S, A> gsn = gan.sample();
-				final RefineablePartitionTreeRepresenter<S, A>.DataNode dn
+				final FsssAbstractStateNode<S, A> encoded
 					= repr.addTrainingSample( this, gsn.s(), model.base_repr().encode( gsn.s() ) );
-				FsssAbstractStateNode<S, A> sn = successors.get( dn.aggregate.x() );
-				if( sn == null ) {
-					sn = dn.aggregate;
-					successors.put( dn.aggregate.x(), sn );
+				FsssAbstractStateNode<S, A> asn = successors.get( encoded.x() );
+				if( asn == null ) {
+					asn = encoded;
+//					successors.put( encoded.x(), asn );
+//					ordered_successors.add( asn );
+					addSuccessor( encoded.x(), asn );
 				}
-				sn.addGroundStateNode( gsn );
+				asn.addGroundStateNode( gsn );
 				N += gan.nsuccessors();
 			}
 			n = N;
@@ -186,23 +213,25 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 				// Sample ground successor
 				final FsssStateNode<S, A> gsn = gan.sample();
 				// Get abstract state
-				final RefineablePartitionTreeRepresenter<S, A>.DataNode dn
+				final FsssAbstractStateNode<S, A> encoded
 					= repr.addTrainingSample( this, gsn.s(), model.base_repr().encode( gsn.s() ) );
 				// Ensure ASN successor
-				FsssAbstractStateNode<S, A> sn = successors.get( dn.aggregate.x() );
-				if( sn == null ) {
-					sn = dn.aggregate;
-					successors.put( dn.aggregate.x(), sn );
+				FsssAbstractStateNode<S, A> asn = successors.get( encoded.x() );
+				if( asn == null ) {
+					asn = encoded;
+//					successors.put( encoded.x(), asn );
+//					ordered_successors.add( asn );
+					addSuccessor( encoded.x(), asn );
 				}
 				// Add ground state to ASN successor
-				sn.addGroundStateNode( gsn );
+				asn.addGroundStateNode( gsn );
 				
-				ArrayList<FsssStateNode<S, A>> sn_added = added.get( sn );
-				if( sn_added == null ) {
-					sn_added = new ArrayList<FsssStateNode<S, A>>();
-					added.put( sn, sn_added );
+				ArrayList<FsssStateNode<S, A>> asn_added = added.get( asn );
+				if( asn_added == null ) {
+					asn_added = new ArrayList<FsssStateNode<S, A>>();
+					added.put( asn, asn_added );
 				}
-				sn_added.add( gsn );
+				asn_added.add( gsn );
 				
 				N += gan.nsuccessors();
 			}
@@ -215,9 +244,12 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 	{
 		final FsssAbstractStateNode<S, A> check = successors.remove( sn.x() );
 		assert( sn == check );
+		ordered_successors.remove( sn );
 		
 		for( final FsssAbstractStateNode<S, A> p : parts ) {
-			successors.put( p.x(), p );
+//			successors.put( p.x(), p );
+//			ordered_successors.add( p );
+			addSuccessor( p.x(), p );
 			for( final FsssStateNode<S, A> gsn : p.states() ) {
 				assert( sn.states().contains( gsn ) );
 				p.buildSubtree2( gsn, sn );
@@ -233,7 +265,7 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 			final FsssAbstractStateNode<S, A> asn = requireSuccessor( gsn );
 			final FsssAbstractStateNode<S, A> old_succ = old_aan.successor( old_aan.repr.encode( gsn.s() ) );
 			if( old_succ.nvisits() > 0 ) {
-				asn.visit();
+//				asn.visit();
 				asn.buildSubtree2( gsn, old_succ );
 			}
 		}
@@ -270,7 +302,7 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 			// 'this'. This representation is not necessarily compatible with
 			// 'union', but it will accidentally work most of the time.
 			final FsssAbstractStateNode<S, A> usucc = union.successor( sn.x() );
-			sn.buildSubtree( union.successor( sn.x() ) );
+			sn.buildSubtree( usucc );
 		}
 		
 //		backup();
@@ -278,12 +310,17 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 	
 	public FsssAbstractStateNode<S, A> requireSuccessor( final FsssStateNode<S, A> gsn )
 	{
-		final RefineablePartitionTreeRepresenter<S, A>.DataNode dn = repr.addTrainingSampleAsExistingNode( this, gsn );
-		dn.aggregate.addGroundStateNode( gsn );
+		final FsssAbstractStateNode<S, A> asn = repr.addTrainingSampleAsExistingNode( this, gsn );
+		asn.addGroundStateNode( gsn );
 		
-		final FsssAbstractStateNode<S, A> check = successors.put( dn.aggregate.x(), dn.aggregate );
-		assert( check == dn.aggregate || check == null );
-		return dn.aggregate;
+//		final FsssAbstractStateNode<S, A> check = successors.put( asn.x(), asn );
+//		if( check == null ) {
+//			ordered_successors.add( asn );
+//		}
+		// TODO: Why is it OK if the successor already exists?
+		final FsssAbstractStateNode<S, A> check = addSuccessor( asn.x(), asn );
+		assert( check == asn || check == null );
+		return asn;
 	}
 	
 	public void leaf()

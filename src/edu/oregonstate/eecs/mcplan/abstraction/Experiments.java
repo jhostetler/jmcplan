@@ -3127,16 +3127,22 @@ public class Experiments
 	{
 		private final Configuration config_;
 		
+		private final int L;
+		private final int W;
+		private final int F;
+		
 		public CliffWorldDomain( final Configuration config )
 		{
 			config_ = config;
+			L = config_.getInt( "cliffworld.L" );
+			W = config_.getInt( "cliffworld.W" );
+			F = config_.getInt( "cliffworld.F" );
 		}
 		
 		@Override
 		public CliffWorld.State initialState()
 		{
-			final int L = config_.getInt( "cliffworld.L" );
-			return new CliffWorld.State( L );
+			return new CliffWorld.State( config_.rng, L, W, F );
 		}
 		
 		@Override
@@ -3157,7 +3163,7 @@ public class Experiments
 			final ArrayList<double[]> ranges = new ArrayList<double[]>();
 			ranges.add( null );
 			ranges.add( null );
-			ranges.add( new double[] { 0, CliffWorld.State.Nwind - 1 } );
+			ranges.add( new double[] { 0, W - 1 } );
 			return ranges;
 		}
 
@@ -3168,8 +3174,7 @@ public class Experiments
 			final int rollout_depth = Integer.MAX_VALUE;
 			final Policy<CliffWorld.State, JointAction<CliffWorld.Action>> rollout_policy
 				= new RandomPolicy<CliffWorld.State, JointAction<CliffWorld.Action>>(
-					0 /*Player*/, config_.rng.nextInt(),
-					SingleAgentJointActionGenerator.create( getActionGenerator() ) );
+					config_.rng, SingleAgentJointActionGenerator.create( getActionGenerator() ) );
 			final EvaluationFunction<CliffWorld.State, CliffWorld.Action> heuristic
 				= new EvaluationFunction<CliffWorld.State, CliffWorld.Action>() {
 				@Override

@@ -232,6 +232,9 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 			//    does, add both top and bottom cells in that x coordinate
 			// 3. Do the first half of the destionation cell
 			
+			// FIXME: You need to reverse the sign of 'm' also. See the
+			// implementation from the ROB599 HW1.
+			
 			// Reverse x traversal if x is decreasing
 			final int stride = (x2 < x1 ? -1 : 1);
 			final double m = dy/dx;

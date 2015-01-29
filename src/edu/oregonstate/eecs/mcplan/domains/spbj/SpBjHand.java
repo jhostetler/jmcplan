@@ -62,7 +62,7 @@ public class SpBjHand
 	
 	// -----------------------------------------------------------------------
 	
-	public final ArrayList<ArrayList<Card>> hands = new ArrayList<ArrayList<Card>>( max_hands );
+	public final ArrayList<ArrayList<Card>> hands = new ArrayList<ArrayList<Card>>();
 	public final int[] bets = new int[max_hands];
 	public final boolean[] passed = new boolean[max_hands];
 	public int Nhands = 0;
@@ -101,6 +101,9 @@ public class SpBjHand
 	
 	public boolean canSplit( final int i )
 	{
+		if( Nhands >= max_hands ) {
+			return false;
+		}
 		final ArrayList<Card> cards = hands.get( i );
 		return cards.size() == 2
 			   && cards.get( 0 ).rank == cards.get( 1 ).rank;

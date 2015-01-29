@@ -19,10 +19,14 @@ import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
 import edu.oregonstate.eecs.mcplan.JointAction;
+import edu.oregonstate.eecs.mcplan.Representation;
+import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
+import edu.oregonstate.eecs.mcplan.abstraction.IndexRepresentation;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 import edu.oregonstate.eecs.mcplan.util.Fn;
+import edu.oregonstate.eecs.mcplan.util.KeyValueStore;
 
 /**
  * @author jhostetler
@@ -30,6 +34,8 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  */
 public class CliffWorld
 {
+	public static final double fall_penalty = -30;
+	
 	public static enum Path
 	{
 		Start,
@@ -40,6 +46,7 @@ public class CliffWorld
 	
 	public static class State implements edu.oregonstate.eecs.mcplan.State
 	{
+		public final RandomGenerator rng;
 		public final int L;
 		public final int W;
 		public final int F;
@@ -49,11 +56,25 @@ public class CliffWorld
 		public int wind = 0;
 		public int slip = 0;
 		
-		public State( final int L, final int W, final int F )
+		public State( final RandomGenerator rng, final int L, final int W, final int F )
 		{
+			this.rng = rng;
 			this.L = L;
 			this.W = W;
 			this.F = F;
+		}
+		
+		public State( final State that )
+		{
+			this.rng = that.rng;
+			this.L = that.L;
+			this.W = that.W;
+			this.F = that.F;
+			
+			this.path = that.path;
+			this.location = that.location;
+			this.wind = that.wind;
+			this.slip = that.slip;
 		}
 		
 		@Override
@@ -83,10 +104,14 @@ public class CliffWorld
 	// -----------------------------------------------------------------------
 	
 	public static abstract class Action implements UndoableAction<State>, VirtualConstructor<Action>
-	{ }
+	{
+		public abstract double reward();
+	}
 	
 	public static class TakeRoadAction extends Action
 	{
+		public static final double reward = 0;
+		
 		private boolean done = false;
 		
 		@Override
@@ -126,10 +151,16 @@ public class CliffWorld
 		@Override
 		public String toString()
 		{ return "TakeRoadAction"; }
+
+		@Override
+		public double reward()
+		{ return 0; }
 	}
 	
 	public static class TakeCliffAction extends Action
 	{
+		public static final double reward = 0;
+		
 		private boolean done = false;
 		
 		@Override
@@ -169,10 +200,16 @@ public class CliffWorld
 		@Override
 		public String toString()
 		{ return "TakeCliffAction"; }
+		
+		@Override
+		public double reward()
+		{ return 0; }
 	}
 	
 	public static class CautiousAction extends Action
 	{
+		public static final double reward = -2;
+		
 		private boolean done = false;
 		private int old_location = -1;
 		private int old_slip = 0;
@@ -223,10 +260,16 @@ public class CliffWorld
 		@Override
 		public String toString()
 		{ return "CautiousAction"; }
+		
+		@Override
+		public double reward()
+		{ return CautiousAction.reward; }
 	}
 	
 	public static class FastAction extends Action
 	{
+		public static final double reward = -1;
+		
 		private boolean done = false;
 		private int old_location = -1;
 		private int old_slip = 0;
@@ -291,10 +334,16 @@ public class CliffWorld
 		@Override
 		public String toString()
 		{ return "FastAction"; }
+		
+		@Override
+		public double reward()
+		{ return FastAction.reward; }
 	}
 	
 	public static class SteadyAction extends Action
 	{
+		public static final double reward = -2.5;
+		
 		private boolean done = false;
 		private int old_slip = 0;
 		
@@ -339,10 +388,19 @@ public class CliffWorld
 		@Override
 		public String toString()
 		{ return "SteadyAction"; }
+		
+		@Override
+		public double reward()
+		{ return SteadyAction.reward; }
 	}
 	
 	public static class Actions extends ActionGenerator<State, Action>
 	{
+		public static int actionSetIndex( final State s )
+		{
+			return s.path.ordinal();
+		}
+		
 		private Path path = Path.Dead;
 		private int n = 0;
 		
@@ -371,6 +429,7 @@ public class CliffWorld
 			switch( path ) {
 			case Dead: return 0;
 			case Start: return 2;
+			case Road: return 2;
 			default: return Nactions;
 			}
 		}
@@ -401,6 +460,7 @@ public class CliffWorld
 					a = new CautiousAction();
 				}
 				else {
+					assert( path == Path.Cliff );
 					a = new SteadyAction();
 				}
 			}
@@ -452,6 +512,10 @@ public class CliffWorld
 		@Override
 		public Action create()
 		{ return new PostDynamicsAction( new_wind ); }
+		
+		@Override
+		public double reward()
+		{ return 0; }
 	}
 	
 	// -----------------------------------------------------------------------
@@ -607,7 +671,7 @@ public class CliffWorld
 			attributes.add( new Attribute( "path" ) );
 			attributes.add( new Attribute( "location" ) );
 			attributes.add( new Attribute( "wind" ) );
-			attributes.add( new Attribute( "slipping" ) );
+			attributes.add( new Attribute( "slip" ) );
 		}
 		
 		@Override
@@ -625,15 +689,147 @@ public class CliffWorld
 		}
 	}
 	
+	public static class ActionSetRepresenter implements Representer<State, Representation<State>>
+	{
+		@Override
+		public Representer<State, Representation<State>> create()
+		{
+			return new ActionSetRepresenter();
+		}
+	
+		@Override
+		public Representation<State> encode( final State s )
+		{
+			return new IndexRepresentation<State>( Actions.actionSetIndex( s ) );
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
+	public static class FsssModel extends edu.oregonstate.eecs.mcplan.search.fsss.FsssModel<State, Action>
+	{
+		private final double Vmin;
+		private final double Vmax;
+		
+		private final PrimitiveRepresenter base_repr = new PrimitiveRepresenter();
+		private final ActionSetRepresenter action_repr = new ActionSetRepresenter();
+		
+		private final State s0;
+		
+		private int sample_count = 0;
+		
+		public FsssModel( final RandomGenerator rng, final KeyValueStore config )
+		{
+			final int L = config.getInt( "cliffworld.L" );
+			final int W = config.getInt( "cliffworld.W" );
+			final int F = config.getInt( "cliffworld.F" );
+			s0 = new State( rng, L, W, F );
+			Vmin = calculateVmin( s0 );
+			Vmax = calculateVmax( s0 );
+		}
+		
+		public FsssModel( final State s )
+		{
+			s0 = s;
+			Vmin = calculateVmin( s0 );
+			Vmax = calculateVmax( s0 );
+		}
+		
+		private double calculateVmin( final State s )
+		{
+			// Worst possible plan is either:
+			// 1. Do Cautious on the Safe road
+			// 2. Do Cautious until the last step on the Risky road, then do
+			// Fast, slip, and fail to recover, leading to a fall.
+			return Math.min( 3*s.L*CautiousAction.reward,
+							 (s.L-1)*CautiousAction.reward + FastAction.reward + s.F*SteadyAction.reward + fall_penalty );
+		}
+		
+		private double calculateVmax( final State s )
+		{
+//			return s.L*FastAction.reward;
+			return 0;
+		}
+		
+		@Override
+		public double Vmin()
+		{ return Vmin; }
+
+		@Override
+		public double Vmax()
+		{ return Vmax; }
+
+		@Override
+		public double discount()
+		{ return 1.0; }
+
+		@Override
+		public FactoredRepresenter<State, ? extends FactoredRepresentation<State>> base_repr()
+		{ return base_repr; }
+
+		@Override
+		public Representer<State, ? extends Representation<State>> action_repr()
+		{ return action_repr; }
+		
+		@Override
+		public State initialState()
+		{
+			return new State( s0 );
+		}
+
+		@Override
+		public Iterable<Action> actions( final State s )
+		{
+			final Actions actions = new Actions( s.rng );
+			actions.setState( s, 0L );
+			return Fn.in( actions );
+		}
+
+		@Override
+		public State sampleTransition( final State s, final Action a )
+		{
+			sample_count += 1;
+			
+			final State copy = new State( s );
+			a.create().doAction( copy );
+			
+			final PostDynamicsAction post = new PostDynamicsAction( s.rng.nextInt( s.W ) );
+			post.doAction( copy );
+			
+			return copy;
+		}
+
+		@Override
+		public double reward( final State s )
+		{
+			if( s.path == Path.Dead ) {
+				return -30;
+			}
+			else {
+				return 0;
+			}
+		}
+
+		@Override
+		public double reward( final State s, final Action a )
+		{
+			return a.reward();
+		}
+
+		@Override
+		public int sampleCount()
+		{ return sample_count; }
+	}
+	
 	// -----------------------------------------------------------------------
 	
 	public static void main( final String[] argv ) throws NumberFormatException, IOException
 	{
+		final RandomGenerator rng = new MersenneTwister( 42 );
 		final int L = 7;
 		final int W = 4;
 		final int F = 5;
-		final State s = new State( L, W, F );
-		final RandomGenerator rng = new MersenneTwister( 42 );
+		final State s = new State( rng, L, W, F );
 		final Simulator sim = new Simulator( s, rng );
 		
 		final Actions actions = new Actions( rng );
