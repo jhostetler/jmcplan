@@ -12,8 +12,11 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 
 /**
- * @author jhostetler
- *
+ * The evaluation is
+ * 		score = D + \lambda*R
+ * where D is the L1 distance between the Q-functions of the two resulting
+ * abstract states, R measures the size balance of the two states, and
+ * \lambda is a regularization parameter.
  */
 public class L1SplitEvaluator<S extends State, A extends VirtualConstructor<A>>
 	implements SplitEvaluator<S, A>

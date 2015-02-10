@@ -24,8 +24,13 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	
 	private final MeanVarianceAccumulator R = new MeanVarianceAccumulator();
 	
-	private double U;
-	private double L;
+	private double U = Double.NaN;
+	private double L = Double.NaN;
+	
+	private final MeanVarianceAccumulator Ubar = new MeanVarianceAccumulator();
+	private final MeanVarianceAccumulator Lbar = new MeanVarianceAccumulator();
+	
+	private boolean backed_up = false;
 	
 	private final Map<A, FsssAbstractActionNode<S, A>> successors
 		= new HashMap<A, FsssAbstractActionNode<S, A>>();
@@ -47,8 +52,6 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		this.model = model;
 		this.abstraction = abstraction;
 		this.x = x;
-		this.U = model.Vmax();
-		this.L = model.Vmin();
 	}
 	
 	public FsssAbstractStateNode( final int depth,
@@ -61,8 +64,6 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		this.model = model;
 		this.abstraction = abstraction;
 		this.x = x;
-		this.U = model.Vmax();
-		this.L = model.Vmin();
 		for( final FsssStateNode<S, A> s : states ) {
 			addGroundStateNode( s );
 		}
@@ -78,6 +79,9 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	 */
 	private FsssAbstractActionNode<S, A> addSuccessor( final A a, final FsssAbstractActionNode<S, A> aan )
 	{
+		if( isTerminal() ) {
+			System.out.println( "! " + this );
+		}
 		assert( !isTerminal() );
 		final FsssAbstractActionNode<S, A> previous = successors.put( a, aan );
 		if( previous == null ) {
@@ -123,9 +127,15 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	
 	public void addGroundStateNode( final FsssStateNode<S, A> gsn )
 	{
+		assert( !backed_up );
+		
 //		System.out.println( "ASN: addGroundStateNode(): states.size() = " + states.size() );
 		states.add( gsn );
 		R.add( gsn.r );
+		Ubar.add( gsn.U() );
+		Lbar.add( gsn.L() );
+		U = Ubar.mean();
+		L = Lbar.mean();
 		
 		// TODO: Debugging code
 //		final ArrayList<A> exemplar_actions = Fn.takeAll( model.actions( exemplar().s() ) );
@@ -200,6 +210,8 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		for( final FsssStateNode<S, A> gsn : states ) {
 			gsn.backup();
 		}
+		
+		backed_up = true;
 	}
 	
 	public FsssAbstractActionNode<S, A> astar()
@@ -213,7 +225,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 				astar = an;
 			}
 		}
-//		assert( astar != null );
+		
 		return astar;
 	}
 	
@@ -242,16 +254,16 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		return successors.get( a );
 	}
 	
-	public void expand( final Iterable<A> actions, final int width )
+	public void expand( final Iterable<A> actions, final int width, final int max_samples )
 	{
 		createActionNodes( actions );
-		sample( width );
+		sample( width, max_samples );
 	}
 	
-	public void sample( final int width )
+	public void sample( final int width, final int max_samples )
 	{
 		for( final FsssAbstractActionNode<S, A> an : successors() ) {
-			an.sample( width );
+			an.sample( width, max_samples );
 		}
 	}
 	
@@ -263,7 +275,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	 * @param added
 	 * @param width
 	 */
-	public void upSample( final ArrayList<FsssStateNode<S, A>> added, final int width )
+	public void addActionNodes( final ArrayList<FsssStateNode<S, A>> added )
 	{
 		for( final FsssStateNode<S, A> gsn : added ) {
 			assert( gsn.nsuccessors() == 0 );
@@ -345,7 +357,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		if( succ == null ) {
 			// FIXME: The 'aggregate' members of the new decision tree should
 			// be set here (or somewhere else?)
-			final RefineablePartitionTreeRepresenter<S, A> repr = old_aan.repr.emptyInstance();
+			final ClassifierRepresenter<S, A> repr = old_aan.repr.emptyInstance();
 			succ = new FsssAbstractActionNode<S, A>( this, model, abstraction, gan.a(), repr );
 //			successors.put( gan.a(), succ );
 //			ordered_successors.add( succ );
@@ -378,7 +390,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 			}
 			
 			assert( union_a != null );
-			final RefineablePartitionTreeRepresenter<S, A> repr = union_a.repr.emptyInstance();
+			final ClassifierRepresenter<S, A> repr = union_a.repr.emptyInstance();
 			final FsssAbstractActionNode<S, A> an = new FsssAbstractActionNode<S, A>(
 				this, model, abstraction, a, repr );
 //			final FsssAbstractActionNode<S, A> check = successors.put( a, an );
@@ -410,22 +422,14 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	public void leaf()
 	{
 		visit();
+		final MeanVarianceAccumulator Ubar = new MeanVarianceAccumulator();
 		for( final FsssStateNode<S, A> gsn : states ) {
 			gsn.leaf();
+			assert( gsn.U() == gsn.L() );
+			Ubar.add( gsn.U() );
 		}
-		U = L = R.mean();
-	}
-	
-	public void leaf( final Iterable<A> actions )
-	{
-		visit();
-		createActionNodes( actions );
-		for( final FsssAbstractActionNode<S, A> an : successors() ) {
-//			for( final FsssActionNode<S, A> gan : an.actions ) {
-//				gan.leaf();
-//			}
-			an.leaf();
-		}
+//		U = L = R.mean();
+		U = L = Ubar.mean();
 	}
 	
 	// FIXME: We're assuming that the abstraction does not identify

@@ -348,6 +348,28 @@ public final class Fn
 	}
 	
 	// -----------------------------------------------------------------------
+	// Sequences
+	// -----------------------------------------------------------------------
+	
+	private static class PositiveIntegers implements IntSlice
+	{
+		private int i = 1;
+		
+		@Override
+		public boolean hasNext()
+		{ return true; }
+
+		@Override
+		public int next()
+		{ return i++; }
+	}
+	
+	public static IntSlice PositiveIntegers()
+	{
+		return new PositiveIntegers();
+	}
+	
+	// -----------------------------------------------------------------------
 	// map
 	// -----------------------------------------------------------------------
 	
@@ -1078,6 +1100,19 @@ public final class Fn
 		return new OnceIterable<T>( itr );
 	}
 	
+	public static <T> Iterable<Integer> in( final IntSlice itr )
+	{
+		return new OnceIterable<Integer>( new Generator<Integer>() {
+			@Override
+			public boolean hasNext()
+			{ return itr.hasNext(); }
+
+			@Override
+			public Integer next()
+			{ return itr.next(); }
+		} );
+	}
+	
 	// -----------------------------------------------------------------------
 	// memcpy
 	// -----------------------------------------------------------------------
@@ -1801,6 +1836,8 @@ public final class Fn
 		}
 		System.out.println( Arrays.toString( counts ) );
 	}
+
+	
 
 	
 

@@ -17,9 +17,11 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  */
 public abstract class FsssModel<S extends State, A extends VirtualConstructor<A>>
 {
-	public abstract double Vmin();
-	public abstract double Vmax();
+	public abstract double Vmin( final S s );
+	public abstract double Vmax( final S s );
 	public abstract double discount();
+	
+	public abstract double heuristic( final S s );
 	
 	public abstract RandomGenerator rng();
 	

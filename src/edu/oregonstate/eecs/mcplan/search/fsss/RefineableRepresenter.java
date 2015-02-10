@@ -6,8 +6,16 @@ import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
-import edu.oregonstate.eecs.mcplan.search.fsss.RefineablePartitionTreeRepresenter.DataNode;
+import edu.oregonstate.eecs.mcplan.search.fsss.ClassifierRepresenter.DataNode;
 
+/**
+ * @author jhostetler
+ * @deprecated
+ *
+ * @param <S>
+ * @param <A>
+ */
+@Deprecated
 public interface RefineableRepresenter<S extends State, A extends VirtualConstructor<A>>
 {
 
@@ -21,8 +29,8 @@ public interface RefineableRepresenter<S extends State, A extends VirtualConstru
 			final FsssAbstractActionNode<S, A> an, final DataNode dn,
 			final int attribute, final double split );
 
-	public abstract DataNode classify( final DataNode dt_root,
-			final FactoredRepresentation<S> x );
+//	public abstract DataNode classify( final DataNode dt_root,
+//			final FactoredRepresentation<S> x );
 
 	/**
 	 * Same as 'encode()', but creates a successor node if one does not

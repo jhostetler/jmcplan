@@ -10,8 +10,11 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 
 /**
- * @author jhostetler
- *
+ * The evaluation is
+ * 		score = D + \lambda*R
+ * where D is the L1 distance between the Q-functions of the two resulting
+ * abstract states, R measures the size balance of the two states, and
+ * \lambda is a regularization parameter.
  */
 public class AStarIrrelevanceSplitEvaluator<S extends State, A extends VirtualConstructor<A>>
 	implements SplitEvaluator<S, A>
@@ -59,17 +62,26 @@ public class AStarIrrelevanceSplitEvaluator<S extends State, A extends VirtualCo
 			}
 		}
 		
+		int au_max = -1;
+		int av_max = -1;
 		double umax = -Double.MAX_VALUE;
 		double vmax = -Double.MAX_VALUE;
 		for( int i = 0; i < Nactions; ++i ) {
-			umax = Math.max( umax, QU[i].mean() );
-			vmax = Math.max( vmax, QV[i].mean() );
+			if( QU[i].mean() > umax ) {
+				umax = QU[i].mean();
+				au_max = i;
+			}
+			if( QV[i].mean() > vmax ) {
+				vmax = QV[i].mean();
+				av_max = i;
+			}
 		}
 		
-		final double D = Math.abs( umax - vmax );
+		final double Du = Math.abs( umax - QV[au_max].mean() );
+		final double Dv = Math.abs( vmax - QU[av_max].mean() );
 		final double R = sizeBalance( U, V );
 		
-		return D + size_regularization*R;
+		return Du + Dv + size_regularization*R;
 	}
 	
 	private double sizeBalance( final ArrayList<FsssStateNode<S, A>> U,

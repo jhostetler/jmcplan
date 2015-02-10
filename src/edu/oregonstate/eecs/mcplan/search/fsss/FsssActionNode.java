@@ -34,8 +34,8 @@ public class FsssActionNode<S extends State, A extends VirtualConstructor<A>>
 		this.s = s;
 		this.a = a;
 		this.r = model.reward( s, a );
-		this.U = model.Vmax();
-		this.L = model.Vmin();
+		this.U = model.Vmax( s );
+		this.L = model.Vmin( s );
 		this.depth = predecessor.depth;
 	}
 	

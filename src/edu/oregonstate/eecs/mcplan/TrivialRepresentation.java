@@ -9,11 +9,11 @@ package edu.oregonstate.eecs.mcplan;
  * 
  * @author jhostetler
  */
-public class TrivialRepresentation<S> extends Representation<S>
+public class TrivialRepresentation<S> extends FactoredRepresentation<S>
 {
 
 	@Override
-	public Representation<S> copy()
+	public FactoredRepresentation<S> copy()
 	{
 		return new TrivialRepresentation<S>();
 	}
@@ -34,5 +34,11 @@ public class TrivialRepresentation<S> extends Representation<S>
 	public String toString()
 	{
 		return "TrivialRepresentation@" + Integer.toHexString( System.identityHashCode( this ) );
+	}
+
+	@Override
+	public double[] phi()
+	{
+		return new double[] { 0 };
 	}
 }

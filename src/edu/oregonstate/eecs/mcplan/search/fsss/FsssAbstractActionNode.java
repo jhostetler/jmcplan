@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import edu.oregonstate.eecs.mcplan.Representation;
-import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
@@ -24,14 +23,20 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 	private final FsssModel<S, A> model;
 	private final FsssAbstraction<S, A> abstraction;
 	private final A a;
-	public final RefineablePartitionTreeRepresenter<S, A> repr;
+	public final ClassifierRepresenter<S, A> repr;
+//	public final RefineablePartitionTreeRepresenter<S, A> repr;
 //	public final Representer<S, ? extends Representation<S>> repr;
 	
 	public final ArrayList<FsssActionNode<S, A>> actions = new ArrayList<FsssActionNode<S, A>>();
 	private final MeanVarianceAccumulator R = new MeanVarianceAccumulator();
 	
-	private double U;
-	private double L;
+	private double U = Double.NaN;
+	private double L = Double.NaN;
+	
+	private final MeanVarianceAccumulator Ubar = new MeanVarianceAccumulator();
+	private final MeanVarianceAccumulator Lbar = new MeanVarianceAccumulator();
+	
+	private boolean backed_up = false;
 	
 	private int n = 0;
 	
@@ -47,16 +52,14 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 	
 	public FsssAbstractActionNode( final FsssAbstractStateNode<S, A> predecessor,
 								   final FsssModel<S, A> model, final FsssAbstraction<S, A> abstraction,
-								   final A a, final Representer<S, ? extends Representation<S>> repr )
+								   final A a, final ClassifierRepresenter<S, A> repr )
 	{
 		this.depth = predecessor.depth;
 		this.predecessor = predecessor;
 		this.model = model;
 		this.abstraction = abstraction;
 		this.a = a;
-		this.repr = (RefineablePartitionTreeRepresenter<S, A>) repr;
-		this.U = model.Vmax();
-		this.L = model.Vmin();
+		this.repr = repr;
 	}
 	
 	@Override
@@ -92,6 +95,9 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		final FsssAbstractStateNode<S, A> previous = successors.put( x, asn );
 		if( previous == null ) {
 			ordered_successors.add( asn );
+		}
+		else {
+			assert( previous == asn );
 		}
 		return previous;
 	}
@@ -140,6 +146,9 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 	public void backup()
 	{
 		assert( nsuccessors() > 0 );
+		
+		backed_up = true;
+		
 		double u = 0;
 		double l = 0;
 		int N = 0;
@@ -149,11 +158,28 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 			u += n * sn.U();
 			l += n * sn.L();
 		}
-		U = R.mean() + (N > 0 ? model.discount() * u / N : 0);
-		L = R.mean() + (N > 0 ? model.discount() * l / N : 0);
+		if( N > 0 ) {
+			U = R.mean() + model.discount() * u / N;
+			L = R.mean() + model.discount() * l / N;
+		}
+//		else {
+//			U = R.mean() + model.discount()*model.Vmax();
+//			L = R.mean() + model.discount()*model.Vmin();
+//		}
 		
+		// Note: I originally considered it an error if any GANs had no
+		// successors. However, that can happen if sampling is stopped early.
 		for( final FsssActionNode<S, A> gan : actions ) {
-			gan.backup();
+			if( gan.nsuccessors() > 0 ) {
+				gan.backup();
+			}
+			
+//			// TODO: Debugging code
+//			if( gan.nsuccessors() == 0 ) {
+//				FsssTest.printTree( FsssTest.findRoot( this ), System.out, 1 );
+//				System.out.println( "! " + this );
+//				System.exit( 0 );
+//			}
 		}
 	}
 	
@@ -163,7 +189,7 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		return ordered_successors;
 	}
 	
-	public FsssAbstractStateNode<S, A> successor( final Representation<S> x )
+	protected FsssAbstractStateNode<S, A> successor( final Representation<S> x )
 	{
 		return successors.get( x );
 	}
@@ -175,19 +201,33 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 	
 	public void addGroundActionNode( final FsssActionNode<S, A> gan )
 	{
+		assert( !backed_up );
 		assert( gan.a().equals( this.a() ) );
 		actions.add( gan );
 		R.add( gan.r );
+		Ubar.add( gan.U() );
+		Lbar.add( gan.L() );
+		U = Ubar.mean();
+		L = Lbar.mean();
 	}
 	
-	public void sample( final int width )
+	public void sample( final int width, final int max_samples )
 	{
 		while( n < width ) {
+			if( model.sampleCount() >= max_samples ) {
+//				System.out.println( "! AAN.upSample(): terminating " + model.sampleCount() + " / " + max_samples );
+//
+//				FsssTest.printTree( FsssTest.findRoot( this ), System.out, 1 );
+//				System.out.println( "! " + this );
+//				System.exit(  0  );
+				
+				break;
+			}
+			
 			int N = 0;
 			for( final FsssActionNode<S, A> gan : actions ) {
 				final FsssStateNode<S, A> gsn = gan.sample();
-				final FsssAbstractStateNode<S, A> encoded
-					= repr.addTrainingSample( this, gsn.s(), model.base_repr().encode( gsn.s() ) );
+				final FsssAbstractStateNode<S, A> encoded = repr.addTrainingSample( this, gsn.s() );
 				FsssAbstractStateNode<S, A> asn = successors.get( encoded.x() );
 				if( asn == null ) {
 					asn = encoded;
@@ -202,19 +242,23 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		}
 	}
 	
-	public Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> upSample( final int width )
+	public Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> upSample( final int width, final int max_samples )
 	{
 		final Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> added
 			= new HashMap<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>>();
 		while( n < width ) {
+			if( model.sampleCount() >= max_samples ) {
+//				System.out.println( "! AAN.upSample(): terminating " + model.sampleCount() + " / " + max_samples );
+				break;
+			}
+			
 //			System.out.println( "\tAAN @" + hashCode() + ": n = " + n );
 			int N = 0;
 			for( final FsssActionNode<S, A> gan : actions ) {
 				// Sample ground successor
 				final FsssStateNode<S, A> gsn = gan.sample();
 				// Get abstract state
-				final FsssAbstractStateNode<S, A> encoded
-					= repr.addTrainingSample( this, gsn.s(), model.base_repr().encode( gsn.s() ) );
+				final FsssAbstractStateNode<S, A> encoded = repr.addTrainingSample( this, gsn.s() );
 				// Ensure ASN successor
 				FsssAbstractStateNode<S, A> asn = successors.get( encoded.x() );
 				if( asn == null ) {
@@ -263,6 +307,14 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		assert( old_aan.actions.contains( gan ) );
 		for( final FsssStateNode<S, A> gsn : gan.successors() ) {
 			final FsssAbstractStateNode<S, A> asn = requireSuccessor( gsn );
+			// FIXME: To implement random partition refinement, we need to be able
+			// to find the successor that actually contains 'gsn'. Since
+			// AAN.successor() is only called here, we are free to change it to accept
+			// a GSN instance instead of an encoded representation. This would
+			// allow us to simply search through the successors to find the
+			// one that contains 'gsn'.
+			//
+			// Big question: Does this break the existing, working code?
 			final FsssAbstractStateNode<S, A> old_succ = old_aan.successor( old_aan.repr.encode( gsn.s() ) );
 			if( old_succ.nvisits() > 0 ) {
 //				asn.visit();

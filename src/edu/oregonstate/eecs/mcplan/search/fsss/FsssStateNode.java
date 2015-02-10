@@ -37,8 +37,8 @@ public class FsssStateNode<S extends State, A extends VirtualConstructor<A>>
 		this.s = s;
 		this.x = model.base_repr().encode( s );
 		this.r = model.reward( s );
-		this.U = model.Vmax();
-		this.L = model.Vmin();
+		this.U = model.Vmax( s );
+		this.L = model.Vmin( s );
 		this.depth = predecessor.depth - 1;
 	}
 	
@@ -49,8 +49,8 @@ public class FsssStateNode<S extends State, A extends VirtualConstructor<A>>
 		this.s = s;
 		this.x = model.base_repr().encode( s );
 		this.r = model.reward( s );
-		this.U = model.Vmax();
-		this.L = model.Vmin();
+		this.U = model.Vmax( s );
+		this.L = model.Vmin( s );
 		this.depth = depth;
 	}
 	
@@ -192,16 +192,8 @@ public class FsssStateNode<S extends State, A extends VirtualConstructor<A>>
 	
 	public void leaf()
 	{
-		U = L = r;
-	}
-	
-	public void leaf( final Iterable<A> actions )
-	{
-		for( final A a : actions ) {
-			final FsssActionNode<S, A> an = new FsssActionNode<S, A>( this, model, s, a );
-			successors.add( an );
-			an.leaf();
-		}
+		final double V = r + model.heuristic( s );
+		U = L = V;
 	}
 	
 	public boolean isTerminal()

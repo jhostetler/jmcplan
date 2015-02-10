@@ -1,9 +1,6 @@
 package edu.oregonstate.eecs.mcplan.search.fsss;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
-import java.util.HashMap;
 import java.util.Map;
 
 import edu.oregonstate.eecs.mcplan.State;
@@ -16,65 +13,70 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  * @param <S>
  * @param <A>
  */
-public abstract class SubtreeBreadthFirstRefinementOrder<S extends State, A extends VirtualConstructor<A>>
+public class SubtreeBreadthFirstRefinementOrder<S extends State, A extends VirtualConstructor<A>>
 	implements SubtreeRefinementOrder<S, A>
 {
+	public static class Factory<S extends State, A extends VirtualConstructor<A>>
+		implements SubtreeRefinementOrder.Factory<S, A>
+	{
+//		private final SplitChooser.Factory<S, A> split_chooser;
+		private final boolean randomize;
+	
+		public Factory( //final SplitChooser.Factory<S, A> split_chooser,
+						final boolean randomize )
+		{
+//			this.split_chooser = split_chooser;
+			this.randomize = randomize;
+		}
+
+		@Override
+		public SubtreeRefinementOrder<S, A> create( final FsssParameters parameters,
+				final FsssModel<S, A> model, final FsssAbstractActionNode<S, A> root )
+		{
+			return new SubtreeBreadthFirstRefinementOrder<S, A>(
+				parameters, model, root,
+//				split_chooser.createSplitChooser( parameters, model ),
+				randomize );
+		}
+		
+		@Override
+		public String toString()
+		{
+//			return "SubtreeBreadthFirst(randomize = " + randomize + "; " + split_chooser + ")";
+			return "SubtreeBreadthFirst(randomize = " + randomize + ")";
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
 	protected final FsssParameters parameters;
 	protected final FsssModel<S, A> model;
 	protected final FsssAbstractActionNode<S, A> root_action;
+//	protected final SplitChooser<S, A> split_chooser;
+	protected final boolean randomize;
 	
-	private final Deque<FsssAbstractActionNode<S, A>> current_layer
-		= new ArrayDeque<FsssAbstractActionNode<S, A>>();
-	private final Deque<FsssAbstractActionNode<S, A>> next_layer
-		= new ArrayDeque<FsssAbstractActionNode<S, A>>();
+	private final ArrayList<FsssAbstractActionNode<S, A>> current_layer
+		= new ArrayList<FsssAbstractActionNode<S, A>>();
+	private final ArrayList<FsssAbstractActionNode<S, A>> next_layer
+		= new ArrayList<FsssAbstractActionNode<S, A>>();
 	
 	private boolean closed = false;
 	
 	public SubtreeBreadthFirstRefinementOrder( final FsssParameters parameters,
 											   final FsssModel<S, A> model,
-											   final FsssAbstractActionNode<S, A> root_action )
+											   final FsssAbstractActionNode<S, A> root_action,
+//											   final SplitChooser<S, A> split_chooser,
+											   final boolean randomize )
 	{
 		this.parameters = parameters;
 		this.model = model;
+//		this.split_chooser = split_chooser;
 		this.root_action = root_action;
+		this.randomize = randomize;
 		
-		current_layer.addLast( root_action );
+		current_layer.add( root_action );
 	}
 	
-	/**
-	 * Chooses an attribute and value to split on. Must return 'null' if no
-	 * more refinements should be attempted on 'aan'. Must return a non-null
-	 * SplitChoice with non-null .dn and null .split member to indicate that no
-	 * more refinements should be attempted for the .dn member.
-	 * 
-	 * @param aan
-	 * @return
-	 */
-	protected abstract SplitChoice<S, A> chooseSplit( final FsssAbstractActionNode<S, A> aan );
-	
-	protected static class Split
-	{
-		public final int attribute;
-		public final double value;
-		
-		public Split( final int attribute, final double value )
-		{
-			this.attribute = attribute;
-			this.value = value;
-		}
-	}
-	
-	protected static class SplitChoice<S extends State, A extends VirtualConstructor<A>>
-	{
-		public final RefineablePartitionTreeRepresenter<S, A>.DataNode dn;
-		public final Split split;
-		
-		public SplitChoice( final RefineablePartitionTreeRepresenter<S, A>.DataNode dn, final Split split )
-		{
-			this.dn = dn;
-			this.split = split;
-		}
-	}
 	
 	// -----------------------------------------------------------------------
 	
@@ -113,20 +115,29 @@ public abstract class SubtreeBreadthFirstRefinementOrder<S extends State, A exte
 			}
 			
 			// Find a state node to refine
-			final FsssAbstractActionNode<S, A> aan = current_layer.peekFirst();
-			final SplitChoice<S, A> choice = chooseSplit( aan );
-			if( choice == null ) {
-				closeNode( aan );
-				continue;
-			}
-			else if( choice.split == null ) {
-				// Node was homogeneous with respect to the base representation
-				choice.dn.close();
-				continue;
-			}
+			final int i = (randomize ? model.rng().nextInt( current_layer.size() ) : 0);
+//			final FsssAbstractActionNode<S, A> aan = current_layer.peekFirst();
+			final FsssAbstractActionNode<S, A> aan = current_layer.get( i );
 			
-			// Refine dn
-			refine( aan, choice.dn, choice.split );
+//			final SplitChoice<S, A> choice = split_chooser.chooseSplit( aan );
+//			if( choice == null ) {
+//				closeNode( i );
+//				continue;
+//			}
+//			else if( choice.split == null ) {
+//				// Node was homogeneous with respect to the base representation
+//				choice.dn.close();
+//				continue;
+//			}
+			
+			// Refine aan
+//			refine( aan, choice.dn, choice.split );
+			final RefineableClassifierRepresenter<S, A> repr = (RefineableClassifierRepresenter<S, A>) aan.repr;
+			final boolean refined = repr.refine( aan );
+			if( !refined ) {
+				closeNode( i );
+				continue;
+			}
 			upSample( aan );
 			backupToRoot( aan );
 			
@@ -136,18 +147,19 @@ public abstract class SubtreeBreadthFirstRefinementOrder<S extends State, A exte
 	
 	// -----------------------------------------------------------------------
 	
-	private void closeNode( final FsssAbstractActionNode<S, A> aan )
+	private void closeNode( final int i )
 	{
 //			System.out.println( "\tBuilder: closing " + aan );
 		// All abstract state nodes are singletons -> remove this
 		// state node and add all of its successors.
-		final FsssAbstractActionNode<S, A> check = current_layer.pollFirst();
-		assert( aan == check );
+//		final FsssAbstractActionNode<S, A> check = current_layer.pollFirst();
+		final FsssAbstractActionNode<S, A> aan = current_layer.remove( i );
+//		assert( aan == check );
 		for( final FsssAbstractStateNode<S, A> asn : aan.successors() ) {
 			if( !asn.isTerminal() ) {
 				for( final FsssAbstractActionNode<S, A> aan_prime : asn.successors() ) {
 //						System.out.println( "\t\tAdding" + aan_prime );
-					next_layer.addLast( aan_prime );
+					next_layer.add( aan_prime );
 				}
 			}
 		}
@@ -171,13 +183,16 @@ public abstract class SubtreeBreadthFirstRefinementOrder<S extends State, A exte
 	{
 		// Don't sample if we're at the limit, but we still need to do
 		// backups because buildSubtree2() does not do them.
-		final Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> added;
-		if( model.sampleCount() < parameters.max_samples ) {
-			added = aan.upSample( parameters.width );
-		}
-		else {
-			added = new HashMap<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>>();
-		}
+//		final Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> added;
+//		if( model.sampleCount() < parameters.max_samples ) {
+//			added = aan.upSample( parameters.width, parameters.max_samples );
+//		}
+//		else {
+//			added = new HashMap<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>>();
+//		}
+		
+		final Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> added
+			= aan.upSample( parameters.width, parameters.max_samples );
 		
 		for( final FsssAbstractStateNode<S, A> sn : aan.successors() ) {
 			// If the node has not been expanded yet, do not upSample
@@ -189,7 +204,7 @@ public abstract class SubtreeBreadthFirstRefinementOrder<S extends State, A exte
 			
 			final ArrayList<FsssStateNode<S, A>> sn_added = added.get( sn );
 			if( sn_added != null ) {
-				sn.upSample( sn_added, parameters.width );
+				sn.addActionNodes( sn_added );
 			}
 			
 			if( sn.isTerminal() ) {
@@ -206,34 +221,56 @@ public abstract class SubtreeBreadthFirstRefinementOrder<S extends State, A exte
 			}
 			
 		}
-		aan.backup();
+		if( aan.nsuccessors() > 0 ) {
+			aan.backup();
+		}
+//		else {
+//			FsssTest.printTree( FsssTest.findRoot( aan ), System.out, 1 );
+//			System.out.println( "! " + aan );
+//			System.exit( 0 );
+//		}
 	}
 	
-	/**
-	 * Refines 'dn', which must be a successor of 'aan'.
-	 * @param aan
-	 * @param dn
-	 * @param split
-	 * @return
-	 */
-	private void refine( final FsssAbstractActionNode<S, A> aan,
-						 final RefineablePartitionTreeRepresenter<S, A>.DataNode dn,
-						 final Split split )
-	{
-//		System.out.println( "\tBuilder: refining " + dn.aggregate + " below " + aan );
-		
-		final RefineablePartitionTreeRepresenter<S, A> repr = aan.repr;
-		
-//			final RefineablePartitionTreeRepresenter<S, A>.BinarySplitNode b
-		final ArrayList<FsssAbstractStateNode<S, A>> parts
-			= repr.refine( aan, dn, split.attribute, split.value );
-		
-//			final ArrayList<FsssAbstractStateNode<S, A>> parts = new ArrayList<FsssAbstractStateNode<S, A>>();
-//			for( final RefineablePartitionTreeRepresenter<S, A>.DataNode d : Fn.in( b.children() ) ) {
-//				parts.add( d.aggregate );
-//			}
-		
-		aan.splitSuccessor( dn.aggregate, parts );
-		dn.aggregate = null;
-	}
+//		/**
+//	 * Refines 'dn', which must be a successor of 'aan'.
+//	 * @param aan
+//	 * @param dn
+//	 * @param split
+//	 * @return
+//	 */
+//	private void refine( final FsssAbstractActionNode<S, A> aan )
+//	{
+////		System.out.println( "\tBuilder: refining " + dn.aggregate + " below " + aan );
+//		final ArrayList<FsssAbstractStateNode<S, A>> parts = aan.repr.refine( aan );
+//		aan.splitSuccessor( dn.aggregate, parts );
+//		dn.aggregate = null;
+//	}
+	
+//	/**
+//	 * Refines 'dn', which must be a successor of 'aan'.
+//	 * @param aan
+//	 * @param dn
+//	 * @param split
+//	 * @return
+//	 */
+//	private void refine( final FsssAbstractActionNode<S, A> aan,
+//						 final RefineablePartitionTreeRepresenter<S, A>.DataNode dn,
+//						 final Split split )
+//	{
+////		System.out.println( "\tBuilder: refining " + dn.aggregate + " below " + aan );
+//
+//		final RefineablePartitionTreeRepresenter<S, A> repr = aan.repr;
+//
+////			final RefineablePartitionTreeRepresenter<S, A>.BinarySplitNode b
+//		final ArrayList<FsssAbstractStateNode<S, A>> parts
+//			= repr.refine( aan, dn, split.attribute, split.value );
+//
+////			final ArrayList<FsssAbstractStateNode<S, A>> parts = new ArrayList<FsssAbstractStateNode<S, A>>();
+////			for( final RefineablePartitionTreeRepresenter<S, A>.DataNode d : Fn.in( b.children() ) ) {
+////				parts.add( d.aggregate );
+////			}
+//
+//		aan.splitSuccessor( dn.aggregate, parts );
+//		dn.aggregate = null;
+//	}
 }

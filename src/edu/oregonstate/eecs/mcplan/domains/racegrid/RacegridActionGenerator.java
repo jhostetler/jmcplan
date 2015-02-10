@@ -22,7 +22,7 @@ public class RacegridActionGenerator extends ActionGenerator<RacegridState, Race
 	}
 
 	@Override
-	public void setState( final RacegridState s, final long t, final int[] turn )
+	public void setState( final RacegridState s, final long t )
 	{
 		x_ = -range_;
 		y_ = -range_;

@@ -45,12 +45,20 @@ public class SpBjNullRepresenter implements FactoredRepresenter<SpBjState, Facto
 			attributes.add( new Attribute( "passed" + i ) );
 			attributes.add( new Attribute( "can_split" + i ) );
 			attributes.add( new Attribute( "can_double" + i ) );
-			attributes.add( new Attribute( "off_678" ) );
-			attributes.add( new Attribute( "suit_678" ) );
-			attributes.add( new Attribute( "spade_678" ) );
-			attributes.add( new Attribute( "off_777" ) );
-			attributes.add( new Attribute( "suit_777" ) );
-			attributes.add( new Attribute( "spade_777" ) );
+			
+			attributes.add( new Attribute( "off_2of3" ) );
+			attributes.add( new Attribute( "suit_2of3" ) );
+			attributes.add( new Attribute( "spade_2of3" ) );
+			attributes.add( new Attribute( "off_3of3" ) );
+			attributes.add( new Attribute( "suit_3of3" ) );
+			attributes.add( new Attribute( "spade_3of3" ) );
+			
+//			attributes.add( new Attribute( "off_678" ) );
+//			attributes.add( new Attribute( "suit_678" ) );
+//			attributes.add( new Attribute( "spade_678" ) );
+//			attributes.add( new Attribute( "off_777" ) );
+//			attributes.add( new Attribute( "suit_777" ) );
+//			attributes.add( new Attribute( "spade_777" ) );
 		}
 		assert( attributes.size() == SpBjHand.max_hands * Nplayer_hand_features );
 		// Dealer attributes
@@ -67,53 +75,142 @@ public class SpBjNullRepresenter implements FactoredRepresenter<SpBjState, Facto
 	
 	// Note: Code relies on the ordering of these values.
 	private static final int BONUS_NONE = -1;
-	private static final int BONUS_OFF_678 = 0;
-	private static final int BONUS_SUIT_678 = 1;
-	private static final int BONUS_SPADE_678 = 2;
-	private static final int BONUS_OFF_777 = 3;
-	private static final int BONUS_SUIT_777 = 4;
-	private static final int BONUS_SPADE_777 = 5;
+	
+	private static final int BONUS_OFF_2of3 = 0;
+	private static final int BONUS_SUIT_2of3 = 1;
+	private static final int BONUS_SPADE_2of3 = 2;
+	private static final int BONUS_OFF_3of3 = 3;
+	private static final int BONUS_SUIT_3of3 = 4;
+	private static final int BONUS_SPADE_3of3 = 5;
 	
 	private int bonus( final ArrayList<Card> h )
 	{
-		if( h.size() != 3 ) {
-			return BONUS_NONE;
-		}
-		
-		// Check for 678 / 777 bonus
-		final ArrayList<Card> sorted = Fn.copy( h );
-		Collections.sort( sorted, Card.TheAceHighRankComparator );
-		final Card c1 = sorted.get( 1 );
-		if( c1.rank == Rank.R_7 ) {
+		if( h.size() == 2 ) {
+			final ArrayList<Card> sorted = Fn.copy( h );
+			Collections.sort( sorted, Card.TheAceHighRankComparator );
+			
 			final Card c0 = sorted.get( 0 );
-			final Card c2 = sorted.get( 2 );
-			final int offset;
-			if( c0.rank == Rank.R_6 && c2.rank == Rank.R_8 ) {
-				offset = BONUS_OFF_678;
+			final Card c1 = sorted.get( 1 );
+			
+			final boolean bonus_2of3;
+			if( c0.rank == Rank.R_6 ) {
+				bonus_2of3 = (c1.rank == Rank.R_7 || c1.rank == Rank.R_8);
 			}
-			else if( c0.rank == Rank.R_7 && c2.rank == Rank.R_7 ) {
-				offset = BONUS_OFF_777;
+			else if( c0.rank == Rank.R_7 ) {
+				bonus_2of3 = (c1.rank == Rank.R_6 || c1.rank == Rank.R_7 || c1.rank == Rank.R_8);
+			}
+			else if( c0.rank == Rank.R_8 ) {
+				bonus_2of3 = (c1.rank == Rank.R_6 || c1.rank == Rank.R_7);
 			}
 			else {
-				return BONUS_NONE;
+				bonus_2of3 = false;
 			}
 			
-			if( c0.suit == c1.suit && c1.suit == c2.suit ) {
-				// Suited
-				if( c0.suit == Suit.S_s ) {
-					return offset + 2;
-				}
-				else {
-					return offset + 1;
-				}
+			if( !bonus_2of3 ) {
+				return BONUS_NONE;
+			}
+			else if( c0.suit != c1.suit ) {
+				return BONUS_OFF_2of3;
 			}
 			else {
-				return offset;
+				if( c0.suit == Suit.S_s ) {
+					return BONUS_SPADE_2of3;
+				}
+				else {
+					return BONUS_SUIT_2of3;
+				}
+			}
+		}
+		else if( h.size() == 3 ) {
+			final ArrayList<Card> sorted = Fn.copy( h );
+			Collections.sort( sorted, Card.TheAceHighRankComparator );
+			
+			final Card c1 = sorted.get( 1 );
+			if( c1.rank == Rank.R_7 ) {
+				final Card c0 = sorted.get( 0 );
+				final Card c2 = sorted.get( 2 );
+				final boolean bonus;
+				if( c0.rank == Rank.R_6 && c2.rank == Rank.R_8 ) {
+					bonus = true;
+				}
+				else if( c0.rank == Rank.R_7 && c2.rank == Rank.R_7 ) {
+					bonus = true;
+				}
+				else {
+					bonus = false;
+				}
+				
+				if( !bonus ) {
+					return BONUS_NONE;
+				}
+				
+				if( c0.suit == c1.suit && c1.suit == c2.suit ) {
+					// Suited
+					if( c0.suit == Suit.S_s ) {
+						return BONUS_SPADE_3of3;
+					}
+					else {
+						return BONUS_SUIT_3of3;
+					}
+				}
+				else {
+					return BONUS_OFF_3of3;
+				}
 			}
 		}
 		
 		return BONUS_NONE;
 	}
+	
+//	private static final int BONUS_OFF_678 = 0;
+//	private static final int BONUS_SUIT_678 = 1;
+//	private static final int BONUS_SPADE_678 = 2;
+//	private static final int BONUS_OFF_777 = 3;
+//	private static final int BONUS_SUIT_777 = 4;
+//	private static final int BONUS_SPADE_777 = 5;
+//
+//	private int bonus( final ArrayList<Card> h )
+//	{
+//		if( h.size() != 3 ) {
+//			return BONUS_NONE;
+//		}
+//
+//		// Check for 678 / 777 bonus
+//		final ArrayList<Card> sorted = Fn.copy( h );
+//		Collections.sort( sorted, Card.TheAceHighRankComparator );
+//		final Card c1 = sorted.get( 1 );
+//		if( c1.rank == Rank.R_7 ) {
+//			final Card c0 = sorted.get( 0 );
+//			final Card c2 = sorted.get( 2 );
+//			final int offset;
+//			if( c0.rank == Rank.R_6 && c2.rank == Rank.R_8 ) {
+//				offset = BONUS_OFF_678;
+//			}
+//			else if( c0.rank == Rank.R_7 && c2.rank == Rank.R_7 ) {
+//				offset = BONUS_OFF_777;
+//			}
+//			else {
+//				return BONUS_NONE;
+//			}
+//
+//			if( c0.suit == c1.suit && c1.suit == c2.suit ) {
+//				// Suited
+//				if( c0.suit == Suit.S_s ) {
+//					return offset + 2;
+//				}
+//				else {
+//					return offset + 1;
+//				}
+//			}
+//			else {
+//				return offset;
+//			}
+//		}
+//
+//		return BONUS_NONE;
+//	}
+	
+	
 
 	@Override
 	public FactoredRepresentation<SpBjState> encode( final SpBjState s )

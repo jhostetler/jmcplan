@@ -3,10 +3,9 @@
  */
 package edu.oregonstate.eecs.mcplan.search.fsss;
 
-import edu.oregonstate.eecs.mcplan.Representation;
-import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
+import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.SplitChooser;
 
 /**
  * @author jhostetler
@@ -16,25 +15,34 @@ public class FsssPartitionTreeRefinementAbstraction<S extends State, A extends V
 	extends FsssAbstraction<S, A>
 {
 	public static <S extends State, A extends VirtualConstructor<A>>
-	FsssPartitionTreeRefinementAbstraction<S, A> create( final FsssModel<S, A> model )
+	FsssPartitionTreeRefinementAbstraction<S, A> create( final FsssModel<S, A> model,
+														 final SplitChooser<S, A> split_chooser )
 	{
-		return new FsssPartitionTreeRefinementAbstraction<S, A>( model );
+		return new FsssPartitionTreeRefinementAbstraction<S, A>( model, split_chooser );
 	}
 	
 	// -----------------------------------------------------------------------
 	
 	private final FsssModel<S, A> model;
+	private final SplitChooser<S, A> split_chooser;
 	
-	public FsssPartitionTreeRefinementAbstraction( final FsssModel<S, A> model )
+	public FsssPartitionTreeRefinementAbstraction( final FsssModel<S, A> model,
+												   final SplitChooser<S, A> split_chooser )
 	{
 		this.model = model;
+		this.split_chooser = split_chooser;
 	}
 	
 	@Override
-	public Representer<S, ? extends Representation<S>> createRepresenter()
+	public String toString()
 	{
-		return new RefineablePartitionTreeRepresenter<S, A>(
-			model, this, model.base_repr().create(), model.action_repr().create() );
+		return "PartitionTreeRefinement";
+	}
+	
+	@Override
+	public RefineablePartitionTreeRepresenter<S, A> createRepresenter()
+	{
+		return new RefineablePartitionTreeRepresenter<S, A>( model, this, split_chooser );
 	}
 
 }

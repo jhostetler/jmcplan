@@ -4,8 +4,8 @@ import java.util.ArrayList;
 
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
-import edu.oregonstate.eecs.mcplan.util.Fn;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
+import edu.oregonstate.eecs.mcplan.util.MinMaxAccumulator;
 
 public class FsssTreeStatistics<S extends State, A extends VirtualConstructor<A>>
 {
@@ -48,6 +48,11 @@ public class FsssTreeStatistics<S extends State, A extends VirtualConstructor<A>
 	public MeanVarianceAccumulator num_samples = new MeanVarianceAccumulator();
 	
 	/**
+	 * Total number of samples generated.
+	 */
+	public MinMaxAccumulator min_max_samples = new MinMaxAccumulator();
+	
+	/**
 	 * Statistics for optimal subtrees.
 	 */
 	public final SubtreeStatistics<S, A> optimal_subtree = new SubtreeStatistics<S, A>();
@@ -63,7 +68,7 @@ public class FsssTreeStatistics<S extends State, A extends VirtualConstructor<A>
 	private int subtree_abstract_size = 0;
 	private int subtree_ground_size = 0;
 	private int subtree_num_leaves = 0;
-	private final int[] subtree_depth_branching;
+	private ArrayList<MeanVarianceAccumulator> subtree_depth_branching = null;
 	private int tree_num_samples = 0;
 	
 	private A subtree_action = null;
@@ -71,11 +76,11 @@ public class FsssTreeStatistics<S extends State, A extends VirtualConstructor<A>
 	
 	public FsssTreeStatistics( final int depth )
 	{
-		subtree_depth_branching = new int[depth];
-		for( int i = 0; i < depth; ++i ) {
-			optimal_subtree.depth_branching.add( new MeanVarianceAccumulator() );
-			nonoptimal_subtrees.depth_branching.add( new MeanVarianceAccumulator() );
-		}
+//		subtree_depth_branching = new int[depth];
+//		for( int i = 0; i < depth; ++i ) {
+//			optimal_subtree.depth_branching.add( new MeanVarianceAccumulator() );
+//			nonoptimal_subtrees.depth_branching.add( new MeanVarianceAccumulator() );
+//		}
 	}
 	
 	/**
@@ -101,7 +106,8 @@ public class FsssTreeStatistics<S extends State, A extends VirtualConstructor<A>
 			subtree_abstract_size = 0;
 			subtree_ground_size = 0;
 			subtree_num_leaves = 0;
-			Fn.assign( subtree_depth_branching, 0 );
+//			Fn.assign( subtree_depth_branching, 0 );
+			subtree_depth_branching = new ArrayList<MeanVarianceAccumulator>();
 			
 			subtree_action = aan.a();
 			if( aan == astar ) {
@@ -119,18 +125,26 @@ public class FsssTreeStatistics<S extends State, A extends VirtualConstructor<A>
 			subtree_stats.abstract_subtree_size.add( subtree_abstract_size );
 			subtree_stats.ground_subtree_size.add( subtree_ground_size );
 			subtree_stats.num_leaves.add( subtree_num_leaves );
-			for( int i = 0; i < subtree_depth_branching.length; ++i ) {
-				subtree_stats.depth_branching.get( i ).add( subtree_depth_branching[i] );
+			for( int i = 0; i < subtree_depth_branching.size(); ++i ) {
+				if( subtree_stats.depth_branching.size() <= i ) {
+					subtree_stats.depth_branching.add( new MeanVarianceAccumulator() );
+				}
+				subtree_stats.depth_branching.get( i ).add( subtree_depth_branching.get( i ).mean() );
 			}
 		}
 		
 		num_samples.add( tree_num_samples );
+		min_max_samples.add( tree_num_samples );
 	}
 	
 	public void visitActionNode( final FsssAbstractActionNode<S, A> aan )
 	{
 		final int increasing_depth = increasingDepth( aan.depth );
-		subtree_depth_branching[increasing_depth] += aan.nsuccessors();
+		if( subtree_depth_branching.size() <= increasing_depth ) {
+			subtree_depth_branching.add( new MeanVarianceAccumulator() );
+		}
+//		subtree_depth_branching[increasing_depth] += aan.nsuccessors();
+		subtree_depth_branching.get( increasing_depth ).add( aan.nsuccessors() );
 //		subtree_stats.depth_branching.get( increasing_depth ).add( aan.nsuccessors() );
 		
 		for( final FsssAbstractStateNode<S, A> asn : aan.successors() ) {

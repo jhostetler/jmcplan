@@ -435,12 +435,14 @@ public class RacegridVisualization
 	public static void main( final String[] argv )
 	{
 		final RandomGenerator rng = new MersenneTwister( 42 );
-		
-		final RacegridState state = RacegridCircuits.barto_bradtke_singh_SmallTrack( rng, 1 );
-		final TerrainType[][] circuit = state.terrain;
+		final int T = 30;
+		final int scale = 1;
 		final double slip = 0.1;
+		
+		final RacegridState state = RacegridCircuits.barto_bradtke_singh_SmallTrack( rng, T, scale );
+		final TerrainType[][] circuit = state.terrain;
 		final RacegridSimulator sim = new RacegridSimulator( rng, state, slip );
-		final int scale = 10;
-		final RacegridVisualization vis = new RacegridVisualization( sim, circuit, scale );
+		final int viz_scale = 10;
+		final RacegridVisualization vis = new RacegridVisualization( sim, circuit, viz_scale );
 	}
 }

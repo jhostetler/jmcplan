@@ -87,7 +87,6 @@ public class EpsilonGreedyRefinementOrder<S extends State, A extends VirtualCons
 			}
 			else {
 				assert( !t.isClosed() );
-				// TODO: Randomize subtree selection here
 				final double Ui = t.rootAction().U();
 				if( Ui > max_U ) {
 					max_U = Ui;

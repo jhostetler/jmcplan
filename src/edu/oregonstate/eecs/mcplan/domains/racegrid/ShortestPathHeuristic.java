@@ -5,13 +5,13 @@ package edu.oregonstate.eecs.mcplan.domains.racegrid;
 
 import java.util.ArrayList;
 
-import org.jgrapht.UndirectedGraph;
 import org.jgrapht.alg.FloydWarshallShortestPaths;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleGraph;
 
 import edu.oregonstate.eecs.mcplan.search.EvaluationFunction;
 import edu.oregonstate.eecs.mcplan.sim.Simulator;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * @author jhostetler
@@ -28,15 +28,41 @@ public class ShortestPathHeuristic implements EvaluationFunction<RacegridState, 
 	private final ArrayList<Integer> goals = new ArrayList<Integer>();
 	
 	// TODO: Make this a parameter
-	private final boolean allow_diagonals = false;
+	private final boolean allow_diagonals = true;
 	
+	/**
+	 * Heuristic with default max velocity calculated as the maximum distance
+	 * in the graph. This method of calculating velocity implies that
+	 * evaluate() is in [-1, 0].
+	 * @param s
+	 */
+	public ShortestPathHeuristic( final RacegridState s )
+	{
+		width_ = s.width;
+		height_ = s.height;
+		distance_ = new double[s.width*s.height];
+		createGraph( s );
+		velocity_ = Fn.max( distance_ );
+	}
+	
+	/**
+	 * Heuristic with user-supplied max velocity. The heuristic value is
+	 * 	-path_length / velocity
+	 * @param s
+	 * @param velocity
+	 */
 	public ShortestPathHeuristic( final RacegridState s, final double velocity )
 	{
 		velocity_ = velocity;
 		width_ = s.width;
 		height_ = s.height;
-		
-		final UndirectedGraph<Integer, DefaultEdge> g
+		distance_ = new double[s.width*s.height];
+		createGraph( s );
+	}
+	
+	private void createGraph( final RacegridState s )
+	{
+		final SimpleGraph<Integer, DefaultEdge> g
 			= new SimpleGraph<Integer, DefaultEdge>( DefaultEdge.class );
 		
 		for( int y = 0; y < s.height; ++y ) {
@@ -53,7 +79,8 @@ public class ShortestPathHeuristic implements EvaluationFunction<RacegridState, 
 					}
 					if( allow_diagonals ) {
 						if( x > 0 && y > 0 && s.terrain[y-1][x-1] != TerrainType.Wall ) {
-							g.addEdge( cur, index( x - 1, y - 1 ) );
+							final DefaultEdge e = g.addEdge( cur, index( x - 1, y - 1 ) );
+//							g.setEdgeWeight( e, Math.sqrt( 2 ) );
 						}
 					}
 					
@@ -64,14 +91,27 @@ public class ShortestPathHeuristic implements EvaluationFunction<RacegridState, 
 			}
 		}
 		
+//		for( final Integer goal : goals ) {
+//			System.out.println( "Searching from goal " + goal );
+//			final BellmanFordShortestPath<Integer, DefaultEdge> paths
+//				= new BellmanFordShortestPath<Integer, DefaultEdge>( g, goal );
+//			for( final Integer v : g.vertexSet() ) {
+//				if( !goals.contains( v ) ) {
+//					final double d = paths.getCost( v );
+//					distance_[v] = Math.min( distance_[v], d );
+//				}
+//			}
+//		}
+//
+//		System.out.println( "Finished constructing heuristic!" );
+		
 		final FloydWarshallShortestPaths<Integer, DefaultEdge> paths
 			= new FloydWarshallShortestPaths<Integer, DefaultEdge>( g );
-		
-		distance_ = new double[s.width*s.height];
+
 		for( final Integer v : g.vertexSet() ) {
-			int min_d = Integer.MAX_VALUE;
+			double min_d = Double.MAX_VALUE;
 			for( final Integer goal : goals ) {
-				final int d = (int) paths.shortestDistance( v, goal );
+				final double d = paths.shortestDistance( v, goal );
 				if( d < min_d ) {
 					min_d = d;
 				}
@@ -96,6 +136,14 @@ public class ShortestPathHeuristic implements EvaluationFunction<RacegridState, 
 	private int index( final int x, final int y )
 	{
 		return y*width_ + x;
+	}
+	
+	public double evaluate( final RacegridState s )
+	{
+		if( s.goal ) {
+			return 0;
+		}
+		return -distance_[index( s.x, s.y )] / velocity_;
 	}
 	
 	@Override

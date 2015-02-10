@@ -48,15 +48,21 @@ public class InventoryFsssModel extends FsssModel<InventoryState, InventoryActio
 	}
 	
 	@Override
-	public double Vmin()
+	public double Vmin( final InventoryState s )
 	{
 		return Vmin;
 	}
 
 	@Override
-	public double Vmax()
+	public double Vmax( final InventoryState s )
 	{
 		return Vmax;
+	}
+	
+	@Override
+	public double heuristic( final InventoryState s )
+	{
+		return 0;
 	}
 
 	@Override

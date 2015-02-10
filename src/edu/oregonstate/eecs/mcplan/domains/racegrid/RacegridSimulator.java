@@ -28,6 +28,7 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 		private int old_ddy_ = 0;
 		private boolean old_crashed_ = false;
 		private boolean old_goal_ = false;
+		private int old_t_ = 0;
 		
 		private boolean done_ = false;
 		
@@ -43,49 +44,8 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 			s.ddy = old_ddy_;
 			s.crashed = old_crashed_;
 			s.goal = old_goal_;
+			s.t = old_t_;
 			done_ = false;
-		}
-		
-		private void applyBigNoise( final RacegridState s )
-		{
-			final int noisy_ddx;
-			final double ddx_sample = rng_.nextDouble();
-			if( ddx_sample < slip_ ) {
-				noisy_ddx = s.ddx - 1;
-			}
-			else if( ddx_sample > (1.0 - slip_) ) {
-				noisy_ddx = s.ddx + 1;
-			}
-			else {
-				noisy_ddx = s.ddx;
-			}
-			
-			final int noisy_ddy;
-			final double ddy_sample = rng_.nextDouble();
-			if( ddy_sample < slip_ ) {
-				noisy_ddy = s.ddy - 1;
-			}
-			else if( ddy_sample > (1.0 - slip_) ) {
-				noisy_ddy = s.ddy + 1;
-			}
-			else {
-				noisy_ddy = s.ddy;
-			}
-			
-			s.dx += noisy_ddx;
-			s.dy += noisy_ddy;
-		}
-		
-		private void applySmallNoise( final RacegridState s )
-		{
-			final double r = rng_.nextDouble();
-			if( r < slip_ ) {
-				// Don't update dx/dy
-			}
-			else {
-				s.dx += s.ddx;
-				s.dy += s.ddy;
-			}
 		}
 
 		@Override
@@ -103,63 +63,9 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 			old_ddy_ = s.ddy;
 			old_crashed_ = s.crashed;
 			old_goal_ = s.goal;
+			old_t_ = s.t;
 
-			if( slip_ > 0 ) {
-//				applyBigNoise( s );
-				applySmallNoise( s );
-			}
-			else {
-				s.dx += s.ddx;
-				s.dy += s.ddy;
-			}
-			
-			s.ddx = 0;
-			s.ddy = 0;
-			
-			final int proj_x = s.x + s.dx;
-			final int proj_y = s.y + s.dy;
-			
-			final Iterable<Point> line_cover = lineCover( s.x, s.y, proj_x, proj_y );
-			
-			Point prev = null;
-			for( final Point p : line_cover ) {
-//				System.out.println( "(" + p.x + ", " + p.y + ")" );
-				if( p.x < 0 || p.x >= s.width || p.y < 0 || p.y >= s.height ) {
-	        		s.crashed = true;
-					s.dx = 0;
-					s.dy = 0;
-					if( prev != null ) {
-						s.x = prev.x;
-						s.y = prev.y;
-					}
-					break;
-	        	}
-				final TerrainType terrain = s.terrain[p.y][p.x];
-//				System.out.println( terrain );
-				if( terrain == TerrainType.Wall ) {
-					s.crashed = true;
-					s.dx = 0;
-					s.dy = 0;
-					if( prev != null ) {
-						s.x = prev.x;
-						s.y = prev.y;
-					}
-					break;
-				}
-				else if( terrain == TerrainType.Goal ) {
-					s.goal = true;
-					s.x = p.x;
-					s.y = p.y;
-					break;
-				}
-				
-				prev = p;
-			}
-			
-			if( !s.goal && !s.crashed ) {
-				s.x = proj_x;
-				s.y = proj_y;
-			}
+			applyDynamics( rng_, s, slip_ );
 			
 			done_ = true;
 		}
@@ -177,7 +83,144 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 		}
 	}
 	
-	private final class Point
+	private static void applyBigNoise( final RandomGenerator rng, final RacegridState s, final double slip )
+	{
+		final int noisy_ddx;
+		final double ddx_sample = rng.nextDouble();
+		if( ddx_sample < slip ) {
+			noisy_ddx = s.ddx - 1;
+		}
+		else if( ddx_sample > (1.0 - slip) ) {
+			noisy_ddx = s.ddx + 1;
+		}
+		else {
+			noisy_ddx = s.ddx;
+		}
+		
+		final int noisy_ddy;
+		final double ddy_sample = rng.nextDouble();
+		if( ddy_sample < slip ) {
+			noisy_ddy = s.ddy - 1;
+		}
+		else if( ddy_sample > (1.0 - slip) ) {
+			noisy_ddy = s.ddy + 1;
+		}
+		else {
+			noisy_ddy = s.ddy;
+		}
+		
+		s.dx += noisy_ddx;
+		s.dy += noisy_ddy;
+	}
+	
+	private static void applySmallNoise( final RandomGenerator rng, final RacegridState s, final double slip )
+	{
+		final double r = rng.nextDouble();
+		if( r < slip ) {
+			// Don't update dx/dy
+		}
+		else {
+			s.dx += s.ddx;
+			s.dy += s.ddy;
+		}
+	}
+	
+	/**
+	 * Applies noise independently to both directions. Noise is of the
+	 * "either desired action or nothing" variety.
+	 * @param rng
+	 * @param s
+	 * @param slip
+	 */
+	private static void applyFactoredSmallNoise( final RandomGenerator rng, final RacegridState s, final double slip )
+	{
+		final double rx = rng.nextDouble();
+		if( rx < slip ) {
+			// Don't update
+		}
+		else {
+			s.dx += s.ddx;
+		}
+		
+		final double ry = rng.nextDouble();
+		if( ry < slip ) {
+			// Don't update
+		}
+		else {
+			s.dy += s.ddy;
+		}
+	}
+	
+	/**
+	 * Note: This function advances 's.t'.
+	 * @param rng
+	 * @param s
+	 * @param slip
+	 */
+	public static void applyDynamics( final RandomGenerator rng, final RacegridState s, final double slip )
+	{
+		if( slip > 0 ) {
+//			applyBigNoise( rng, s, slip );
+//			applySmallNoise( rng, s, slip );
+			applyFactoredSmallNoise( rng, s, slip );
+		}
+		else {
+			s.dx += s.ddx;
+			s.dy += s.ddy;
+		}
+		
+		s.ddx = 0;
+		s.ddy = 0;
+		
+		final int proj_x = s.x + s.dx;
+		final int proj_y = s.y + s.dy;
+		
+		final Iterable<Point> line_cover = lineCover( s.x, s.y, proj_x, proj_y );
+		
+		Point prev = null;
+		for( final Point p : line_cover ) {
+//				System.out.println( "(" + p.x + ", " + p.y + ")" );
+			if( p.x < 0 || p.x >= s.width || p.y < 0 || p.y >= s.height ) {
+        		s.crashed = true;
+				s.dx = 0;
+				s.dy = 0;
+				if( prev != null ) {
+					s.x = prev.x;
+					s.y = prev.y;
+				}
+				break;
+        	}
+			final TerrainType terrain = s.terrain[p.y][p.x];
+//				System.out.println( terrain );
+			if( terrain == TerrainType.Wall ) {
+				s.crashed = true;
+				s.dx = 0;
+				s.dy = 0;
+				if( prev != null ) {
+					s.x = prev.x;
+					s.y = prev.y;
+				}
+				break;
+			}
+			else if( terrain == TerrainType.Goal ) {
+				s.goal = true;
+				s.x = p.x;
+				s.y = p.y;
+				break;
+			}
+			
+			prev = p;
+		}
+		
+		if( !s.goal && !s.crashed ) {
+			s.x = proj_x;
+			s.y = proj_y;
+		}
+		
+		s.t += 1;
+	}
+	
+	private static final class Point
 	{
 		public final int x;
 		public final int y;
@@ -204,7 +247,7 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 	 * @param iy2
 	 * @return
 	 */
-	private Iterable<Point> lineCover( final int ix1, final int iy1, final int ix2, final int iy2 )
+	private static Iterable<Point> lineCover( final int ix1, final int iy1, final int ix2, final int iy2 )
 	{
 		final ArrayList<Point> points = new ArrayList<Point>();
 		if( ix1 == ix2 && iy1 == iy2 ) {
@@ -324,7 +367,7 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 		step.doAction( s_ );
 		action_history_.push( step );
 		
-		s_.t += 1;
+//		s_.t += 1;
 		assert( s_.t <= s_.T );
 		assert( action_history_.size() % Nevents_ == 0 );
 	}
@@ -332,14 +375,14 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 	@Override
 	public void untakeLastAction()
 	{
-		s_.t -= 1;
-		assert( s_.t >= 0 );
+//		s_.t -= 1;
 		
 		for( int i = 0; i < Nevents_; ++i ) {
 			final RacegridAction a = action_history_.pop();
 			a.undoAction( s_ );
 		}
 		
+		assert( s_.t >= 0 );
 		assert( action_history_.size() % Nevents_ == 0 );
 	}
 

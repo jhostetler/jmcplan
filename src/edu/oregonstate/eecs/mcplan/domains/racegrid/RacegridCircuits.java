@@ -12,7 +12,7 @@ import org.apache.commons.math3.random.RandomGenerator;
  */
 public class RacegridCircuits
 {
-	public static RacegridState barto_bradtke_singh_SmallTrack( final RandomGenerator rng, final int scale )
+	public static RacegridState barto_bradtke_singh_SmallTrack( final RandomGenerator rng, final int T, final int scale )
 	{
 		final String[] spec = new String[] {
 			"wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwgggw",
@@ -30,10 +30,10 @@ public class RacegridCircuits
 			"wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww"
 		};
 		final TerrainType[][] terrain = parse( spec, scale );
-		return initState( rng, terrain );
+		return initState( rng, terrain, T );
 	}
 	
-	public static RacegridState barto_bradtke_singh_LargeTrack( final RandomGenerator rng, final int scale )
+	public static RacegridState barto_bradtke_singh_LargeTrack( final RandomGenerator rng, final int T, final int scale )
 	{
 		final String[] spec = new String[] {
 			"wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
@@ -72,17 +72,18 @@ public class RacegridCircuits
 			"wsssssswwwwwwwwwwwwwwwwwgggggggw"
 		};
 		final TerrainType[][] terrain = parse( spec, scale );
-		return initState( rng, terrain );
+		return initState( rng, terrain, T );
 	}
 	
-	private static RacegridState initState( final RandomGenerator rng, final TerrainType[][] terrain )
+	private static RacegridState initState( final RandomGenerator rng, final TerrainType[][] terrain, final int T )
 	{
-		final RacegridState s = new RacegridState( terrain );
+		final RacegridState s = new RacegridState( terrain, T );
+		s.setRandomStartState( rng );
 		
-		final int start_idx = rng.nextInt( s.starts.size() );
-		final int[] start = s.starts.get( start_idx );
-		s.x = start[0];
-		s.y = start[1];
+//		final int start_idx = rng.nextInt( s.starts.size() );
+//		final int[] start = s.starts.get( start_idx );
+//		s.x = start[0];
+//		s.y = start[1];
 		
 		return s;
 	}

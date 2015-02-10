@@ -9,19 +9,19 @@ import java.util.Comparator;
 
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
+import edu.oregonstate.eecs.mcplan.search.fsss.ClassifierRepresenter.DataNode;
+import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.Split;
+import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.SplitChoice;
+import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.SplitChooser;
 
 /**
- * Chooses splits based on an evaluation function. The evaluation is
- * 		score = D + \lambda*R
- * where D is the L1 distance between the Q-functions of the two resulting
- * abstract states, R measures the size balance of the two states, and
- * \lambda is a regularization parameter.
+ * Chooses splits based on an evaluation function.
  */
 public class SubtreeHeuristicBfsRefinementOrder<S extends State, A extends VirtualConstructor<A>>
-	extends SubtreeBreadthFirstRefinementOrder<S, A>
+	implements SubtreeRefinementOrder.SplitChooser<S, A>
 {
 	public static class Factory<S extends State, A extends VirtualConstructor<A>>
-		implements SubtreeRefinementOrder.Factory<S, A>
+		implements SubtreeRefinementOrder.SplitChooser.Factory<S, A>
 	{
 		private final SplitEvaluator<S, A> evaluator;
 		
@@ -31,45 +31,38 @@ public class SubtreeHeuristicBfsRefinementOrder<S extends State, A extends Virtu
 		}
 		
 		@Override
-		public SubtreeRefinementOrder<S, A> create( final FsssParameters parameters,
-				final FsssModel<S, A> model, final FsssAbstractActionNode<S, A> root )
-		{
-			return new SubtreeHeuristicBfsRefinementOrder<S, A>( parameters, model, root, evaluator );
-		}
-		
-		@Override
 		public String toString()
 		{
-			return "SubtreeHeuristicBfs(" + evaluator + ")";
+			return "Heuristic(" + evaluator + ")";
+		}
+
+		@Override
+		public SplitChooser<S, A> createSplitChooser(
+				final FsssParameters parameters, final FsssModel<S, A> model )
+		{
+			return new SubtreeHeuristicBfsRefinementOrder<S, A>( parameters, model, evaluator );
 		}
 	}
 	
 	// -----------------------------------------------------------------------
 	
+	private final FsssParameters parameters;
+	private final FsssModel<S, A> model;
 	private final SplitEvaluator<S, A> evaluator;
 	
 	public SubtreeHeuristicBfsRefinementOrder( final FsssParameters parameters,
 											   final FsssModel<S, A> model,
-											   final FsssAbstractActionNode<S, A> root_action,
 											   final SplitEvaluator<S, A> evaluator )
 	{
-		super( parameters, model, root_action );
+		this.parameters = parameters;
+		this.model = model;
 		this.evaluator = evaluator;
 	}
 	
-	/**
-	 * Choose the largest child of 'aan' as 'dn. Chooses an attribute and value
-	 * to split on that maximizes evaluateSplit(). Returns "no split" if there
-	 * is no split that separates the ground state members of 'largest_child'
-	 * into two non-empty sets.
-	 * @param aan
-	 * @return
-	 */
 	@Override
-	protected SplitChoice<S, A> chooseSplit( final FsssAbstractActionNode<S, A> aan )
+	public SplitChoice<S, A> chooseSplit( final FsssAbstractActionNode<S, A> aan )
 	{
-		final RefineablePartitionTreeRepresenter<S, A>.DataNode largest_child
-			= RefineablePartitionTreeRepresenter.largestChild( aan );
+		final DataNode<S, A> largest_child = ClassifierRepresenter.largestChild( aan );
 		if( largest_child == null ) {
 			return null;
 		}
