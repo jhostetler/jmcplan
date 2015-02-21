@@ -43,7 +43,7 @@ public class InventoryActionGenerator extends ActionGenerator<InventoryState, In
 				break;
 			}
 			for( int i = 0; i < s.problem.Nproducts; ++i ) {
-				actions.add( new InventoryOrderAction( i, next ) );
+				actions.add( new InventoryOrderAction( i, next, s.problem.cost[i] ) );
 			}
 			next = g.next();
 		} while( g.hasNext() );

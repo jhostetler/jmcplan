@@ -4,6 +4,7 @@
 package edu.oregonstate.eecs.mcplan.domains.inventory;
 
 
+
 /**
  * @author jhostetler
  *
@@ -12,26 +13,28 @@ public class InventoryOrderAction extends InventoryAction
 {
 	public final int product;
 	public final int quantity;
+	public final int cost;
 	
 	private boolean done = false;
 	
-	public InventoryOrderAction( final int product, final int quantity )
+	public InventoryOrderAction( final int product, final int quantity, final int cost )
 	{
 		this.product = product;
 		this.quantity = quantity;
+		this.cost = cost;
 	}
 	
 	@Override
 	public InventoryOrderAction create()
 	{
-		return new InventoryOrderAction( product, quantity );
+		return new InventoryOrderAction( product, quantity, cost );
 	}
 	
 	@Override
 	public double reward()
 	{
 		// Per-order cost
-		return -1;
+		return -(1 + quantity*cost);
 	}
 
 	@Override

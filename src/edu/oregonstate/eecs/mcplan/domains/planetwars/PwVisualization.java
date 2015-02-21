@@ -118,6 +118,7 @@ public class PwVisualization extends JFrame
 									 final int x, final int y, final int uh, final int sep )
 		{
 			final int reflect = (player == PwPlayer.Min ? -1 : 1);
+			final int shift = (player == PwPlayer.Min ? -1 : 0);
 			final int w25 = 10;
 			final int w5 = 4;
 			final int w1 = 2;
@@ -130,17 +131,17 @@ public class PwVisualization extends JFrame
 			g.setColor( entityColor( type ) );
 			int xoff = 0;
 			for( int i = 0; i < twentyfives; ++i ) {
-				g.fillRect( x + reflect*xoff, y, w25, uh );
+				g.fillRect( x + shift*w25 + reflect*xoff, y, w25, uh );
 				xoff += w25 + sep;
 			}
 			for( int i = 0; i < fives; ++i ) {
-				g.fillRect( x + reflect*xoff, y, w5, uh );
+				g.fillRect( x + shift*w5 + reflect*xoff, y, w5, uh );
 				xoff += w5 + sep;
 			}
 			for( int i = fives; i < fives + ones; ++i ) {
 //				g.fillPolygon( new int[] { x, x + uw - sep, x },
 //						   	   new int[] { y, y, y + uh }, 3 );
-				g.fillRect( x + reflect*xoff, y, w1, uh );
+				g.fillRect( x + shift*w1 + reflect*xoff, y, w1, uh );
 				xoff += w1 + sep;
 			}
 		}
@@ -189,6 +190,7 @@ public class PwVisualization extends JFrame
 					drawPopulation( g, p, PwPlayer.Max, type, cx, yi, uh, sep );
 					yi += uh + sep;
 				}
+				g.drawString( Integer.toString( p.getSetup() ), x + r, yi + uh + sep );
 			}
 			
 			g.setFont( g.getFont().deriveFont( 10.0f ) );
@@ -270,7 +272,7 @@ public class PwVisualization extends JFrame
 	public PwVisualization( final PwGame game, final Dimension dim,
 								 final int width, final int height, final int sleep )
 	{
-		super( "Voyager" );
+		super( "Planet Wars!" );
 		
 		this.sleep = sleep;
 		

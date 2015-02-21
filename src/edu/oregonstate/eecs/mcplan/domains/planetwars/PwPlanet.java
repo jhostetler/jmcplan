@@ -5,6 +5,8 @@ package edu.oregonstate.eecs.mcplan.domains.planetwars;
 
 import java.text.DecimalFormat;
 
+import edu.oregonstate.eecs.mcplan.util.Fn;
+
 
 
 /**
@@ -29,6 +31,9 @@ public class PwPlanet implements Comparable<PwPlanet>
 	private final int[] stored_production;
 	private int overflow_production = 0;
 	
+	public final int setup_time = 5;
+	private int setup = setup_time;
+	
 	private long zobrist_hash = 0L;
 	
 	private static final DecimalFormat pop_format = new DecimalFormat( "000" );
@@ -52,6 +57,37 @@ public class PwPlanet implements Comparable<PwPlanet>
 	private final long[][] stored_production_hash;
 	private final long[] overflow_production_hash;
 	private final long[][] carry_damage_hash;
+	private final long[] setup_hash;
+	
+	public PwPlanet( final PwPlanet that )
+	{
+		this.game = that.game;
+		this.id = that.id;
+		this.capacity = that.capacity;
+		this.population = Fn.copy( that.population );
+		this.position_x = that.position_x;
+		this.position_y = that.position_y;
+		this.owner = that.owner;
+		Fn.memcpy( this.supply, that.supply );
+		Fn.memcpy( this.carry_damage, that.carry_damage );
+		this.next_produced = that.next_produced;
+		this.stored_production = Fn.copy( that.stored_production );
+		this.overflow_production = that.overflow_production;
+		this.zobrist_hash = that.zobrist_hash;
+		
+		this.Npopulation = that.Npopulation;
+		this.carry_damage_idx = that.carry_damage_idx;
+		this.Nstored_production = that.Nstored_production;
+		this.stored_production_idx = that.stored_production_idx;
+		this.repr = that.repr;
+		this.owner_hash = that.owner_hash;
+		this.population_hash = that.population_hash;
+		this.producing_hash = that.producing_hash;
+		this.stored_production_hash = that.stored_production_hash;
+		this.overflow_production_hash = that.overflow_production_hash;
+		this.carry_damage_hash = that.carry_damage_hash;
+		this.setup_hash = that.setup_hash;
+	}
 
 	public PwPlanet( final PwGame game, final int id, final int capacity, final int[][] population,
 					 final int position_x, final int position_y, final PwPlayer owner )
@@ -110,6 +146,10 @@ public class PwPlanet implements Comparable<PwPlanet>
 				carry_damage_hash[player][hp] = game.rng.nextLong();
 			}
 		}
+		setup_hash = new long[setup_time + 1];
+		for( int t = 0; t < setup_hash.length; ++t ) {
+			setup_hash[t] = game.rng.nextLong();
+		}
 		
 		// Initialize hash values
 		zobrist_hash ^= hashOwner( owner );
@@ -138,6 +178,7 @@ public class PwPlanet implements Comparable<PwPlanet>
 			setChars( repr, pop_format.format( stored ), stored_start );
 		}
 		zobrist_hash ^= hashOverflowProduction( overflow_production );
+		zobrist_hash ^= hashSetup( setup );
 	}
 	
 	private long hashOwner( final PwPlayer owner )
@@ -175,6 +216,11 @@ public class PwPlanet implements Comparable<PwPlanet>
 	private long hashOverflowProduction( final int production )
 	{
 		return overflow_production_hash[production];
+	}
+	
+	private long hashSetup( final int setup )
+	{
+		return setup_hash[setup];
 	}
 	
 	private void setChars( final char[] a, final String s, final int idx )
@@ -363,6 +409,36 @@ public class PwPlanet implements Comparable<PwPlanet>
 			setCarryDamage( y, 0 );
 		}
 		return this;
+	}
+	
+	public int getSetup()
+	{
+		return setup;
+	}
+	
+	public PwPlanet setSetup( final int t )
+	{
+		final long old_hash = hashSetup( setup );
+		zobrist_hash ^= old_hash;
+		setup = t;
+		final long new_hash = hashSetup( setup );
+		zobrist_hash ^= new_hash;
+		return this;
+	}
+	
+	public PwPlanet incrementSetup()
+	{
+		return setSetup( setup + 1 );
+	}
+	
+	public PwPlanet decrementSetup()
+	{
+		return setSetup( setup - 1 );
+	}
+	
+	public PwPlanet resetSetup()
+	{
+		return setSetup( setup_time );
 	}
 	
 	public PwPlayer owner()

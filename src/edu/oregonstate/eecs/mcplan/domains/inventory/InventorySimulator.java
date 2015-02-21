@@ -111,8 +111,12 @@ public class InventorySimulator implements UndoSimulator<InventoryState, Invento
 			s.r -= s.inventory[i] * s.problem.warehouse_cost;
 			
 			// Demand changes
-			s.demand[i] = s.rng.nextInt( s.problem.max_demand + 1 );
+//			s.demand[i] = s.rng.nextInt( s.problem.max_demand + 1 );
 		}
+		
+		// Demand changes
+		final int[] new_demand = s.problem.sampleNextDemand( s );
+		Fn.memcpy( s.demand, new_demand );
 	}
 	
 	private final InventoryState s;
@@ -238,8 +242,9 @@ public class InventorySimulator implements UndoSimulator<InventoryState, Invento
 					a = new InventoryNothingAction();
 				}
 				else {
-					a = new InventoryOrderAction(
-						Integer.parseInt( tokens[0] ), Integer.parseInt( tokens[1] ) );
+					final int product = Integer.parseInt( tokens[0] );
+					final int quantity = Integer.parseInt( tokens[1] );
+					a = new InventoryOrderAction( product, quantity, s.problem.cost[product] );
 				}
 				
 				sim.takeAction( new JointAction<InventoryAction>( a ) );

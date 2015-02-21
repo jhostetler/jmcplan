@@ -707,6 +707,19 @@ public final class Fn
 		return aprime;
 	}
 	
+	public static int greatestLowerBound( final IntSlice xs, final int x )
+	{
+		int i = xs.next();
+		while( xs.hasNext() ) {
+			final int j = xs.next();
+			if( j > x ) {
+				break;
+			}
+			i = j;
+		}
+		return i;
+	}
+	
 	/**
 	 * Discards elements whose indices are in 'idx'.
 	 * @param xs
@@ -1261,6 +1274,11 @@ public final class Fn
 		return Arrays.copyOf( x, x.length );
 	}
 	
+	public static char[] copy( final char[] x )
+	{
+		return Arrays.copyOf( x, x.length );
+	}
+	
 	public static int[] copy( final int[] x )
 	{
 		return Arrays.copyOf( x, x.length );
@@ -1276,6 +1294,17 @@ public final class Fn
 		final int[][] r = new int[a.length][];
 		for( int i = 0; i < a.length; ++i ) {
 			r[i] = Arrays.copyOf( a[i], a[i].length );
+		}
+		return r;
+	}
+	
+	public static int[][][] copy( final int[][][] a )
+	{
+		final int[][][] r = new int[a.length][][];
+		for( int i = 0; i < a.length; ++i ) {
+			for( int j = 0; j < a[i].length; ++j ) {
+				r[i][j] = Arrays.copyOf( a[i][j], a[i][j].length );
+			}
 		}
 		return r;
 	}

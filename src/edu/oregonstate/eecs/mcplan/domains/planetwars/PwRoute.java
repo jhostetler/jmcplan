@@ -32,6 +32,21 @@ public class PwRoute
 	
 	private long zobrist_hash = 0L;
 	
+	public PwRoute( final PwRoute that )
+	{
+		this.game = that.game;
+		this.a = that.a;
+		this.b = that.b;
+		this.length = that.length;
+		this.ab = Fn.copy( that.ab );
+		this.ba = Fn.copy( that.ba );
+		
+		this.ab_hash = that.ab_hash;
+		this.ba_hash = that.ba_hash;
+		this.ab_locations = that.ab_locations;
+		this.ba_locations = that.ba_locations;
+	}
+	
 	public PwRoute( final PwGame game, final PwPlanet a, final PwPlanet b )
 	{
 		this.game = game;
@@ -53,14 +68,14 @@ public class PwRoute
 		}
 		
 		// 'length' (not 'length - 1') to include destination planet
-		ab = new int[length][PwPlayer.Ncompetitors][game.Nunits()];
-		ba = new int[length][PwPlayer.Ncompetitors][game.Nunits()];
+		ab = new int[length+1][PwPlayer.Ncompetitors][game.Nunits()];
+		ba = new int[length+1][PwPlayer.Ncompetitors][game.Nunits()];
 		
 		// Generate random numbers for Zobrist hashing
 		// 'length' (not 'length - 1') to include destination planet
-		ab_hash = new long[length][PwPlayer.Ncompetitors][game.Nunits()][];
-		ba_hash = new long[length][PwPlayer.Ncompetitors][game.Nunits()][];
-		for( int i = 0; i < length; ++i ) {
+		ab_hash = new long[length+1][PwPlayer.Ncompetitors][game.Nunits()][];
+		ba_hash = new long[length+1][PwPlayer.Ncompetitors][game.Nunits()][];
+		for( int i = 0; i <= length; ++i ) {
 			for( int j = 0; j < PwPlayer.Ncompetitors; ++j ) {
 				for( int k = 0; k < game.Nunits(); ++k ) {
 					// +1 to include 0 supply
@@ -75,7 +90,8 @@ public class PwRoute
 			}
 		}
 		
-		for( int i = 0; i < length; ++i ) {
+		// 'length' (not 'length - 1') to include destination planet
+		for( int i = 0; i <= length; ++i ) {
 			for( int j = 0; j < PwPlayer.Ncompetitors; ++j ) {
 				for( int k = 0; k < game.Nunits(); ++k ) {
 					// Route starts out with no units on it.
@@ -84,6 +100,26 @@ public class PwRoute
 				}
 			}
 		}
+	}
+	
+	public boolean occupiedAB( final PwPlayer player )
+	{
+		for( int t = 0; t <= length; ++t ) {
+			if( occupiedAB( t, player ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public boolean occupiedBA( final PwPlayer player )
+	{
+		for( int t = 0; t <= length; ++t ) {
+			if( occupiedBA( t, player ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 	
 	public boolean occupiedAB( final int arrival_time, final PwPlayer player )
@@ -139,7 +175,7 @@ public class PwRoute
 	public int supply( final PwPlayer player )
 	{
 		int s = 0;
-		for( int i = 0; i < length; ++i ) {
+		for( int i = 0; i <= length; ++i ) {
 			for( int j = 0; j < game.Nunits(); ++j ) {
 				final PwUnit u = game.unit( j );
 				s += u.supply * ab[i][player.id][j];
@@ -157,7 +193,7 @@ public class PwRoute
 	public void forward()
 	{
 		// Advance the pipeline
-		for( int i = 1; i < length; ++i ) {
+		for( int i = 1; i <= length; ++i ) {
 			for( int j = 0; j < PwPlayer.Ncompetitors; ++j ) {
 				for( int k = 0; k < game.Nunits(); ++k ) {
 					zobrist_hash ^= ab_hash[i-1][j][k][ab[i-1][j][k]];
@@ -171,7 +207,7 @@ public class PwRoute
 		}
 		
 		// Set the input cell to 0
-		final int end = length - 1;
+		final int end = length; // - 1;
 		for( int j = 0; j < PwPlayer.Ncompetitors; ++j ) {
 			for( int k = 0; k < game.Nunits(); ++k ) {
 				zobrist_hash ^= ab_hash[end][j][k][ab[end][j][k]];
@@ -187,7 +223,7 @@ public class PwRoute
 	public void backward()
 	{
 		// Reverse the pipeline
-		for( int i = 0; i < length - 1; ++i ) {
+		for( int i = 0; i <= length - 1; ++i ) {
 			for( int j = 0; j < PwPlayer.Ncompetitors; ++j ) {
 				for( int k = 0; k < game.Nunits(); ++k ) {
 					zobrist_hash ^= ab_hash[i+1][j][k][ab[i+1][j][k]];
@@ -230,7 +266,7 @@ public class PwRoute
 			hash = ba_hash;
 		}
 		
-		final int end = length - 1;
+		final int end = length; // - 1;
 		for( int i = 0; i < game.Nunits(); ++i ) {
 			zobrist_hash ^= hash[end][player.id][i][cells[end][player.id][i]];
 			cells[end][player.id][i] += population[i];
@@ -256,7 +292,7 @@ public class PwRoute
 			hash = ba_hash;
 		}
 		
-		final int end = length - 1;
+		final int end = length; // - 1;
 		for( int i = 0; i < game.Nunits(); ++i ) {
 			zobrist_hash ^= hash[end][player.id][i][cells[end][player.id][i]];
 			cells[end][player.id][i] -= population[i];

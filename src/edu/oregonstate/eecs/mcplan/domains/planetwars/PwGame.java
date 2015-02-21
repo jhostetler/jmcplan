@@ -12,6 +12,7 @@ import edu.oregonstate.eecs.mcplan.ActionGenerator;
 import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.Pair;
 import edu.oregonstate.eecs.mcplan.domains.planetwars.a.PwA_ActionGenerator;
+import edu.oregonstate.eecs.mcplan.domains.planetwars.a.PwA_Units;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
@@ -22,13 +23,14 @@ public class PwGame
 {
 	public static PwGame PlanetWarsBasic( final RandomGenerator rng )
 	{
-		final PwUnit unit = new PwUnit( 0, 1, 1, 1, 1 );
 		final ArrayList<PwUnit> units = new ArrayList<PwUnit>();
-		units.add( unit );
+		for( final PwA_Units ut : PwA_Units.values() ) {
+			units.add( ut.u );
+		}
 		
 		final int T = 200;
 		final int epoch = 1;
-		final int max_population = 2000;
+		final int max_population = 1000;
 		final int planet_capacity = Integer.MAX_VALUE;
 		final int[] starting_units = new int[] { 10 };
 		
@@ -50,12 +52,21 @@ public class PwGame
 	public final ActionGenerator<PwState, JointAction<PwEvent>> actions;
 	
 	// TODO: Make parameter
-	public final int velocity = 1;
+	public final int velocity = 4;
 	
 //	public final PwHash hash;
 	
 	public final int T;
 	public final int epoch;
+	
+	/**
+	 * For resolving battles, the side with fewer troops gets a penalty
+	 * proportional to the numbers ratio times 'numerical_advantage'. Thus,
+	 * 0 advantage means numbers don't matter, 1.0 means that a side that
+	 * is outnumbered 2:1 deals half as much damage, and as advantage -> infinity,
+	 * the side with more troops always wins.
+	 */
+	private final double numerical_advantage = 0.0;
 	
 	public PwGame( final RandomGenerator rng, final int T, final int epoch,
 				   final ArrayList<PwUnit> units, final int max_population,
@@ -91,7 +102,9 @@ public class PwGame
 	{
 		final int[][] pop = new int[PwPlayer.Ncompetitors][Nunits()];
 		Fn.memcpy( pop[owner.id], starting_units );
-		return new PwPlanet( this, id, planet_capacity, pop, x, y, owner );
+		final PwPlanet p = new PwPlanet( this, id, planet_capacity, pop, x, y, owner );
+		p.setSetup( 0 );
+		return p;
 	}
 	
 	public PwPlanet createNeutralPlanet( final int id, final int x, final int y )
@@ -124,6 +137,7 @@ public class PwGame
 	{
 		final int[] min_pop = p.population( PwPlayer.Min );
 		final int[] max_pop = p.population( PwPlayer.Max );
+		// Population proportion of different unit types
 		final double[] pn = Fn.vcopy_as_double( min_pop );
 		Fn.normalize_inplace( pn );
 		final double[] pm = Fn.vcopy_as_double( max_pop );
@@ -133,13 +147,30 @@ public class PwGame
 		final int sum_max = Fn.sum( max_pop );
 		double sn = 0;
 		double sm = 0;
+		// For each matchup where u attacks v
 		for( final PwUnit u : units() ) {
 			for( final PwUnit v : units() ) {
+				// u attack power against v
 				final double dmg = unitAttack( u, v ); //u.attack( v );
 				sn += sum_min * pn[u.id] * pm[v.id] * dmg;
 				sm += sum_max * pm[u.id] * pn[v.id] * dmg;
 			}
 		}
+		
+		if( sum_min > sum_max ) {
+			final double max_pop_ratio = sum_max / ((double) sum_min);
+			sm -= numerical_advantage * max_pop_ratio * sm;
+		}
+		else if( sum_max > sum_min ) {
+			final double min_pop_ratio = sum_min / ((double) sum_max);
+			sn -= numerical_advantage * min_pop_ratio * sn;
+		}
+		
+		System.out.println( "Battle: " + sn + " vs " + sm );
+		final double quality = 0.8;
+		sn *= (quality + (1.0 - quality)*rng.nextDouble());
+		sm *= (quality + (1.0 - quality)*rng.nextDouble());
+		System.out.println( "\tRandomized: " + sn + " vs " + sm );
 		
 		final int[] dmg = new int[] { (int) sn, (int) sm };
 //		System.out.println( "Damage @ " + p.id + ": " + Arrays.toString( dmg ) );

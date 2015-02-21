@@ -77,10 +77,18 @@ public class InventoryFsssModel extends FsssModel<InventoryState, InventoryActio
 		return rng;
 	}
 
+	/**
+	 * We use a random initial demand for our experiments.
+	 * @see edu.oregonstate.eecs.mcplan.search.fsss.FsssModel#initialState()
+	 */
 	@Override
 	public InventoryState initialState()
 	{
-		return new InventoryState( rng, problem );
+		final InventoryState s = new InventoryState( rng, problem );
+		for( int i = 0; i < s.problem.Nproducts; ++i ) {
+			s.demand[i] = rng.nextInt( s.problem.max_demand + 1 );
+		}
+		return s;
 	}
 
 	@Override

@@ -147,6 +147,12 @@ public class SubtreeBreadthFirstRefinementOrder<S extends State, A extends Virtu
 	
 	// -----------------------------------------------------------------------
 	
+	// FIXME: Is it possible that a closed node could later become re-opened
+	// due to a call to fsss()? If it happened, it would be because successors
+	// are added to an AAN has new successors added after closeNode() has
+	// already been called on it.
+	//
+	// I *think* we're OK because an un-Expanded node should never be refined.
 	private void closeNode( final int i )
 	{
 //			System.out.println( "\tBuilder: closing " + aan );

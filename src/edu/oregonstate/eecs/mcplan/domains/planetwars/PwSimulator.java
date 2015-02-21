@@ -202,28 +202,35 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 	}
 	
 	/**
-	 * Advances all units on all Routes.
+	 * Advances all units on all Routes and decrements the 'setup' timers.
 	 */
-	public static class RouteForwardEvent extends PwEvent
+	public static class ClockEvent extends PwEvent
 	{
+		private final PwPlanet[] planets;
 		private final PwRoute[] routes;
 		private boolean done = false;
 		
-		public RouteForwardEvent( final PwRoute[] routes )
+		public ClockEvent( final PwPlanet[] planets, final PwRoute[] routes )
 		{
+			this.planets = planets;
 			this.routes = routes;
 		}
 		
 		@Override
-		public RouteForwardEvent create()
+		public ClockEvent create()
 		{
-			return new RouteForwardEvent( routes );
+			return new ClockEvent( planets, routes );
 		}
 		
 		@Override
 		public void doAction( final PwState s )
 		{
 			assert( !done );
+			for( final PwPlanet p : planets ) {
+				if( p.owner() != PwPlayer.Neutral && p.getSetup() > 0 ) {
+					p.decrementSetup();
+				}
+			}
 			for( final PwRoute route : routes ) {
 				route.forward();
 			}
@@ -240,6 +247,11 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 		public void undoAction( final PwState s )
 		{
 			assert( done );
+			for( final PwPlanet p : planets ) {
+				if( p.owner() != PwPlayer.Neutral && p.getSetup() < p.setup_time ) {
+					p.incrementSetup();
+				}
+			}
 			for( final PwRoute route : routes ) {
 				route.backward();
 			}
@@ -249,13 +261,13 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 		@Override
 		public int hashCode()
 		{
-			return RouteForwardEvent.class.hashCode();
+			return ClockEvent.class.hashCode();
 		}
 
 		@Override
 		public boolean equals( final Object obj )
 		{
-			return obj instanceof RouteForwardEvent;
+			return obj instanceof ClockEvent;
 		}
 
 		@Override
@@ -366,6 +378,7 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 		private PwUnit old_production = null;
 		private final int[] old_stored = new int[game.Nunits()];
 		private int old_overflow = 0;
+		private final int old_setup = 0;
 		
 		public BattleEvent( final PwPlanet planet )
 		{
@@ -386,6 +399,7 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 			planet.setProduction( old_production );
 			planet.setStoredProduction( old_stored );
 			planet.setOverflowProduction( old_overflow );
+			planet.setSetup( old_setup );
 			done = false;
 		}
 
@@ -443,6 +457,7 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 					planet.setProduction( game.defaultProduction() );
 					planet.clearCarryDamage();
 					planet.setOverflowProduction( 0 );
+					planet.resetSetup();
 				}
 			}
 			
@@ -502,6 +517,8 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 			old_owner = planet.owner();
 			assert( old_owner == PwPlayer.Neutral );
 			planet.setOwner( new_owner );
+			
+			planet.resetSetup();
 		}
 
 		@Override
@@ -584,7 +601,7 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 	
 	private void applyProduction( final PwPlanet p )
 	{
-		int production = p.production();
+		int production = (int) ( (0.5 + game.rng.nextDouble())*p.production() );
 		
 		while( production > 0 ) {
 			final PwUnit next = p.nextProduced();
@@ -624,13 +641,13 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 			// 1. Production
 			for( int i = 0; i < s.planets.length; ++i ) {
 				final PwPlanet p = s.planets[i];
-				if( p.owner() != PwPlayer.Neutral ) {
+				if( p.owner() != PwPlayer.Neutral && p.getSetup() == 0 ) {
 					applyProduction( p );
 				}
 			}
 			
 			// 2. Units move
-			applyEvent( new RouteForwardEvent( s.routes ) );
+			applyEvent( new ClockEvent( s.planets, s.routes ) );
 			
 			// 3. Units arrive
 			for( final PwRoute route : s.routes ) {
