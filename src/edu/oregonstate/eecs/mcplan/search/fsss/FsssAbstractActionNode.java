@@ -139,8 +139,38 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 			}
 		}
 		
+		if( sstar == null ) {
+			FsssTest.printTree( FsssTest.findRoot( this ), System.out, 1 );
+			System.out.println( this );
+		}
+		
 		assert( sstar != null );
 		return sstar;
+	}
+	
+	public FsssAbstractStateNode<S, A> sstar_random()
+	{
+		final ArrayList<FsssAbstractStateNode<S, A>> sstar = new ArrayList<FsssAbstractStateNode<S, A>>();
+		double bstar = -Double.MAX_VALUE;
+		for( final FsssAbstractStateNode<S, A> s : successors() ) {
+			final double b = s.U() - s.L();
+			assert( b >= 0 );
+			if( b > bstar ) {
+				bstar = b;
+				sstar.clear();
+				sstar.add( s );
+			}
+			else if( b >= bstar ) {
+				sstar.add( s );
+			}
+		}
+		
+		if( sstar.isEmpty() ) {
+			return null;
+		}
+		else {
+			return sstar.get( model.rng().nextInt( sstar.size() ) );
+		}
 	}
 	
 	public void backup()

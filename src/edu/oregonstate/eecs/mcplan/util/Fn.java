@@ -1284,6 +1284,15 @@ public final class Fn
 		return Arrays.copyOf( x, x.length );
 	}
 	
+	public static double[] copyAsDouble( final int[] x )
+	{
+		final double[] c = new double[x.length];
+		for( int i = 0; i < x.length; ++i ) {
+			c[i] = x[i];
+		}
+		return c;
+	}
+	
 	public static double[] copy( final double[] x )
 	{
 		return Arrays.copyOf( x, x.length );

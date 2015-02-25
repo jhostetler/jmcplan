@@ -41,10 +41,12 @@ public class RallyWorld
 		public final int Nfaults;
 		public final double pbreak;
 		public final int W;
+		public final int Nreckless;
 		
 		public Parameters( final RandomGenerator rng,
 						   final double dmg_slow, final double dmg_fast, final double pfault,
-						   final int Nfaults, final double pbreak, final int W )
+						   final int Nfaults, final double pbreak, final int W,
+						   final int Nreckless )
 		{
 			this.rng = rng;
 			this.dmg_slow = dmg_slow;
@@ -53,6 +55,7 @@ public class RallyWorld
 			this.Nfaults = Nfaults;
 			this.pbreak = pbreak;
 			this.W = W;
+			this.Nreckless = Nreckless;
 		}
 		
 		public Parameters( final RandomGenerator rng, final KeyValueStore config )
@@ -64,6 +67,7 @@ public class RallyWorld
 			this.Nfaults = config.getInt( "rally.Nfaults" );
 			this.pbreak = config.getDouble( "rally.pbreak" );
 			this.W = config.getInt( "rally.W" );
+			this.Nreckless = 2;
 		}
 	}
 	
@@ -76,6 +80,7 @@ public class RallyWorld
 		public int fault = 0;
 		public boolean failure = false;
 		public boolean breakdown = false;
+		public int reckless = 0;
 		
 		public State( final Parameters params )
 		{
@@ -91,6 +96,7 @@ public class RallyWorld
 			this.fault = that.fault;
 			this.failure = that.failure;
 			this.breakdown = that.breakdown;
+			this.reckless = that.reckless;
 		}
 		
 		@Override
@@ -103,7 +109,7 @@ public class RallyWorld
 		public String toString()
 		{
 			return "w: " + w + ", damage: " + damage + ", fault: " + fault
-					+ ", failure: " + failure + ", breakdown: " + breakdown;
+					+ ", failure: " + failure + ", breakdown: " + breakdown + ", reckless: " + reckless;
 		}
 		
 		private double weatherRisk()
@@ -233,6 +239,50 @@ public class RallyWorld
 		{ return FastAction.reward; }
 	}
 	
+	public static class RecklessAction extends Action
+	{
+		public static final double reward = -0.5;
+		
+		@Override
+		public void undoAction( final State s )
+		{
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public void doAction( final State s )
+		{
+			if( s.reckless == 0 ) {
+				// +1 since it will be decremented immediate in PostDynamics
+				s.reckless = s.params.Nreckless + 1;
+			}
+		}
+
+		@Override
+		public boolean isDone()
+		{ return false; }
+
+		@Override
+		public RecklessAction create()
+		{ return new RecklessAction(); }
+		
+		@Override
+		public boolean equals( final Object obj )
+		{ return obj instanceof RecklessAction; }
+		
+		@Override
+		public int hashCode()
+		{ return RecklessAction.class.hashCode(); }
+		
+		@Override
+		public String toString()
+		{ return "RecklessAction"; }
+		
+		@Override
+		public double reward()
+		{ return RecklessAction.reward; }
+	}
+	
 	public static class RepairAction extends Action
 	{
 		/**
@@ -325,11 +375,12 @@ public class RallyWorld
 		
 		private final Parameters params;
 		private final int Nactions;
+		private final int Nnon_fault = 3;
 		
 		public Actions( final Parameters params )
 		{
 			this.params = params;
-			this.Nactions = 2 + params.Nfaults;
+			this.Nactions = Nnon_fault + params.Nfaults;
 		}
 		
 		@Override
@@ -361,8 +412,9 @@ public class RallyWorld
 			switch( n ) {
 			case 0: a = new SlowAction(); break;
 			case 1: a = new FastAction(); break;
+			case 2: a = new RecklessAction(); break;
 			default:
-				a = new RepairAction( n - 2 + 1 );
+				a = new RepairAction( n - Nnon_fault + 1 );
 				break;
 			}
 			
@@ -378,12 +430,19 @@ public class RallyWorld
 			s.failure = false;
 			s.fault = 0;
 			s.damage = false;
+			s.reckless = 0;
 		}
 	}
 	
 	public static void applyPostDynamics( final State s )
 	{
-		if( s.failure ) {
+		if( s.reckless > 0 ) {
+			s.reckless -= 1;
+			if( s.reckless == 0 ) {
+				s.breakdown = true;
+			}
+		}
+		else if( s.failure ) {
 			if( s.sampleBreakdown() ) {
 				s.breakdown = true;
 			}
@@ -435,7 +494,7 @@ public class RallyWorld
 		
 		private double calculateVmax()
 		{
-			return (1.0 / (1.0 - discount())) * FastAction.reward;
+			return (1.0 / (1.0 - discount())) * RecklessAction.reward;
 		}
 		
 		@Override
@@ -581,8 +640,9 @@ public class RallyWorld
 		final int Nfaults = 2;
 		final double pbreak = 1.0;
 		final int W = 5;
+		final int Nreckless = 3;
 		
-		final Parameters params = new Parameters( rng, dmg_slow, dmg_fast, pfault, Nfaults, pbreak, W );
+		final Parameters params = new Parameters( rng, dmg_slow, dmg_fast, pfault, Nfaults, pbreak, W, Nreckless );
 		final Actions actions = new Actions( params );
 		final FsssModel model = new FsssModel( params );
 		State s = model.initialState();

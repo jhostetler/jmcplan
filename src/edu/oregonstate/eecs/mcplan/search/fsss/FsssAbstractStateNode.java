@@ -229,18 +229,46 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		return astar;
 	}
 	
-	public FsssAbstractActionNode<S, A> greatestLowerBound()
+	public FsssAbstractActionNode<S, A> astar_random()
 	{
-		FsssAbstractActionNode<S, A> a = null;
+		final ArrayList<FsssAbstractActionNode<S, A>> astar = new ArrayList<FsssAbstractActionNode<S, A>>();
+		double ustar = -Double.MAX_VALUE;
+		for( final FsssAbstractActionNode<S, A> an : successors() ) {
+			final double u = an.U();
+			if( u > ustar ) {
+				ustar = u;
+				astar.clear();
+				astar.add( an );
+			}
+			else if( u >= ustar ) {
+				astar.add( an );
+			}
+		}
+		
+		if( astar.isEmpty() ) {
+			return null;
+		}
+		else {
+			return astar.get( model.rng().nextInt( astar.size() ) );
+		}
+	}
+	
+	public ArrayList<FsssAbstractActionNode<S, A>> greatestLowerBound()
+	{
+		final ArrayList<FsssAbstractActionNode<S, A>> best = new ArrayList<FsssAbstractActionNode<S, A>>();
 		double Lstar = -Double.MAX_VALUE;
 		for( final FsssAbstractActionNode<S, A> an : successors() ) {
 			final double L = an.L();
 			if( L > Lstar ) {
 				Lstar = L;
-				a = an;
+				best.clear();
+				best.add( an );
+			}
+			else if( L >= Lstar ) {
+				best.add( an );
 			}
 		}
-		return a;
+		return best;
 	}
 	
 	public Iterable<FsssAbstractActionNode<S, A>> successors()

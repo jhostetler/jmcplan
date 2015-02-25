@@ -10,5 +10,4 @@ package edu.oregonstate.eecs.mcplan;
 public interface Action<S>
 {
 	public abstract void doAction( final S s );
-	public abstract boolean isDone();
 }
