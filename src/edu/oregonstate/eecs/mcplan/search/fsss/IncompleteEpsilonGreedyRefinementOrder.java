@@ -11,10 +11,12 @@ import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
 /**
- * @author jhostetler
- *
+ * Epsilon greedy subtree chooser that *never* chooses the currently optimal
+ * subtree. This makes is incomplete.
+ * 
+ * This is the ordering used in the experiments in the UAI 2015 submission.
  */
-public class EpsilonGreedyRefinementOrder<S extends State, A extends VirtualConstructor<A>>
+public class IncompleteEpsilonGreedyRefinementOrder<S extends State, A extends VirtualConstructor<A>>
 	extends RefinementOrderBase<S, A>
 {
 	public static class Factory<S extends State, A extends VirtualConstructor<A>>
@@ -35,7 +37,7 @@ public class EpsilonGreedyRefinementOrder<S extends State, A extends VirtualCons
 		@Override
 		public String toString()
 		{
-			return "EpsilonGreedy(" + epsilon + "; " + subtree_factory + ")";
+			return "IncompleteEpsilonGreedy(" + epsilon + "; " + subtree_factory + ")";
 		}
 	
 		@Override
@@ -48,7 +50,7 @@ public class EpsilonGreedyRefinementOrder<S extends State, A extends VirtualCons
 				subtrees.add( subtree_factory.create( parameters, model, aan ) );
 			}
 			assert( subtrees.size() > 1 );
-			return new EpsilonGreedyRefinementOrder<S, A>( rng, epsilon, root, subtrees );
+			return new IncompleteEpsilonGreedyRefinementOrder<S, A>( rng, epsilon, root, subtrees );
 		}
 	}
 	
@@ -57,7 +59,7 @@ public class EpsilonGreedyRefinementOrder<S extends State, A extends VirtualCons
 	private final RandomGenerator rng;
 	private final double epsilon;
 	
-	public EpsilonGreedyRefinementOrder( final RandomGenerator rng, final double epsilon,
+	public IncompleteEpsilonGreedyRefinementOrder( final RandomGenerator rng, final double epsilon,
 									   final FsssAbstractStateNode<S, A> root,
 									   final ArrayList<SubtreeRefinementOrder<S, A>> subtrees )
 	{
@@ -75,25 +77,37 @@ public class EpsilonGreedyRefinementOrder<S extends State, A extends VirtualCons
 	@Override
 	protected SubtreeRefinementOrder<S, A> chooseSubtree()
 	{
-		final int subtree_idx;
+		final FsssAbstractActionNode<S, A> astar = root.astar();
+		int astar_idx = Integer.MAX_VALUE; // This value ensures astar_idx > tree_idx if astar subtree is closed
+		double max_U = -Double.MAX_VALUE;
+		int max_idx = -1;
+		for( int i = 0; i < subtrees.size(); ++i ) {
+			final SubtreeRefinementOrder<S, A> t = subtrees.get( i );
+			if( t.rootAction().a().equals( astar.a() ) ) {
+				astar_idx = i;
+				continue;
+			}
+			else {
+				assert( !t.isClosed() );
+				final double Ui = t.rootAction().U();
+				if( Ui > max_U ) {
+					max_U = Ui;
+					max_idx = i;
+				}
+			}
+		}
+		final int tree_idx;
 		if( rng.nextDouble() < epsilon ) {
 			// Greedy choice
-			final FsssAbstractActionNode<S, A> aan = root.astar_random();
-			int i = 0;
-			for( final FsssAbstractActionNode<S, A> ai : root.successors() ) {
-				if( aan == ai ) {
-					break;
-				}
-				i += 1;
-			}
-			subtree_idx = i;
+			tree_idx = max_idx;
 		}
 		else {
-			// Random choice
-			subtree_idx = rng.nextInt( subtrees.size() );
+			// Uniform random choice
+			final int candidate = rng.nextInt( subtrees.size() - 1 );
+			// Adjust index to skip optimal subtree
+			tree_idx = (candidate < astar_idx ? candidate : candidate + 1);
 		}
-		
-		final SubtreeRefinementOrder<S, A> selected_subtree	= subtrees.get( subtree_idx );
+		final SubtreeRefinementOrder<S, A> selected_subtree	= subtrees.get( tree_idx );
 		return selected_subtree;
 	}
 }

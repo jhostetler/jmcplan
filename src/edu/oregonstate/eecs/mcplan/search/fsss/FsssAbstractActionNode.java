@@ -241,10 +241,12 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		L = Lbar.mean();
 	}
 	
-	public void sample( final int width, final int max_samples )
+//	public void sample( final int width, final int max_samples )
+	public void sample( final int width, final Budget budget )
 	{
 		while( n < width ) {
-			if( model.sampleCount() >= max_samples ) {
+//			if( model.sampleCount() >= max_samples ) {
+			if( budget.isExceeded() ) {
 //				System.out.println( "! AAN.upSample(): terminating " + model.sampleCount() + " / " + max_samples );
 //
 //				FsssTest.printTree( FsssTest.findRoot( this ), System.out, 1 );
@@ -272,12 +274,15 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		}
 	}
 	
-	public Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> upSample( final int width, final int max_samples )
+	public Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>>
+//	upSample( final int width, final int max_samples )
+	upSample( final int width, final Budget budget )
 	{
 		final Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> added
 			= new HashMap<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>>();
 		while( n < width ) {
-			if( model.sampleCount() >= max_samples ) {
+//			if( model.sampleCount() >= max_samples ) {
+			if( budget.isExceeded() ) {
 //				System.out.println( "! AAN.upSample(): terminating " + model.sampleCount() + " / " + max_samples );
 				break;
 			}

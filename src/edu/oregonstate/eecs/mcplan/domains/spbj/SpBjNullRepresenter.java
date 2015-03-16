@@ -86,11 +86,13 @@ public class SpBjNullRepresenter implements FactoredRepresenter<SpBjState, Facto
 	private int bonus( final ArrayList<Card> h )
 	{
 		if( h.size() == 2 ) {
-			final ArrayList<Card> sorted = Fn.copy( h );
-			Collections.sort( sorted, Card.TheAceHighRankComparator );
+//			final ArrayList<Card> sorted = Fn.copy( h );
+//			Collections.sort( sorted, Card.TheAceHighRankComparator );
+//			final Card c0 = sorted.get( 0 );
+//			final Card c1 = sorted.get( 1 );
 			
-			final Card c0 = sorted.get( 0 );
-			final Card c1 = sorted.get( 1 );
+			final Card c0 = h.get( 0 );
+			final Card c1 = h.get( 1 );
 			
 			final boolean bonus_2of3;
 			if( c0.rank == Rank.R_6 ) {

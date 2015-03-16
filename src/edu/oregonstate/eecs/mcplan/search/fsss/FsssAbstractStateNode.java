@@ -282,24 +282,35 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		return successors.get( a );
 	}
 	
-	public void expand( final Iterable<A> actions, final int width, final int max_samples )
+//	public void expand( final Iterable<A> actions, final int width, final int max_samples )
+//	{
+//		createActionNodes( actions );
+//		sample( width, max_samples );
+//	}
+//
+//	public void sample( final int width, final int max_samples )
+//	{
+//		for( final FsssAbstractActionNode<S, A> an : successors() ) {
+//			an.sample( width, max_samples );
+//		}
+//	}
+	
+	public void expand( final Iterable<A> actions, final int width, final Budget budget )
 	{
 		createActionNodes( actions );
-		sample( width, max_samples );
+		sample( width, budget );
 	}
 	
-	public void sample( final int width, final int max_samples )
+	public void sample( final int width, final Budget budget )
 	{
 		for( final FsssAbstractActionNode<S, A> an : successors() ) {
-			an.sample( width, max_samples );
+			an.sample( width, budget );
 		}
 	}
 	
 	/**
 	 * All this actually does is create GAN successors for each non-terminal
 	 * GSN in 'added'.
-	 * 
-	 * The name is fairly misleading.
 	 * @param added
 	 * @param width
 	 */

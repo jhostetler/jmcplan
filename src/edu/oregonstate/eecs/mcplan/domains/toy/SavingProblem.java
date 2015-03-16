@@ -590,6 +590,11 @@ public class SavingProblem
 	{
 		final RandomGenerator rng = new MersenneTwister( 42 );
 		final int T = 30;
+//		final int price_min = -8;
+//		final int price_max = 4;
+//		final int invest_period = 6;
+//		final int loan_period = 4;
+		
 		final int price_min = -4;
 		final int price_max = 4;
 		final int invest_period = 4;

@@ -198,7 +198,8 @@ public class SubtreeBreadthFirstRefinementOrder<S extends State, A extends Virtu
 //		}
 		
 		final Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> added
-			= aan.upSample( parameters.width, parameters.max_samples );
+//			= aan.upSample( parameters.width, parameters.max_samples );
+			= aan.upSample( parameters.width, parameters.budget );
 		
 		for( final FsssAbstractStateNode<S, A> sn : aan.successors() ) {
 			// If the node has not been expanded yet, do not upSample

@@ -11,12 +11,12 @@ public class FsssParameters
 {
 	public final int width;
 	public final int depth;
-	public final int max_samples;
+	public final Budget budget;
 	
-	public FsssParameters( final int width, final int depth, final int max_samples )
+	public FsssParameters( final int width, final int depth, final Budget budget )
 	{
 		this.width = width;
 		this.depth = depth;
-		this.max_samples = max_samples;
+		this.budget = budget;
 	}
 }
