@@ -77,7 +77,8 @@ public abstract class ClassifierRepresenter<S extends State, A extends VirtualCo
 			// Don't consider ASNs that are: closed, unvisisted by FSSS, are
 			// terminal states, or are already fully refined.
 			// FIXME: Wouldn't it be an error if "fully refined" did not imply "closed"?
-			if( child.isClosed() || child.aggregate.nvisits() == 0
+			//child.isClosed()
+			if( child.aggregate.isPure() || child.aggregate.nvisits() == 0
 					|| child.aggregate.isTerminal() || child.aggregate.states().size() == 1 ) {
 				continue;
 			}
@@ -103,23 +104,23 @@ public abstract class ClassifierRepresenter<S extends State, A extends VirtualCo
 		public FsssAbstractStateNode<S, A> aggregate = null;
 		
 		public final int id;
-		private boolean closed = false;
+		private final boolean closed = false;
 		
 		public DataNode( final int id )
 		{
 			this.id = id;
 		}
 
-		public boolean isClosed()
-		{
-			return closed;
-		}
-		
-		public void close()
-		{
-			assert( !closed );
-			closed = true;
-		}
+//		public boolean isClosed()
+//		{
+//			return closed;
+//		}
+//
+//		public void close()
+//		{
+//			assert( !closed );
+//			closed = true;
+//		}
 	}
 	
 	public static class BinarySplitNode<S extends State, A extends VirtualConstructor<A>> extends SplitNode<S, A>
@@ -263,7 +264,7 @@ public abstract class ClassifierRepresenter<S extends State, A extends VirtualCo
 						stack.push( child );
 					}
 					
-					dup_dn.split = dn.split.create( dn_factory );
+					dup_dn.split = dn.split.create( dup.dn_factory );
 //					dup_dn.split = createSplitNode( dn.split.attribute, dn.split.threshold );
 //					dup_dn.split.left = dup.dn_factory.createDataNode();
 //					dup_dn.split.right = dup.dn_factory.createDataNode();
@@ -333,6 +334,12 @@ public abstract class ClassifierRepresenter<S extends State, A extends VirtualCo
 		DataNode<S, A> dn = dt_root;
 		while( dn.split != null ) {
 			dn = dn.split.child( x );
+			
+			if( dn == null ) {
+				System.out.println( "\t! No DT path for " + x );
+				printDecisionTree( dt_root, 2 );
+			}
+			
 			assert( dn != null );
 		}
 		return dn;

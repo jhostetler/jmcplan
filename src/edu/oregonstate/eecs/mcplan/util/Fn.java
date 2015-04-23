@@ -663,6 +663,28 @@ public final class Fn
 	}
 	
 	// -----------------------------------------------------------------------
+	// approximate equality
+	// -----------------------------------------------------------------------
+	
+	public static boolean approxEq( final double eps, final double x, final double y )
+	{
+		return Math.abs( x - y ) < eps;
+	}
+	
+	public static boolean approxEq( final double eps, final double... xs )
+	{
+		assert( xs.length > 1 );
+		final double comp = xs[0];
+		for( int i = 1; i < xs.length; ++i ) {
+			final double d = Math.abs( comp - xs[i] );
+			if( d >= eps ) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	// -----------------------------------------------------------------------
 	// slice
 	// -----------------------------------------------------------------------
 	

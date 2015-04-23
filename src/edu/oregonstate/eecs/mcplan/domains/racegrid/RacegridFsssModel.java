@@ -39,13 +39,32 @@ public class RacegridFsssModel extends FsssModel<RacegridState, RacegridAction>
 	@Override
 	public double Vmin( final RacegridState s )
 	{
-		return -s.T;
+		// You might drive around aimlessly up to the time limit, then crash
+		// on the last time step.
+		return -(s.T - s.t) - s.T;
 	}
 
 	@Override
 	public double Vmax( final RacegridState s )
 	{
+		// -(normalized distance to goal)
 		return h.evaluate( s );
+//		return 0;
+	}
+	
+	@Override
+	public double Vmin( final RacegridState s, final RacegridAction a )
+	{
+		// Redundancy for emphasis
+		return reward( s, a ) + ( -(s.T - (s.t + 1)) - s.T );
+	}
+
+	@Override
+	public double Vmax( final RacegridState s, final RacegridAction a )
+	{
+//		return -1;
+//		return 0;
+		return reward( s, a );
 	}
 	
 	@Override
@@ -111,18 +130,23 @@ public class RacegridFsssModel extends FsssModel<RacegridState, RacegridAction>
 		if( s.crashed ) {
 			return -s.T;
 		}
-		else if( s.goal ) {
+		else {
 			return 0;
 		}
-		else {
-			return -1;
-		}
+		
+//		else if( s.goal ) {
+//			return 0;
+//		}
+//		else {
+//			return -1;
+//		}
 	}
 
 	@Override
 	public double reward( final RacegridState s, final RacegridAction a )
 	{
-		return 0;
+		return -1;
+//		return 0;
 	}
 
 	@Override

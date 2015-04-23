@@ -1,7 +1,6 @@
 package edu.oregonstate.eecs.mcplan.search.fsss;
 
 import java.util.ArrayList;
-import java.util.Map;
 
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
@@ -14,7 +13,7 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  * @param <A>
  */
 public class SubtreeBreadthFirstRefinementOrder<S extends State, A extends VirtualConstructor<A>>
-	implements SubtreeRefinementOrder<S, A>
+	extends SubtreeRefinementOrder<S, A>
 {
 	public static class Factory<S extends State, A extends VirtualConstructor<A>>
 		implements SubtreeRefinementOrder.Factory<S, A>
@@ -106,6 +105,7 @@ public class SubtreeBreadthFirstRefinementOrder<S extends State, A extends Virtu
 			if( current_layer.isEmpty() ) {
 				// If next layer is also empty, this subtree is fully refined.
 				if( next_layer.isEmpty() ) {
+//					System.out.println( "\tSubtree: Fully refined" );
 					closed = true;
 					return;
 				}
@@ -138,7 +138,7 @@ public class SubtreeBreadthFirstRefinementOrder<S extends State, A extends Virtu
 				closeNode( i );
 				continue;
 			}
-			upSample( aan );
+			upSample( aan, parameters );
 			backupToRoot( aan );
 			
 			break;
@@ -149,8 +149,7 @@ public class SubtreeBreadthFirstRefinementOrder<S extends State, A extends Virtu
 	
 	// FIXME: Is it possible that a closed node could later become re-opened
 	// due to a call to fsss()? If it happened, it would be because successors
-	// are added to an AAN has new successors added after closeNode() has
-	// already been called on it.
+	// are added to an AAN after closeNode() has already been called on it.
 	//
 	// I *think* we're OK because an un-Expanded node should never be refined.
 	private void closeNode( final int i )
@@ -160,6 +159,7 @@ public class SubtreeBreadthFirstRefinementOrder<S extends State, A extends Virtu
 		// state node and add all of its successors.
 //		final FsssAbstractActionNode<S, A> check = current_layer.pollFirst();
 		final FsssAbstractActionNode<S, A> aan = current_layer.remove( i );
+//		System.out.println( "\tSubtree: Closing " + aan );
 //		assert( aan == check );
 		for( final FsssAbstractStateNode<S, A> asn : aan.successors() ) {
 			if( !asn.isTerminal() ) {
@@ -169,73 +169,6 @@ public class SubtreeBreadthFirstRefinementOrder<S extends State, A extends Virtu
 				}
 			}
 		}
-	}
-	
-	/**
-	 * Calls backup() along the path from 'aan' to the root node.
-	 * @param aan
-	 */
-	private void backupToRoot( final FsssAbstractActionNode<S, A> aan )
-	{
-		final FsssAbstractStateNode<S, A> s = aan.predecessor;
-		s.backup();
-		if( s.predecessor != null ) {
-			s.predecessor.backup();
-			backupToRoot( s.predecessor );
-		}
-	}
-	
-	private void upSample( final FsssAbstractActionNode<S, A> aan )
-	{
-		// Don't sample if we're at the limit, but we still need to do
-		// backups because buildSubtree2() does not do them.
-//		final Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> added;
-//		if( model.sampleCount() < parameters.max_samples ) {
-//			added = aan.upSample( parameters.width, parameters.max_samples );
-//		}
-//		else {
-//			added = new HashMap<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>>();
-//		}
-		
-		final Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> added
-//			= aan.upSample( parameters.width, parameters.max_samples );
-			= aan.upSample( parameters.width, parameters.budget );
-		
-		for( final FsssAbstractStateNode<S, A> sn : aan.successors() ) {
-			// If the node has not been expanded yet, do not upSample
-			if( sn.nvisits() == 0 ) {
-//					System.out.println( "!!\t Not recursively upSampling " + sn );
-//					System.out.println( "!!\t nsuccessors = " + sn.nsuccessors() );
-				continue;
-			}
-			
-			final ArrayList<FsssStateNode<S, A>> sn_added = added.get( sn );
-			if( sn_added != null ) {
-				sn.addActionNodes( sn_added );
-			}
-			
-			if( sn.isTerminal() ) {
-				sn.leaf();
-//					for( final FsssAbstractActionNode<S, A> aan_prime : sn.successors() ) {
-//						aan_prime.leaf();
-//					}
-			}
-			else {
-				for( final FsssAbstractActionNode<S, A> aan_prime : sn.successors() ) {
-					upSample( aan_prime );
-				}
-				sn.backup();
-			}
-			
-		}
-		if( aan.nsuccessors() > 0 ) {
-			aan.backup();
-		}
-//		else {
-//			FsssTest.printTree( FsssTest.findRoot( aan ), System.out, 1 );
-//			System.out.println( "! " + aan );
-//			System.exit( 0 );
-//		}
 	}
 	
 //		/**

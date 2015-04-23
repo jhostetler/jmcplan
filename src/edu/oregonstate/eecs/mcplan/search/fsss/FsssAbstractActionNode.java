@@ -13,6 +13,10 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 
 /**
+ * FIXME: It seems silly to keep track of average reward here, when you're already
+ * storing the GANs. You could just average over GAN L/U and not worry about
+ * adding the rewards every time.
+ * 
  * @author jhostetler
  *
  */
@@ -28,7 +32,7 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 //	public final Representer<S, ? extends Representation<S>> repr;
 	
 	public final ArrayList<FsssActionNode<S, A>> actions = new ArrayList<FsssActionNode<S, A>>();
-	private final MeanVarianceAccumulator R = new MeanVarianceAccumulator();
+	private MeanVarianceAccumulator R = new MeanVarianceAccumulator();
 	
 	private double U = Double.NaN;
 	private double L = Double.NaN;
@@ -62,6 +66,16 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		this.repr = repr;
 	}
 	
+	public boolean isBackedUp()
+	{
+		return backed_up;
+	}
+	
+	public double R()
+	{
+		return R.mean();
+	}
+	
 	@Override
 	public String toString()
 	{
@@ -80,26 +94,6 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		}
 		
 		return sb.toString();
-	}
-	
-	/**
-	 * Adds a successor node mapping 'a => aan' to both the successor map
-	 * and the ordered successor list. Returns the previous mapping. No change
-	 * is made to 'ordered_successors' if 'aan' was already in 'successors'.
-	 * @param a
-	 * @param aan
-	 * @return
-	 */
-	private FsssAbstractStateNode<S, A> addSuccessor( final Representation<S> x, final FsssAbstractStateNode<S, A> asn )
-	{
-		final FsssAbstractStateNode<S, A> previous = successors.put( x, asn );
-		if( previous == null ) {
-			ordered_successors.add( asn );
-		}
-		else {
-			assert( previous == asn );
-		}
-		return previous;
 	}
 	
 	public A a()
@@ -188,9 +182,11 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 			u += n * sn.U();
 			l += n * sn.L();
 		}
+		U = R.mean();
+		L = R.mean();
 		if( N > 0 ) {
-			U = R.mean() + model.discount() * u / N;
-			L = R.mean() + model.discount() * l / N;
+			U += model.discount() * u / N;
+			L += model.discount() * l / N;
 		}
 //		else {
 //			U = R.mean() + model.discount()*model.Vmax();
@@ -237,8 +233,35 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		R.add( gan.r );
 		Ubar.add( gan.U() );
 		Lbar.add( gan.L() );
-		U = Ubar.mean();
-		L = Lbar.mean();
+		// Change: from UAI 2015: added R.mean()
+		U = Ubar.mean(); // + R.mean();
+		L = Lbar.mean(); // + R.mean();
+		// end change
+	}
+	
+	/**
+	 * Adds a successor node mapping 'a => aan' to both the successor map
+	 * and the ordered successor list. Returns the previous mapping. No change
+	 * is made to 'ordered_successors' if 'aan' was already in 'successors'.
+	 * @param a
+	 * @param aan
+	 * @return
+	 */
+	private FsssAbstractStateNode<S, A> addSuccessor( final Representation<S> x, final FsssAbstractStateNode<S, A> asn )
+	{
+		final FsssAbstractStateNode<S, A> previous = successors.put( x, asn );
+		if( previous == null ) {
+			ordered_successors.add( asn );
+		}
+		else {
+			if( previous != asn ) {
+				System.out.println( "\t! Mapping exists for " + x + ": " );
+				System.out.println( "\t\t" + previous );
+				System.out.println( "\t\t" + asn );
+			}
+			assert( previous == asn );
+		}
+		return previous;
 	}
 	
 //	public void sample( final int width, final int max_samples )
@@ -256,18 +279,21 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 				break;
 			}
 			
+			final int Na = width/actions.size() + 1;
 			int N = 0;
 			for( final FsssActionNode<S, A> gan : actions ) {
-				final FsssStateNode<S, A> gsn = gan.sample();
-				final FsssAbstractStateNode<S, A> encoded = repr.addTrainingSample( this, gsn.s() );
-				FsssAbstractStateNode<S, A> asn = successors.get( encoded.x() );
-				if( asn == null ) {
-					asn = encoded;
-//					successors.put( encoded.x(), asn );
-//					ordered_successors.add( asn );
-					addSuccessor( encoded.x(), asn );
+				if( gan.nsuccessors() < Na ) {
+					final FsssStateNode<S, A> gsn = gan.sample();
+					final FsssAbstractStateNode<S, A> encoded = repr.addTrainingSample( this, gsn.s() );
+					FsssAbstractStateNode<S, A> asn = successors.get( encoded.x() );
+					if( asn == null ) {
+						asn = encoded;
+	//					successors.put( encoded.x(), asn );
+	//					ordered_successors.add( asn );
+						addSuccessor( encoded.x(), asn );
+					}
+					asn.addGroundStateNode( gsn );
 				}
-				asn.addGroundStateNode( gsn );
 				N += gan.nsuccessors();
 			}
 			n = N;
@@ -288,30 +314,28 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 			}
 			
 //			System.out.println( "\tAAN @" + hashCode() + ": n = " + n );
+			final int Na = width/actions.size() + 1;
 			int N = 0;
 			for( final FsssActionNode<S, A> gan : actions ) {
-				// Sample ground successor
-				final FsssStateNode<S, A> gsn = gan.sample();
-				// Get abstract state
-				final FsssAbstractStateNode<S, A> encoded = repr.addTrainingSample( this, gsn.s() );
-				// Ensure ASN successor
-				FsssAbstractStateNode<S, A> asn = successors.get( encoded.x() );
-				if( asn == null ) {
-					asn = encoded;
-//					successors.put( encoded.x(), asn );
-//					ordered_successors.add( asn );
-					addSuccessor( encoded.x(), asn );
+				if( gan.nsuccessors() < Na ) {
+					final FsssStateNode<S, A> gsn = gan.sample();
+					final FsssAbstractStateNode<S, A> encoded = repr.addTrainingSample( this, gsn.s() );
+					FsssAbstractStateNode<S, A> asn = successors.get( encoded.x() );
+					if( asn == null ) {
+						asn = encoded;
+	//					successors.put( encoded.x(), asn );
+	//					ordered_successors.add( asn );
+						addSuccessor( encoded.x(), asn );
+					}
+					asn.addGroundStateNode( gsn );
+					
+					ArrayList<FsssStateNode<S, A>> asn_added = added.get( asn );
+					if( asn_added == null ) {
+						asn_added = new ArrayList<FsssStateNode<S, A>>();
+						added.put( asn, asn_added );
+					}
+					asn_added.add( gsn );
 				}
-				// Add ground state to ASN successor
-				asn.addGroundStateNode( gsn );
-				
-				ArrayList<FsssStateNode<S, A>> asn_added = added.get( asn );
-				if( asn_added == null ) {
-					asn_added = new ArrayList<FsssStateNode<S, A>>();
-					added.put( asn, asn_added );
-				}
-				asn_added.add( gsn );
-				
 				N += gan.nsuccessors();
 			}
 			n = N;
@@ -340,7 +364,9 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 	{
 //		System.out.println( "AAN.buildSubtree2( " + gan + ", " + old_aan + " )" );
 		assert( old_aan.actions.contains( gan ) );
+//		System.out.println( "\tbuildSubtree2(): " + old_aan );
 		for( final FsssStateNode<S, A> gsn : gan.successors() ) {
+//			System.out.println( "\tbuildSubtree2(): gsn " + gsn );
 			final FsssAbstractStateNode<S, A> asn = requireSuccessor( gsn );
 			// FIXME: To implement random partition refinement, we need to be able
 			// to find the successor that actually contains 'gsn'. Since
@@ -373,28 +399,6 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 //		}
 	}
 	
-	public void buildSubtree( final FsssAbstractActionNode<S, A> union )
-	{
-		System.out.println( "AAN.buildSubtree( " + union + " )" );
-		for( final FsssActionNode<S, A> gan : actions ) {
-			for( final FsssStateNode<S, A> gsn : gan.successors() ) {
-				requireSuccessor( gsn );
-			}
-		}
-		
-		for( final FsssAbstractStateNode<S, A> sn : successors() ) {
-//			sn.visit();
-			
-			// FIXME: sn.x() is an IndexRepresentation created by the repr for
-			// 'this'. This representation is not necessarily compatible with
-			// 'union', but it will accidentally work most of the time.
-			final FsssAbstractStateNode<S, A> usucc = union.successor( sn.x() );
-			sn.buildSubtree( usucc );
-		}
-		
-//		backup();
-	}
-	
 	public FsssAbstractStateNode<S, A> requireSuccessor( final FsssStateNode<S, A> gsn )
 	{
 		final FsssAbstractStateNode<S, A> asn = repr.addTrainingSampleAsExistingNode( this, gsn );
@@ -412,11 +416,14 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 	
 	public void leaf()
 	{
-		L = R.mean();
-		U = L;
+//		L = R.mean();
+//		U = L;
 		
+		R = new MeanVarianceAccumulator();
 		for( final FsssActionNode<S, A> gan : actions ) {
 			gan.leaf();
+			R.add( gan.r );
 		}
+		L = U = R.mean();
 	}
 }

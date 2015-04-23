@@ -7,7 +7,6 @@ import java.util.Map;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
-import edu.oregonstate.eecs.mcplan.util.Fn;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 
 public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor<A>>
@@ -31,6 +30,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	private final MeanVarianceAccumulator Lbar = new MeanVarianceAccumulator();
 	
 	private boolean backed_up = false;
+	private boolean pure = true;
 	
 	private final Map<A, FsssAbstractActionNode<S, A>> successors
 		= new HashMap<A, FsssAbstractActionNode<S, A>>();
@@ -137,6 +137,10 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		U = Ubar.mean();
 		L = Lbar.mean();
 		
+		if( pure && !gsn.x().equals( states.get( 0 ).x() ) ) {
+			pure = false;
+		}
+		
 		// TODO: Debugging code
 //		final ArrayList<A> exemplar_actions = Fn.takeAll( model.actions( exemplar().s() ) );
 //		final ArrayList<A> new_actions = Fn.takeAll( model.actions( gsn.s() ) );
@@ -214,6 +218,11 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		backed_up = true;
 	}
 	
+	public boolean isPure()
+	{
+		return pure;
+	}
+	
 	public FsssAbstractActionNode<S, A> astar()
 	{
 		FsssAbstractActionNode<S, A> astar = null;
@@ -281,19 +290,6 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	{
 		return successors.get( a );
 	}
-	
-//	public void expand( final Iterable<A> actions, final int width, final int max_samples )
-//	{
-//		createActionNodes( actions );
-//		sample( width, max_samples );
-//	}
-//
-//	public void sample( final int width, final int max_samples )
-//	{
-//		for( final FsssAbstractActionNode<S, A> an : successors() ) {
-//			an.sample( width, max_samples );
-//		}
-//	}
 	
 	public void expand( final Iterable<A> actions, final int width, final Budget budget )
 	{
@@ -404,58 +400,6 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		}
 		succ.addGroundActionNode( gan );
 		return succ;
-	}
-	
-	public void buildSubtree( final FsssAbstractStateNode<S, A> union )
-	{
-		System.out.println( "ASN.buildSubtree( " + union + " )" );
-		
-		// TODO: Debugging code
-		final ArrayList<A> actions = Fn.takeAll( model.actions( exemplar().s() ).iterator() );
-		if( actions.isEmpty() ) {
-			System.out.println( "! actions is empty" );
-		}
-		System.out.println( "ASN " + this + ": exemplar is " + exemplar() );
-		
-		// Create and populate successor abstract action nodes
-		// FIXME: If actions is empty, then no successor will be added here.
-		// That screws things up later when we do upSample().
-		for( final A a : model.actions( exemplar().s() ) ) {
-			final FsssAbstractActionNode<S, A> union_a = union.successor( a );
-			
-			// TODO: Debugging code
-			if( union_a == null ) {
-				System.out.println( "! ASN " + union + " has no successor for " + a );
-			}
-			
-			assert( union_a != null );
-			final ClassifierRepresenter<S, A> repr = union_a.repr.emptyInstance();
-			final FsssAbstractActionNode<S, A> an = new FsssAbstractActionNode<S, A>(
-				this, model, abstraction, a, repr );
-//			final FsssAbstractActionNode<S, A> check = successors.put( a, an );
-//			ordered_successors.add( an );
-			final FsssAbstractActionNode<S, A> check = addSuccessor( a, an );
-			assert( check == null );
-		}
-		
-		for( final FsssStateNode<S, A> gsn : states ) {
-			for( final FsssActionNode<S, A> gan : gsn.successors() ) {
-				final FsssAbstractActionNode<S, A> succ = successors.get( gan.a() );
-				
-				// TODO: Debugging code
-				if( succ == null ) {
-					System.out.println( "! No AAN successor for " + gan.a() );
-				}
-				
-				assert( succ != null );
-				succ.addGroundActionNode( gan );
-			}
-		}
-		
-		for( final FsssAbstractActionNode<S, A> an : successors() ) {
-			final FsssAbstractActionNode<S, A> union_a = union.successor( an.a() );
-			an.buildSubtree( union_a );
-		}
 	}
 	
 	public void leaf()

@@ -61,6 +61,7 @@ public class FsssStateNode<S extends State, A extends VirtualConstructor<A>>
 		sb.append( "[@" ).append( Integer.toHexString( hashCode() ) )
 		  .append( ": " ).append( s )
 		  .append( "; nvisits: " ).append( nvisits )
+		  .append( "; r: " ).append( r )
 		  .append( "; U: " ).append( U )
 		  .append( "; L: " ).append( L )
 		  .append( "]" );

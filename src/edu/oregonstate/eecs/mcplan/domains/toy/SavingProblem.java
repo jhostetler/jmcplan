@@ -3,7 +3,9 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.toy;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 
 import org.apache.commons.math3.random.MersenneTwister;
@@ -34,6 +36,7 @@ public class SavingProblem
 		public final int T;
 		public final int price_min;
 		public final int price_max;
+		public final int maturity_period;
 		public final int invest_period;
 		public final int loan_period;
 		
@@ -42,14 +45,19 @@ public class SavingProblem
 		
 		public Parameters( final RandomGenerator rng, final int T,
 						   final int price_min, final int price_max,
+						   final int maturity_period,
 						   final int invest_period, final int loan_period )
 		{
 			this.rng = rng;
 			this.T = T;
 			this.price_min = price_min;
 			this.price_max = price_max;
+			this.maturity_period = maturity_period;
+			assert( this.maturity_period >= 1 );
 			this.invest_period = invest_period;
+			assert( this.invest_period >= 1 );
 			this.loan_period = loan_period;
+			assert( this.loan_period >= 1 );
 			
 			this.Nprices = price_max - price_min + 1;
 		}
@@ -60,6 +68,7 @@ public class SavingProblem
 				  config.getInt( "saving.T" ),
 				  config.getInt( "saving.price_min" ),
 				  config.getInt( "saving.price_max" ),
+				  config.getInt( "saving.maturity_period" ),
 				  config.getInt( "saving.invest_period" ),
 				  config.getInt( "saving.loan_period" ) );
 		}
@@ -71,6 +80,7 @@ public class SavingProblem
 		
 		public int t = 0;
 		public int investment = 0;
+		public int maturity_t = 0;
 		public int invest_t = 0;
 		public int loan = 0;
 		public int loan_t = 0;
@@ -89,6 +99,7 @@ public class SavingProblem
 			
 			this.t = that.t;
 			this.investment = that.investment;
+			this.maturity_t = that.maturity_t;
 			this.invest_t = that.invest_t;
 			this.loan = that.loan;
 			this.loan_t = that.loan_t;
@@ -104,8 +115,8 @@ public class SavingProblem
 		public String toString()
 		{
 			return "t: " + t + ", price: " + price
-				   + ", investment: " + investment + ", invest_t: " + invest_t
-				   + ", loan: " + loan + ", loan_t: " + loan_t;
+				   + ", investment: " + investment + ", maturity_t: " + maturity_t
+				   + ", invest_t: " + invest_t + ", loan: " + loan + ", loan_t: " + loan_t;
 		}
 		
 		public int samplePrice()
@@ -176,6 +187,7 @@ public class SavingProblem
 		{
 			assert( s.investment == 0 );
 			s.investment = 1;
+			s.maturity_t = s.params.maturity_period;
 			s.invest_t = s.params.invest_period;
 		}
 
@@ -312,7 +324,7 @@ public class SavingProblem
 				// Borrow is legal
 				code |= 1 << BorrowShift;
 			}
-			if( s.investment > 0 ) {
+			if( s.investment > 0 && s.maturity_t == 0 ) {
 				// Sell is legal
 				code |= 1 << SellShift;
 			}
@@ -391,6 +403,7 @@ public class SavingProblem
 	public static void applyPostDynamics( final State s )
 	{
 		if( s.investment > 0 && s.invest_t == 0 ) {
+			assert( s.maturity_t == 0 );
 			s.investment = 0;
 		}
 		if( s.loan > 0 && s.loan_t == 0 ) {
@@ -399,15 +412,18 @@ public class SavingProblem
 		}
 		
 		if( s.investment > 0 ) {
-			s.invest_t -= 1;
+			if( s.maturity_t > 0 ) {
+				s.maturity_t -= 1;
+			}
+			if( s.maturity_t == 0 ) {
+				s.invest_t -= 1;
+			}
 		}
 		if( s.loan > 0 ) {
 			s.loan_t -= 1;
 		}
 		s.price = s.samplePrice();
 		s.t += 1;
-		
-		
 	}
 	
 	// -----------------------------------------------------------------------
@@ -415,8 +431,6 @@ public class SavingProblem
 	public static class FsssModel extends edu.oregonstate.eecs.mcplan.search.fsss.FsssModel<State, Action>
 	{
 		private final Parameters params;
-		private final double Vmin;
-		private final double Vmax;
 		
 		private final PrimitiveRepresenter base_repr = new PrimitiveRepresenter();
 		private final ActionSetRepresenter action_repr = new ActionSetRepresenter();
@@ -426,8 +440,6 @@ public class SavingProblem
 		public FsssModel( final Parameters params )
 		{
 			this.params = params;
-			Vmin = calculateVmin();
-			Vmax = calculateVmax();
 		}
 		
 		@Override
@@ -436,23 +448,29 @@ public class SavingProblem
 			return params.rng;
 		}
 		
-		private double calculateVmin()
-		{
-			return params.T * (BorrowAction.repay_reward);
-		}
-		
-		private double calculateVmax()
-		{
-			return params.T * (BorrowAction.reward);
-		}
-		
 		@Override
 		public double Vmin( final State s )
-		{ return Vmin; }
+		{
+			return reward( s ) + (s.params.T - s.t)*BorrowAction.repay_reward;
+		}
 
 		@Override
 		public double Vmax( final State s )
-		{ return Vmax; }
+		{
+			return reward( s ) + (s.params.T - s.t)*BorrowAction.reward;
+		}
+		
+		@Override
+		public double Vmin( final State s, final Action a )
+		{
+			return reward( s, a ) + ((s.params.T - s.t) - 1)*BorrowAction.repay_reward;
+		}
+
+		@Override
+		public double Vmax( final State s, final Action a )
+		{
+			return reward( s, a ) + ((s.params.T - s.t) - 1)*BorrowAction.reward;
+		}
 		
 		@Override
 		public double heuristic( final State s )
@@ -597,29 +615,31 @@ public class SavingProblem
 		
 		final int price_min = -4;
 		final int price_max = 4;
+		final int maturity_period = 2;
 		final int invest_period = 4;
 		final int loan_period = 4;
 		
-		final Parameters params = new Parameters( rng, T, price_min, price_max, invest_period, loan_period );
+		final Parameters params = new Parameters(
+			rng, T, price_min, price_max, maturity_period, invest_period, loan_period );
 		final Actions actions = new Actions( params );
 		final FsssModel model = new FsssModel( params );
 		
-//		State s = model.initialState();
-//		while( !s.isTerminal() ) {
-//			System.out.println( s );
-//			System.out.println( "R(s): " + model.reward( s ) );
-//			actions.setState( s, 0 );
-//			final ArrayList<Action> action_list = Fn.takeAll( actions );
-//			for( int i = 0; i < action_list.size(); ++i ) {
-//				System.out.println( i + ": " + action_list.get( i ) );
-//			}
-//			System.out.print( ">>> " );
-//			final BufferedReader cin = new BufferedReader( new InputStreamReader( System.in ) );
-//			final int choice = Integer.parseInt( cin.readLine() );
-//			final Action a = action_list.get( choice );
-//			System.out.println( "R(s, a): " + model.reward( s, a ) );
-//			s = model.sampleTransition( s, a );
-//		}
+		State s = model.initialState();
+		while( !s.isTerminal() ) {
+			System.out.println( s );
+			System.out.println( "R(s): " + model.reward( s ) );
+			actions.setState( s, 0 );
+			final ArrayList<Action> action_list = Fn.takeAll( actions );
+			for( int i = 0; i < action_list.size(); ++i ) {
+				System.out.println( i + ": " + action_list.get( i ) );
+			}
+			System.out.print( ">>> " );
+			final BufferedReader cin = new BufferedReader( new InputStreamReader( System.in ) );
+			final int choice = Integer.parseInt( cin.readLine() );
+			final Action a = action_list.get( choice );
+			System.out.println( "R(s, a): " + model.reward( s, a ) );
+			s = model.sampleTransition( s, a );
+		}
 		
 		// Estimate the value of a "good" policy.
 		// Note: The "good" policy is to Invest when you can, and Sell if the
@@ -627,52 +647,52 @@ public class SavingProblem
 		// 	1. You should Borrow once the episode will end before the loan must be repaid
 		//	2. For some values of invest_period, you should pass on a low price
 		//	   early in the period to try to get a better one later.
-		final int Ngames = 10000;
-		double V = 0;
-		int Ninvest = 0;
-		for( int i = 0; i < Ngames; ++i ) {
-			State s = model.initialState();
-			double Vi = model.reward( s );
-			while( !s.isTerminal() ) {
-				final Action a;
-				
-				// "Good" policy
-				if( s.investment == 0 ) {
-					a = new InvestAction();
-					Ninvest += 1;
-				}
-				else if( s.investment > 0 && s.price >= 2 ) {
-					if( s.invest_t < (params.invest_period - 1) || s.price > 2 ) {
-						a = new SellAction();
-					}
-					else {
-						a = new SaveAction();
-					}
-//					a = new SellAction();
-				}
-				else {
-					a = new SaveAction();
-				}
-				
-				// "Borrow" policy
-//				if( s.loan == 0 ) {
-//					a = new BorrowAction();
+//		final int Ngames = 10000;
+//		double V = 0;
+//		int Ninvest = 0;
+//		for( int i = 0; i < Ngames; ++i ) {
+//			State s = model.initialState();
+//			double Vi = model.reward( s );
+//			while( !s.isTerminal() ) {
+//				final Action a;
+//
+//				// "Good" policy
+//				if( s.investment == 0 ) {
+//					a = new InvestAction();
+//					Ninvest += 1;
+//				}
+//				else if( s.investment > 0 && s.price >= 2 ) {
+//					if( s.invest_t < (params.invest_period - 1) || s.price > 2 ) {
+//						a = new SellAction();
+//					}
+//					else {
+//						a = new SaveAction();
+//					}
+////					a = new SellAction();
 //				}
 //				else {
 //					a = new SaveAction();
 //				}
-				
-				final double ra = model.reward( s, a );
-				s = model.sampleTransition( s, a );
-				Vi += ra + model.reward( s );
-			}
-			V += Vi;
-		}
-		
-		final double Vavg = V / Ngames;
-		final double Navg = (Ninvest / ((double) Ngames));
-		System.out.println( "Avg. value: " + Vavg );
-		System.out.println( "Avg. Invest actions: " + Navg );
-		System.out.println( "V(Invest) ~= " + ( 1 + (Vavg - params.T)/Navg ) );
+//
+//				// "Borrow" policy
+////				if( s.loan == 0 ) {
+////					a = new BorrowAction();
+////				}
+////				else {
+////					a = new SaveAction();
+////				}
+//
+//				final double ra = model.reward( s, a );
+//				s = model.sampleTransition( s, a );
+//				Vi += ra + model.reward( s );
+//			}
+//			V += Vi;
+//		}
+//
+//		final double Vavg = V / Ngames;
+//		final double Navg = (Ninvest / ((double) Ngames));
+//		System.out.println( "Avg. value: " + Vavg );
+//		System.out.println( "Avg. Invest actions: " + Navg );
+//		System.out.println( "V(Invest) ~= " + ( 1 + (Vavg - params.T)/Navg ) );
 	}
 }

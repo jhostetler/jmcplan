@@ -42,6 +42,14 @@ public class SpBjFsssModel extends FsssModel<SpBjState, SpBjAction>
 	{ return SpBjHand.max_bet * SpBjHand.max_hands; }
 	
 	@Override
+	public double Vmin( final SpBjState s, final SpBjAction a )
+	{ return -Vmax( s, a ); }
+
+	@Override
+	public double Vmax( final SpBjState s, final SpBjAction a )
+	{ return SpBjHand.max_bet *SpBjHand.max_hands; }
+	
+	@Override
 	public double heuristic( final SpBjState s )
 	{ return 0; }
 

@@ -19,6 +19,25 @@ public abstract class FsssModel<S extends State, A extends VirtualConstructor<A>
 {
 	public abstract double Vmin( final S s );
 	public abstract double Vmax( final S s );
+	
+	/**
+	 * Initial value of L(s, a). Must include the reward R(s, a). Must *not*
+	 * include R(s). Typically, this will be something like:
+	 * 		Vmin( s, a ) = reward( s, a ) + min_{s' \in succ(s, a)} Vmin( s' )
+	 * @param s
+	 * @param a
+	 * @return
+	 */
+	public abstract double Vmin( final S s, final A a );
+	
+	/**
+	 * @see edu.oregonstate.eecs.mcplan.search.fsss.FsssModel.Vmin(S,A)
+	 * @param s
+	 * @param a
+	 * @return
+	 */
+	public abstract double Vmax( final S s, final A a );
+	
 	public abstract double discount();
 	
 	public abstract double heuristic( final S s );

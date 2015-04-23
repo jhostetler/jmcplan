@@ -48,6 +48,7 @@ public class EpsilonGreedyRefinementOrder<S extends State, A extends VirtualCons
 				subtrees.add( subtree_factory.create( parameters, model, aan ) );
 			}
 			assert( subtrees.size() > 1 );
+			assert( subtrees.size() == root.nsuccessors() );
 			return new EpsilonGreedyRefinementOrder<S, A>( rng, epsilon, root, subtrees );
 		}
 	}
@@ -75,25 +76,40 @@ public class EpsilonGreedyRefinementOrder<S extends State, A extends VirtualCons
 	@Override
 	protected SubtreeRefinementOrder<S, A> chooseSubtree()
 	{
-		final int subtree_idx;
-		if( rng.nextDouble() < epsilon ) {
-			// Greedy choice
+		if( rng.nextDouble() > epsilon ) {
+			// Greedy choice of the *2nd-best* action
 			final FsssAbstractActionNode<S, A> aan = root.astar_random();
-			int i = 0;
-			for( final FsssAbstractActionNode<S, A> ai : root.successors() ) {
-				if( aan == ai ) {
-					break;
+			assert( aan != null );
+			
+			final ArrayList<SubtreeRefinementOrder<S, A>> astar = new ArrayList<SubtreeRefinementOrder<S, A>>();
+			double ustar = -Double.MAX_VALUE;
+			for( final SubtreeRefinementOrder<S, A> subtree : subtrees ) {
+				final FsssAbstractActionNode<S, A> ai = subtree.rootAction();
+				if( ai == aan ) {
+					// Skip the optimal subtree
+					continue;
 				}
-				i += 1;
+				final double u = ai.U();
+				if( u > ustar ) {
+					ustar = u;
+					astar.clear();
+					astar.add( subtree );
+				}
+				else if( u >= ustar ) {
+					astar.add( subtree );
+				}
 			}
-			subtree_idx = i;
+
+			final SubtreeRefinementOrder<S, A> subtree = astar.get( rng.nextInt( astar.size() ) );
+//			System.out.println( "\tEpsilonGreedyRefinementOrder: greedy choice " + subtree.rootAction() );
+			return subtree;
 		}
 		else {
 			// Random choice
-			subtree_idx = rng.nextInt( subtrees.size() );
+			final int i = rng.nextInt( subtrees.size() );
+			final SubtreeRefinementOrder<S, A> subtree = subtrees.get( i );
+//			System.out.println( "\tEpsilonGreedyRefinementOrder: random subtree " + subtree.rootAction() );
+			return subtree;
 		}
-		
-		final SubtreeRefinementOrder<S, A> selected_subtree	= subtrees.get( subtree_idx );
-		return selected_subtree;
 	}
 }

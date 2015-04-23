@@ -22,5 +22,7 @@ public abstract class RefineableClassifierRepresenter<S extends State, A extends
 	@Override
 	public abstract RefineableClassifierRepresenter<S, A> create();
 	
+//	public abstract boolean isFullyRefined( final FsssAbstractActionNode<S, A> aan );
+	
 	public abstract boolean refine( final FsssAbstractActionNode<S, A> aan );
 }

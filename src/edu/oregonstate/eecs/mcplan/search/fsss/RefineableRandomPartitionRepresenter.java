@@ -60,9 +60,32 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 		}
 		
 		@Override
+		public String toString()
+		{
+			return "{MapSplit: " + assignments + "}";
+		}
+		
+		/**
+		 * FIXME: This function shouldn't be called "create", because you
+		 * don't really want an empty one. You want a copy that doesn't contain
+		 * the instances from the old one, but is behaviorally equivalent.
+		 * @param f
+		 * @return
+		 */
+		@Override
 		public SplitNode<S, A> create( final DataNodeFactory<S, A> f )
 		{
-			return new MapBinarySplitNode<S, A>( f );
+			final MapBinarySplitNode<S, A> copy = new MapBinarySplitNode<S, A>( f );
+			for( final Map.Entry<Representation<S>, DataNode<S, A>> e : assignments.entrySet() ) {
+				if( e.getValue() == left ) {
+					copy.assignments.put( e.getKey(), copy.left );
+				}
+				else {
+					assert( e.getValue() == right );
+					copy.assignments.put( e.getKey(), copy.right );
+				}
+			}
+			return copy;
 		}
 		
 		@Override
@@ -134,10 +157,11 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 				// No more refinements to do on 'aan'
 				return null;
 			}
-			else if( candidate.aggregate.states().size() == 1 ) {
-				// Candidate is fully refined
-				candidate.close();
-			}
+//			else if( candidate.aggregate.states().size() == 1 ) {
+//				// Candidate is fully refined
+////				System.out.println( "\tRefine: closing (singleton): " + candidate );
+//				candidate.close();
+//			}
 			else {
 				final ArrayList<FsssStateNode<S, A>> states = candidate.aggregate.states();
 				final FactoredRepresentation<S> ex = states.get( 0 ).x();
@@ -151,7 +175,8 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 				
 				if( pure ) {
 					// Candidate is fully refined
-					candidate.close();
+//					System.out.println( "\tRefine: closing (pure): " + candidate );
+//					candidate.close();
 				}
 				else {
 					choice = candidate;

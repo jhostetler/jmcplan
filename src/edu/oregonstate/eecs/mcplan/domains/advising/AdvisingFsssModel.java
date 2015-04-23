@@ -57,13 +57,28 @@ public class AdvisingFsssModel extends FsssModel<AdvisingState, TakeCourseAction
 	@Override
 	public double Vmin( final AdvisingState s )
 	{
-		return s.params.requirements.length * AdvisingParameters.missing_requirement_reward;
+		// Note: This was incorrect for the UAI 2015 submission. Scaling by time
+		// remaining was absent.
+		return (params.T - s.t) * s.params.requirements.length * AdvisingParameters.missing_requirement_reward;
 	}
 
 	@Override
 	public double Vmax( final AdvisingState s )
 	{
 		return 0;
+	}
+	
+	@Override
+	public double Vmin( final AdvisingState s, final TakeCourseAction a )
+	{
+		return reward( s, a )
+			   + (params.T - (s.t + 1)) * s.params.requirements.length * AdvisingParameters.missing_requirement_reward;
+	}
+
+	@Override
+	public double Vmax( final AdvisingState s, final TakeCourseAction a )
+	{
+		return reward( s, a );
 	}
 
 	@Override

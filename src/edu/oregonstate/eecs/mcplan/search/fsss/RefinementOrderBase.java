@@ -47,7 +47,8 @@ public abstract class RefinementOrderBase<S extends State, A extends VirtualCons
 		// Find the non-optimal subtree with greatest upper bound U
 		while( true ) {
 			// Finished if only the optimal subtree remains
-			if( subtrees.size() == 1 ) {
+//			if( subtrees.size() == 1 ) {
+			if( subtrees.isEmpty() ) {
 				closed = true;
 				break;
 			}

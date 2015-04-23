@@ -19,4 +19,6 @@ public interface SearchAlgorithm<S extends State, A extends VirtualConstructor<A
 	public abstract void run();
 
 	public abstract int numRefinements();
+	
+	public abstract int numLeadChanges();
 }
