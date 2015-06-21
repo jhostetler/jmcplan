@@ -24,5 +24,19 @@ public abstract class RefineableClassifierRepresenter<S extends State, A extends
 	
 //	public abstract boolean isFullyRefined( final FsssAbstractActionNode<S, A> aan );
 	
-	public abstract boolean refine( final FsssAbstractActionNode<S, A> aan );
+	/**
+	 * Returns an opaque object representing a refinement, or null to indicate
+	 * that no refinement is available.
+	 * @param aan
+	 * @return
+	 */
+	public abstract Object proposeRefinement( final FsssAbstractActionNode<S, A> aan );
+	
+	public abstract void refine( final FsssAbstractActionNode<S, A> aan, final Object proposal );
+	
+	/**
+	 * Refine the ASN using the implementation's specific refinement mechanism.
+	 * @param asn
+	 */
+	public abstract void refine( final DataNode<S, A> dn );
 }

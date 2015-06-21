@@ -133,11 +133,14 @@ public class SubtreeBreadthFirstRefinementOrder<S extends State, A extends Virtu
 			// Refine aan
 //			refine( aan, choice.dn, choice.split );
 			final RefineableClassifierRepresenter<S, A> repr = (RefineableClassifierRepresenter<S, A>) aan.repr;
-			final boolean refined = repr.refine( aan );
-			if( !refined ) {
+			final Object proposal = repr.proposeRefinement( aan );
+			
+			if( proposal == null ) {
 				closeNode( i );
 				continue;
 			}
+			
+			repr.refine( aan, proposal );
 			upSample( aan, parameters );
 			backupToRoot( aan );
 			
@@ -170,47 +173,21 @@ public class SubtreeBreadthFirstRefinementOrder<S extends State, A extends Virtu
 			}
 		}
 	}
-	
-//		/**
-//	 * Refines 'dn', which must be a successor of 'aan'.
-//	 * @param aan
-//	 * @param dn
-//	 * @param split
-//	 * @return
-//	 */
-//	private void refine( final FsssAbstractActionNode<S, A> aan )
-//	{
-////		System.out.println( "\tBuilder: refining " + dn.aggregate + " below " + aan );
-//		final ArrayList<FsssAbstractStateNode<S, A>> parts = aan.repr.refine( aan );
-//		aan.splitSuccessor( dn.aggregate, parts );
-//		dn.aggregate = null;
-//	}
-	
-//	/**
-//	 * Refines 'dn', which must be a successor of 'aan'.
-//	 * @param aan
-//	 * @param dn
-//	 * @param split
-//	 * @return
-//	 */
-//	private void refine( final FsssAbstractActionNode<S, A> aan,
-//						 final RefineablePartitionTreeRepresenter<S, A>.DataNode dn,
-//						 final Split split )
-//	{
-////		System.out.println( "\tBuilder: refining " + dn.aggregate + " below " + aan );
-//
-//		final RefineablePartitionTreeRepresenter<S, A> repr = aan.repr;
-//
-////			final RefineablePartitionTreeRepresenter<S, A>.BinarySplitNode b
-//		final ArrayList<FsssAbstractStateNode<S, A>> parts
-//			= repr.refine( aan, dn, split.attribute, split.value );
-//
-////			final ArrayList<FsssAbstractStateNode<S, A>> parts = new ArrayList<FsssAbstractStateNode<S, A>>();
-////			for( final RefineablePartitionTreeRepresenter<S, A>.DataNode d : Fn.in( b.children() ) ) {
-////				parts.add( d.aggregate );
-////			}
-//
-//		aan.splitSuccessor( dn.aggregate, parts );
-//		dn.aggregate = null;
-//	}
+
+
+	/**
+	 * Note: We don't have to do anything, because new nodes are added when
+	 * their parents are closed.
+	 */
+	@Override
+	public void addNewStateNode( final FsssAbstractStateNode<S, A> asn )
+	{ }
+
+
+	@Override
+	public boolean isActive()
+	{
+		// TODO Auto-generated method stub
+		return false;
+	}
 }

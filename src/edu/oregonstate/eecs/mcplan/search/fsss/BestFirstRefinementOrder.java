@@ -15,7 +15,7 @@ public class BestFirstRefinementOrder<S extends State, A extends VirtualConstruc
 	extends RefinementOrderBase<S, A>
 {
 	public static class Factory<S extends State, A extends VirtualConstructor<A>>
-		implements RefinementOrder.Factory<S, A>
+		implements RefinementOrderBase.Factory<S, A>
 	{
 		private final SubtreeRefinementOrder.Factory<S, A> subtree_factory;
 		
@@ -31,7 +31,7 @@ public class BestFirstRefinementOrder<S extends State, A extends VirtualConstruc
 		}
 	
 		@Override
-		public RefinementOrder<S, A> create( final FsssParameters parameters, final FsssModel<S, A> model,
+		public RefinementOrderBase<S, A> create( final FsssParameters parameters, final FsssModel<S, A> model,
 									   final FsssAbstractStateNode<S, A> root )
 		{
 			final ArrayList<SubtreeRefinementOrder<S, A>> subtrees
@@ -64,7 +64,7 @@ public class BestFirstRefinementOrder<S extends State, A extends VirtualConstruc
 		final FsssAbstractActionNode<S, A> astar = root.astar();
 		double max_U = -Double.MAX_VALUE;
 		SubtreeRefinementOrder<S, A> max_subtree = null;
-		for( final SubtreeRefinementOrder<S, A> t : subtrees ) {
+		for( final SubtreeRefinementOrder<S, A> t : subtrees.values() ) {
 			if( t.rootAction().a().equals( astar.a() ) ) {
 				continue;
 			}

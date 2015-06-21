@@ -17,7 +17,6 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	private final FsssModel<S, A> model;
 	private final FsssAbstraction<S, A> abstraction;
 	private final Representation<S> x;
-//	private final Representer<S, ? extends Representation<S>> repr;
 	private final ArrayList<FsssStateNode<S, A>> states = new ArrayList<FsssStateNode<S, A>>();
 	private int nvisits = 0;
 	
@@ -38,6 +37,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	/**
 	 * This list is used to provide a deterministic iteration order for the
 	 * successors.
+	 * FIXME: You've rolled your own LinkedHashMap
 	 */
 	private final ArrayList<FsssAbstractActionNode<S, A>> ordered_successors
 		= new ArrayList<FsssAbstractActionNode<S, A>>();
@@ -79,6 +79,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	 */
 	private FsssAbstractActionNode<S, A> addSuccessor( final A a, final FsssAbstractActionNode<S, A> aan )
 	{
+		// TODO: Debugging code
 		if( isTerminal() ) {
 			System.out.println( "! " + this );
 		}
@@ -89,14 +90,6 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		}
 		return previous;
 	}
-	
-//	@Override
-//	public int hashCode()
-//	{ return id; }
-//
-//	@Override
-//	public boolean equals( final Object obj )
-//	{ return obj == this; }
 	
 	@Override
 	public String toString()
@@ -140,27 +133,21 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		if( pure && !gsn.x().equals( states.get( 0 ).x() ) ) {
 			pure = false;
 		}
-		
-		// TODO: Debugging code
-//		final ArrayList<A> exemplar_actions = Fn.takeAll( model.actions( exemplar().s() ) );
-//		final ArrayList<A> new_actions = Fn.takeAll( model.actions( gsn.s() ) );
-//		if( exemplar_actions.size() != new_actions.size() ) {
-//			System.out.println( "! In " + this + ": Unequal action sets" );
-//			System.out.println( "\t " + exemplar() + " -> " + exemplar_actions );
-//			System.out.println( "\t " + gsn + " -> " + new_actions );
-//			assert( false );
-//		}
-//		else {
-//			for( int i = 0; i < exemplar_actions.size(); ++i ) {
-//				if( !exemplar_actions.get( i ).equals( new_actions.get( i ) ) ) {
-//					System.out.println( "! In " + this + ": Unequal action sets" );
-//					System.out.println( "\t " + exemplar() + " -> " + exemplar_actions );
-//					System.out.println( "\t " + gsn + " -> " + new_actions );
-//					assert( false );
-//					break;
-//				}
-//			}
-//		}
+	}
+	
+	public boolean isExpanded()
+	{
+		return nvisits() > 0;
+	}
+	
+	public boolean isPure()
+	{
+		return pure;
+	}
+	
+	public boolean isActive()
+	{
+		return isExpanded() && !isPure();
 	}
 	
 	/**
@@ -218,11 +205,6 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		backed_up = true;
 	}
 	
-	public boolean isPure()
-	{
-		return pure;
-	}
-	
 	public FsssAbstractActionNode<S, A> astar()
 	{
 		FsssAbstractActionNode<S, A> astar = null;
@@ -262,6 +244,10 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		}
 	}
 	
+	/**
+	 * Returns all actions that achieve the maximum value of L(s, a).
+	 * @return
+	 */
 	public ArrayList<FsssAbstractActionNode<S, A>> greatestLowerBound()
 	{
 		final ArrayList<FsssAbstractActionNode<S, A>> best = new ArrayList<FsssAbstractActionNode<S, A>>();
@@ -305,8 +291,8 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	}
 	
 	/**
-	 * All this actually does is create GAN successors for each non-terminal
-	 * GSN in 'added'.
+	 * Creates GAN successors for each non-terminal GSN in 'added', and ensures
+	 * that corresponding AANs exist.
 	 * @param added
 	 * @param width
 	 */
@@ -319,9 +305,8 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 				for( final FsssActionNode<S, A> gan : gsn.successors() ) {
 					FsssAbstractActionNode<S, A> aan = successors.get( gan.a() );
 					if( aan == null ) {
-						aan = new FsssAbstractActionNode<S, A>( this, model, abstraction, gan.a(), abstraction.createRepresenter() );
-	//					successors.put( gan.a(), aan );
-	//					ordered_successors.add( aan );
+						aan = new FsssAbstractActionNode<S, A>(
+							this, model, abstraction, gan.a(), abstraction.createRepresenter() );
 						addSuccessor( gan.a(), aan );
 					}
 					aan.addGroundActionNode( gan );
@@ -335,8 +320,6 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		for( final A a : actions ) {
 			final FsssAbstractActionNode<S, A> an = new FsssAbstractActionNode<S, A>(
 				this, model, abstraction, a, abstraction.createRepresenter() );
-//			final FsssAbstractActionNode<S, A> check = successors.put( a, an );
-//			ordered_successors.add( an );
 			final FsssAbstractActionNode<S, A> check = addSuccessor( a, an );
 			
 			// TODO: Debugging code
@@ -394,8 +377,6 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 			// be set here (or somewhere else?)
 			final ClassifierRepresenter<S, A> repr = old_aan.repr.emptyInstance();
 			succ = new FsssAbstractActionNode<S, A>( this, model, abstraction, gan.a(), repr );
-//			successors.put( gan.a(), succ );
-//			ordered_successors.add( succ );
 			addSuccessor( gan.a(), succ );
 		}
 		succ.addGroundActionNode( gan );

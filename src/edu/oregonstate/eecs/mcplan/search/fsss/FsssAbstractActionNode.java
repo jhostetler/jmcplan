@@ -71,6 +71,26 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		return backed_up;
 	}
 	
+	public boolean isPure()
+	{
+		for( final FsssAbstractStateNode<S, A> asn : successors() ) {
+			if( !asn.isPure() ) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	public boolean isActive()
+	{
+		for( final FsssAbstractStateNode<S, A> asn : successors() ) {
+			if( asn.isActive() ) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
 	public double R()
 	{
 		return R.mean();
@@ -264,7 +284,6 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		return previous;
 	}
 	
-//	public void sample( final int width, final int max_samples )
 	public void sample( final int width, final Budget budget )
 	{
 		while( n < width ) {
@@ -279,7 +298,7 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 				break;
 			}
 			
-			final int Na = width/actions.size() + 1;
+			final int Na = (int) Math.ceil( width/actions.size() );
 			int N = 0;
 			for( final FsssActionNode<S, A> gan : actions ) {
 				if( gan.nsuccessors() < Na ) {
@@ -288,8 +307,6 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 					FsssAbstractStateNode<S, A> asn = successors.get( encoded.x() );
 					if( asn == null ) {
 						asn = encoded;
-	//					successors.put( encoded.x(), asn );
-	//					ordered_successors.add( asn );
 						addSuccessor( encoded.x(), asn );
 					}
 					asn.addGroundStateNode( gsn );
@@ -301,13 +318,11 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 	}
 	
 	public Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>>
-//	upSample( final int width, final int max_samples )
 	upSample( final int width, final Budget budget )
 	{
 		final Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> added
 			= new HashMap<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>>();
 		while( n < width ) {
-//			if( model.sampleCount() >= max_samples ) {
 			if( budget.isExceeded() ) {
 //				System.out.println( "! AAN.upSample(): terminating " + model.sampleCount() + " / " + max_samples );
 				break;
@@ -323,8 +338,6 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 					FsssAbstractStateNode<S, A> asn = successors.get( encoded.x() );
 					if( asn == null ) {
 						asn = encoded;
-	//					successors.put( encoded.x(), asn );
-	//					ordered_successors.add( asn );
 						addSuccessor( encoded.x(), asn );
 					}
 					asn.addGroundStateNode( gsn );
@@ -350,8 +363,6 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		ordered_successors.remove( sn );
 		
 		for( final FsssAbstractStateNode<S, A> p : parts ) {
-//			successors.put( p.x(), p );
-//			ordered_successors.add( p );
 			addSuccessor( p.x(), p );
 			for( final FsssStateNode<S, A> gsn : p.states() ) {
 				assert( sn.states().contains( gsn ) );

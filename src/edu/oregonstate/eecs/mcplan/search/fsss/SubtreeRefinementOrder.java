@@ -5,7 +5,6 @@ import java.util.Map;
 
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
-import edu.oregonstate.eecs.mcplan.search.fsss.ClassifierRepresenter.DataNode;
 
 public abstract class SubtreeRefinementOrder<S extends State, A extends VirtualConstructor<A>>
 	implements RefinementOrder<S, A>
@@ -58,11 +57,23 @@ public abstract class SubtreeRefinementOrder<S extends State, A extends VirtualC
 		 * @return
 		 */
 		public abstract SplitChoice<S, A> chooseSplit( final FsssAbstractActionNode<S, A> aan );
+		
+		/**
+		 * Returns an attribute and value to split on. Returns 'null' if no
+		 * attribute-value pair partitions the state into two non-empty sets.
+		 * @param asn
+		 * @return
+		 */
+		public abstract Split chooseSplit( final DataNode<S, A> dn );
 	}
+	
+	public abstract boolean isActive();
 	
 	public abstract FsssAbstractActionNode<S, A> rootAction();
 	
-		/**
+	public abstract void addNewStateNode( final FsssAbstractStateNode<S, A> asn );
+	
+	/**
 	 * Calls backup() along the path from 'aan' to the root node.
 	 * @param aan
 	 */
@@ -89,7 +100,6 @@ public abstract class SubtreeRefinementOrder<S extends State, A extends VirtualC
 //		}
 		
 		final Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> added
-//			= aan.upSample( parameters.width, parameters.max_samples );
 			= aan.upSample( parameters.width, parameters.budget );
 		
 		for( final FsssAbstractStateNode<S, A> sn : aan.successors() ) {
@@ -107,9 +117,6 @@ public abstract class SubtreeRefinementOrder<S extends State, A extends VirtualC
 			
 			if( sn.isTerminal() ) {
 				sn.leaf();
-//					for( final FsssAbstractActionNode<S, A> aan_prime : sn.successors() ) {
-//						aan_prime.leaf();
-//					}
 			}
 			else {
 				for( final FsssAbstractActionNode<S, A> aan_prime : sn.successors() ) {

@@ -4,16 +4,12 @@
 package edu.oregonstate.eecs.mcplan.search.fsss;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
-import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.abstraction.IndexRepresentation;
 import edu.oregonstate.eecs.mcplan.util.Fn;
-import edu.oregonstate.eecs.mcplan.util.Generator;
 
 /**
  * @author jhostetler
@@ -45,94 +41,6 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 		}
 	}
 	
-	private static class MapBinarySplitNode<S extends State, A extends VirtualConstructor<A>>
-		extends SplitNode<S, A>
-	{
-		public final DataNode<S, A> left;
-		public final DataNode<S, A> right;
-		
-		public Map<Representation<S>, DataNode<S, A>> assignments = new LinkedHashMap<Representation<S>, DataNode<S, A>>();
-		
-		public MapBinarySplitNode( final DataNodeFactory<S, A> f )
-		{
-			this.left = f.createDataNode();
-			this.right = f.createDataNode();
-		}
-		
-		@Override
-		public String toString()
-		{
-			return "{MapSplit: " + assignments + "}";
-		}
-		
-		/**
-		 * FIXME: This function shouldn't be called "create", because you
-		 * don't really want an empty one. You want a copy that doesn't contain
-		 * the instances from the old one, but is behaviorally equivalent.
-		 * @param f
-		 * @return
-		 */
-		@Override
-		public SplitNode<S, A> create( final DataNodeFactory<S, A> f )
-		{
-			final MapBinarySplitNode<S, A> copy = new MapBinarySplitNode<S, A>( f );
-			for( final Map.Entry<Representation<S>, DataNode<S, A>> e : assignments.entrySet() ) {
-				if( e.getValue() == left ) {
-					copy.assignments.put( e.getKey(), copy.left );
-				}
-				else {
-					assert( e.getValue() == right );
-					copy.assignments.put( e.getKey(), copy.right );
-				}
-			}
-			return copy;
-		}
-		
-		@Override
-		public void addGroundStateNode( final FsssStateNode<S, A> gsn )
-		{
-			DataNode<S, A> dn = child( gsn.x() );
-			if( dn == null ) {
-				if( left.aggregate.states().size() < right.aggregate.states().size() ) {
-					dn = left;
-				}
-				else {
-					dn = right;
-				}
-				assignments.put( gsn.x(), dn );
-			}
-			dn.aggregate.addGroundStateNode( gsn );
-		}
-		
-		@Override
-		public DataNode<S, A> child( final FactoredRepresentation<S> x )
-		{
-			return assignments.get( x );
-		}
-
-		@Override
-		public Generator<? extends DataNode<S, A>> children()
-		{
-			return new Generator<DataNode<S, A>>() {
-				int i = 0;
-				
-				@Override
-				public boolean hasNext()
-				{ return i < 2; }
-
-				@Override
-				public DataNode<S, A> next()
-				{
-					switch( i++ ) {
-					case 0: return left;
-					case 1: return right;
-					default: throw new IllegalStateException( "hasNext() == false" );
-					}
-				}
-			};
-		}
-	}
-	
 	// -----------------------------------------------------------------------
 
 	public RefineableRandomPartitionRepresenter( final FsssModel<S, A> model,
@@ -147,8 +55,69 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 		return new RefineableRandomPartitionRepresenter<S, A>( model, abstraction );
 	}
 	
+	private int bestPath( final FactoredRepresentation<S> x, final DataNode<S, A> dn,
+						  final ArrayList<DataNode<S, A>> path,
+						  final ArrayList<DataNode<S, A>> best_path, final int min_count )
+	{
+		int ret = min_count;
+		path.add( dn );
+		if( dn.split == null ) {
+			// Leaf node
+			
+//			System.out.println( "\tbestPath(): Leaf " + dn.aggregate );
+			
+			final int n = (dn.aggregate != null ? dn.aggregate.n() : 0);
+			if( n < min_count ) {
+				ret = n;
+				best_path.clear();
+				best_path.addAll( path );
+			}
+		}
+		else {
+			final MapBinarySplitNode<S, A> map_split = (MapBinarySplitNode<S, A>) dn.split;
+			if( map_split.assignments.containsKey( x ) ) {
+//				System.out.println( "\tFollowing " + map_split.child( x ) );
+				ret = bestPath( x, map_split.child( x ), path, best_path, ret );
+			}
+			else {
+				for( final DataNode<S, A> child : Fn.in( dn.split.children() ) ) {
+					ret = bestPath( x, child, path, best_path, ret );
+				}
+			}
+		}
+		path.remove( path.size() - 1 );
+		return ret;
+	}
+	
 	@Override
-	protected DataNode<S, A> createSplitNode( final FsssAbstractActionNode<S, A> aan )
+	protected DataNode<S, A> novelInstance( final DataNode<S, A> dt_root, final FactoredRepresentation<S> x )
+	{
+		// Find the path to the DT leaf with the fewest instances.
+		final ArrayList<DataNode<S, A>> path = new ArrayList<DataNode<S, A>>();
+		final ArrayList<DataNode<S, A>> best_path = new ArrayList<DataNode<S, A>>();
+		final int n = bestPath( x, dt_root, path, best_path, Integer.MAX_VALUE );
+//		for( final DataNode<S, A> dn : best_path ) {
+//			System.out.println( "\t\t" + dn );
+//		}
+		
+		for( int i = 0; i < best_path.size() - 1; ++i ) {
+			final DataNode<S, A> parent = best_path.get( i );
+			final DataNode<S, A> child = best_path.get( i + 1 );
+			final DataNode<S, A> check = ((MapBinarySplitNode<S, A>) parent.split).assignments.put( x, child );
+			// TODO: Debugging code
+			if( check != null && check != child ) {
+				System.out.println( "\t! check = " + check );
+				System.out.println( "\t! child = " + child );
+			}
+			
+			assert( check == null || check == child );
+		}
+		
+		return best_path.get( best_path.size() - 1 );
+	}
+	
+	@Override
+	public Object proposeRefinement( final FsssAbstractActionNode<S, A> aan )
 	{
 		final DataNode<S, A> choice;
 		while( true ) {
@@ -184,6 +153,14 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 				}
 			}
 		}
+		return choice;
+	}
+	
+	@Override
+	protected DataNode<S, A> createSplitNode( final FsssAbstractActionNode<S, A> aan, final Object proposal )
+	{
+		@SuppressWarnings( "unchecked" )
+		final DataNode<S, A> choice = (DataNode<S, A>) proposal;
 		
 		assert( choice.split == null );
 		choice.split = new MapBinarySplitNode<S, A>( dn_factory );
@@ -200,5 +177,29 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 		}
 		
 		return choice;
+	}
+	
+	protected void createSplitNode( final DataNode<S, A> dn )
+	{
+		assert( dn.split == null );
+		dn.split = new MapBinarySplitNode<S, A>( dn_factory );
+		
+		for( final DataNode<S, A> dn_child : Fn.in( dn.split.children() ) ) {
+			dn_child.aggregate = new FsssAbstractStateNode<S, A>(
+				dn.aggregate.predecessor, model, abstraction, new IndexRepresentation<S>( dn_child.id ) );
+		}
+		
+		final ArrayList<FsssStateNode<S, A>> shuffled = new ArrayList<FsssStateNode<S, A>>( dn.aggregate.states() );
+		Fn.shuffle( model.rng(), shuffled );
+		for( final FsssStateNode<S, A> gsn : shuffled ) {
+			dn.split.addGroundStateNode( gsn );
+		}
+	}
+	
+	@Override
+	public void refine( final DataNode<S, A> dn )
+	{
+		createSplitNode( dn );
+		doSplit( dn );
 	}
 }

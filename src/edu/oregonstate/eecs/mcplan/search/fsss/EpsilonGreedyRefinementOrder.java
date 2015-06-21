@@ -4,6 +4,7 @@
 package edu.oregonstate.eecs.mcplan.search.fsss;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import org.apache.commons.math3.random.RandomGenerator;
 
@@ -18,7 +19,7 @@ public class EpsilonGreedyRefinementOrder<S extends State, A extends VirtualCons
 	extends RefinementOrderBase<S, A>
 {
 	public static class Factory<S extends State, A extends VirtualConstructor<A>>
-		implements RefinementOrder.Factory<S, A>
+		implements RefinementOrderBase.Factory<S, A>
 	{
 		private final RandomGenerator rng;
 		private final double epsilon;
@@ -39,7 +40,7 @@ public class EpsilonGreedyRefinementOrder<S extends State, A extends VirtualCons
 		}
 	
 		@Override
-		public RefinementOrder<S, A> create( final FsssParameters parameters, final FsssModel<S, A> model,
+		public RefinementOrderBase<S, A> create( final FsssParameters parameters, final FsssModel<S, A> model,
 									   final FsssAbstractStateNode<S, A> root )
 		{
 			final ArrayList<SubtreeRefinementOrder<S, A>> subtrees
@@ -47,7 +48,6 @@ public class EpsilonGreedyRefinementOrder<S extends State, A extends VirtualCons
 			for( final FsssAbstractActionNode<S, A> aan : root.successors() ) {
 				subtrees.add( subtree_factory.create( parameters, model, aan ) );
 			}
-			assert( subtrees.size() > 1 );
 			assert( subtrees.size() == root.nsuccessors() );
 			return new EpsilonGreedyRefinementOrder<S, A>( rng, epsilon, root, subtrees );
 		}
@@ -83,7 +83,7 @@ public class EpsilonGreedyRefinementOrder<S extends State, A extends VirtualCons
 			
 			final ArrayList<SubtreeRefinementOrder<S, A>> astar = new ArrayList<SubtreeRefinementOrder<S, A>>();
 			double ustar = -Double.MAX_VALUE;
-			for( final SubtreeRefinementOrder<S, A> subtree : subtrees ) {
+			for( final SubtreeRefinementOrder<S, A> subtree : subtrees.values() ) {
 				final FsssAbstractActionNode<S, A> ai = subtree.rootAction();
 				if( ai == aan ) {
 					// Skip the optimal subtree
@@ -106,8 +106,12 @@ public class EpsilonGreedyRefinementOrder<S extends State, A extends VirtualCons
 		}
 		else {
 			// Random choice
-			final int i = rng.nextInt( subtrees.size() );
-			final SubtreeRefinementOrder<S, A> subtree = subtrees.get( i );
+			final int choice = rng.nextInt( subtrees.size() );
+			final Iterator<SubtreeRefinementOrder<S, A>> itr = subtrees.values().iterator();
+			for( int i = 0; i < choice; ++i ) {
+				itr.next();
+			}
+			final SubtreeRefinementOrder<S, A> subtree = itr.next();
 //			System.out.println( "\tEpsilonGreedyRefinementOrder: random subtree " + subtree.rootAction() );
 			return subtree;
 		}

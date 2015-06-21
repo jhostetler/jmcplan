@@ -9,7 +9,6 @@ import java.util.Comparator;
 
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
-import edu.oregonstate.eecs.mcplan.search.fsss.ClassifierRepresenter.DataNode;
 import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.Split;
 import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.SplitChoice;
 import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.SplitChooser;

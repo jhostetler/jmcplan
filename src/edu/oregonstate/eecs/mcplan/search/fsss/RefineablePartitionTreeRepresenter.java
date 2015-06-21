@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.abstraction.IndexRepresentation;
+import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.Split;
 import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.SplitChoice;
 import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.SplitChooser;
 import edu.oregonstate.eecs.mcplan.util.Fn;
@@ -37,52 +38,84 @@ public class RefineablePartitionTreeRepresenter<S extends State, A extends Virtu
 		return new RefineablePartitionTreeRepresenter<S, A>( model, abstraction, split_chooser );
 	}
 	
-	protected DataNode<S, A> createSplitNode( final FsssAbstractActionNode<S, A> aan )
+	protected DataNode<S, A> createSplitNode( final FsssAbstractActionNode<S, A> aan, final Object proposal )
 	{
-		final SplitChoice<S, A> choice;
-		while( true ) {
-			final SplitChoice<S, A> candidate = split_chooser.chooseSplit( aan );
-			if( candidate == null ) {
-				return null;
-			}
-//			else if( candidate.split == null ) {
-//				candidate.dn.close();
-//			}
-			else {
-				choice = candidate;
-				break;
-			}
-		}
-		
-		assert( choice.dn.split == null );
-		choice.dn.split = new BinarySplitNode<S, A>( dn_factory, choice.split.attribute, choice.split.value );
-		
-		for( final DataNode<S, A> dn_child : Fn.in( choice.dn.split.children() ) ) {
-			dn_child.aggregate = new FsssAbstractStateNode<S, A>(
-				aan, model, abstraction, new IndexRepresentation<S>( dn_child.id ) );
-		}
-		
-		for( final FsssStateNode<S, A> gsn : choice.dn.aggregate.states() ) {
-			choice.dn.split.addGroundStateNode( gsn );
-		}
-		
+		@SuppressWarnings( "unchecked" )
+		final SplitChoice<S, A> choice = (SplitChoice<S, A>) proposal;
+		createSplitNode( choice.dn, choice.split );
 		return choice.dn;
+//		assert( choice.dn.split == null );
+//		choice.dn.split = new BinarySplitNode<S, A>( dn_factory, choice.split.attribute, choice.split.value );
+//
+//		for( final DataNode<S, A> dn_child : Fn.in( choice.dn.split.children() ) ) {
+//			dn_child.aggregate = new FsssAbstractStateNode<S, A>(
+//				aan, model, abstraction, new IndexRepresentation<S>( dn_child.id ) );
+//		}
+//
+//		for( final FsssStateNode<S, A> gsn : choice.dn.aggregate.states() ) {
+//			choice.dn.split.addGroundStateNode( gsn );
+//		}
+//
+//		return choice.dn;
+	}
+	
+	protected void createSplitNode( final DataNode<S, A> dn, final Split split )
+	{
+		assert( dn.aggregate != null );
+		assert( dn.split == null );
+		dn.split = new BinarySplitNode<S, A>( dn_factory, split.attribute, split.value );
+		
+		for( final DataNode<S, A> dn_child : Fn.in( dn.split.children() ) ) {
+			dn_child.aggregate = new FsssAbstractStateNode<S, A>(
+				dn.aggregate.predecessor, model, abstraction, new IndexRepresentation<S>( dn_child.id ) );
+		}
+		
+		for( final FsssStateNode<S, A> gsn : dn.aggregate.states() ) {
+			dn.split.addGroundStateNode( gsn );
+		}
+		
+//		return dn;
 	}
 	
 	@Override
-	public final boolean refine( final FsssAbstractActionNode<S, A> aan )
+	public Object proposeRefinement( final FsssAbstractActionNode<S, A> aan )
 	{
-		final DataNode<S, A> dn = createSplitNode( aan );
-		if( dn == null ) {
-			System.out.println( "\tRefine: No refinement in " + aan );
-			return false;
-		}
-		else {
-			final boolean check = dt_leaves.remove( dn );
-			assert( check );
+		return split_chooser.chooseSplit( aan );
+	}
+	
+	protected void doSplit( final DataNode<S, A> dn )
+	{
+		assert( dn.aggregate != null );
+		assert( dn.split != null );
+		final boolean check = dt_leaves.remove( dn );
+		assert( check );
+//		System.out.println( "\tRefining " + dn.aggregate );
+		
+		for( final DataNode<S, A> dn_child : Fn.in( dn.split.children() ) ) {
+			dt_leaves.add( dn_child );
+			dn_child.aggregate.visit();
 		}
 		
-		System.out.println( "\tRefining " + dn.aggregate );
+		final ArrayList<FsssAbstractStateNode<S, A>> parts = new ArrayList<FsssAbstractStateNode<S, A>>();
+		for( final DataNode<S, A> dn_child : Fn.in( dn.split.children() ) ) {
+			parts.add( dn_child.aggregate );
+		}
+		
+		dn.aggregate.predecessor.splitSuccessor( dn.aggregate, parts );
+		dn.aggregate = null; // Allow GC of the old ASN
+	}
+	
+	@Override
+	public void refine( final FsssAbstractActionNode<S, A> aan, final Object proposal )
+	{
+		assert( proposal != null );
+		final DataNode<S, A> dn = createSplitNode( aan, proposal );
+		doSplit( dn );
+		
+		/*
+		final boolean check = dt_leaves.remove( dn );
+		assert( check );
+//		System.out.println( "\tRefining " + dn.aggregate );
 		
 		for( final DataNode<S, A> dn_child : Fn.in( dn.split.children() ) ) {
 			dt_leaves.add( dn_child );
@@ -96,8 +129,14 @@ public class RefineablePartitionTreeRepresenter<S extends State, A extends Virtu
 		
 		aan.splitSuccessor( dn.aggregate, parts );
 		dn.aggregate = null; // Allow GC of the old ASN
-		
-		return true;
+		*/
 	}
 
+	@Override
+	public void refine( final DataNode<S, A> dn )
+	{
+		final Split split = split_chooser.chooseSplit( dn );
+		createSplitNode( dn, split );
+		doSplit( dn );
+	}
 }

@@ -3,7 +3,7 @@ package edu.oregonstate.eecs.mcplan.search.fsss;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
-public interface RefinementOrder<S, A>
+public interface RefinementOrder<S extends State, A extends VirtualConstructor<A>>
 {
 	public static interface Factory<S extends State, A extends VirtualConstructor<A>>
 	{

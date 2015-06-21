@@ -19,7 +19,7 @@ public class GibbsRandomRefinementOrder<S extends State, A extends VirtualConstr
 	extends RefinementOrderBase<S, A>
 {
 	public static class Factory<S extends State, A extends VirtualConstructor<A>>
-		implements RefinementOrder.Factory<S, A>
+		implements RefinementOrderBase.Factory<S, A>
 	{
 		private final RandomGenerator rng;
 		private final double temperature;
@@ -40,7 +40,7 @@ public class GibbsRandomRefinementOrder<S extends State, A extends VirtualConstr
 		}
 	
 		@Override
-		public RefinementOrder<S, A> create( final FsssParameters parameters, final FsssModel<S, A> model,
+		public RefinementOrderBase<S, A> create( final FsssParameters parameters, final FsssModel<S, A> model,
 									   final FsssAbstractStateNode<S, A> root )
 		{
 			final ArrayList<SubtreeRefinementOrder<S, A>> subtrees

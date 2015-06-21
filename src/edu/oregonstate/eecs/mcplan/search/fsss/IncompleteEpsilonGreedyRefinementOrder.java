@@ -20,7 +20,7 @@ public class IncompleteEpsilonGreedyRefinementOrder<S extends State, A extends V
 	extends RefinementOrderBase<S, A>
 {
 	public static class Factory<S extends State, A extends VirtualConstructor<A>>
-		implements RefinementOrder.Factory<S, A>
+		implements RefinementOrderBase.Factory<S, A>
 	{
 		private final RandomGenerator rng;
 		private final double epsilon;
@@ -41,7 +41,7 @@ public class IncompleteEpsilonGreedyRefinementOrder<S extends State, A extends V
 		}
 	
 		@Override
-		public RefinementOrder<S, A> create( final FsssParameters parameters, final FsssModel<S, A> model,
+		public RefinementOrderBase<S, A> create( final FsssParameters parameters, final FsssModel<S, A> model,
 									   final FsssAbstractStateNode<S, A> root )
 		{
 			final ArrayList<SubtreeRefinementOrder<S, A>> subtrees

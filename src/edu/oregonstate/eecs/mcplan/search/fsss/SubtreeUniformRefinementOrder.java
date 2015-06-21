@@ -71,9 +71,6 @@ public class SubtreeUniformRefinementOrder<S extends State, A extends VirtualCon
 		this.root_action = root_action;
 		
 		populateActiveSet( root_action );
-		for( final FsssAbstractActionNode<S, A> aan : active_set ) {
-			System.out.println( "\tActive: " + aan );
-		}
 	}
 	
 	/**
@@ -97,7 +94,7 @@ public class SubtreeUniformRefinementOrder<S extends State, A extends VirtualCon
 	
 	private void forgetSubtreeNodes( final FsssAbstractActionNode<S, A> aan )
 	{
-		System.out.println( "\tForgetting: " + aan );
+//		System.out.println( "\tForgetting: " + aan );
 		active_set.remove( aan );
 		inactive_set.remove( aan );
 		for( final FsssAbstractStateNode<S, A> asn : aan.successors() ) {
@@ -110,11 +107,13 @@ public class SubtreeUniformRefinementOrder<S extends State, A extends VirtualCon
 	@Override
 	public boolean isClosed()
 	{
-		final boolean b = active_set.isEmpty();
-		if( b ) {
-			assert( inactive_set.isEmpty() );
-		}
-		return b;
+		return active_set.isEmpty() && inactive_set.isEmpty();
+	}
+	
+	@Override
+	public boolean isActive()
+	{
+		return !active_set.isEmpty();
 	}
 
 	@Override
@@ -122,25 +121,17 @@ public class SubtreeUniformRefinementOrder<S extends State, A extends VirtualCon
 	{
 		while( true ) {
 			if( active_set.isEmpty() ) {
-				assert( inactive_set.isEmpty() );
+//				assert( inactive_set.isEmpty() );
 				return;
 			}
 			
 			final int i = model.rng().nextInt( active_set.size() );
 			final FsssAbstractActionNode<S, A> aan = active_set.get( i );
 			
-			// FIXME: It is inefficient to do this here, because it is immediately
-			// reversed if no refinement is performed. However, it has to
-			// happen before the refinement operation, so there's no way around
-			// it without changing RefineableClassifierRepresenter.
-			forgetSubtreeNodes( aan );
-			for( final FsssAbstractActionNode<S, A> active : active_set ) {
-				System.out.println( "\tUnforgotten: " + active );
-			}
-			
 			final RefineableClassifierRepresenter<S, A> repr = (RefineableClassifierRepresenter<S, A>) aan.repr;
-			final boolean refined = repr.refine( aan );
-			if( !refined ) {
+			final Object proposal = repr.proposeRefinement( aan );
+			
+			if( proposal == null ) {
 				// No refinement to do. You can only close the node if
 				// all of its ancestors are closed. It is sufficient to check
 				// if its parent is closed, because:
@@ -152,27 +143,34 @@ public class SubtreeUniformRefinementOrder<S extends State, A extends VirtualCon
 				//		   predecessors are closed.
 				final FsssAbstractActionNode<S, A> aan_pred = aan.predecessor.predecessor;
 				if( active_set.contains( aan_pred ) || inactive_set.contains( aan_pred ) ) {
-					System.out.println( "\tSubtreeUniform: Moving to inactive " + aan );
+//					System.out.println( "\tSubtreeUniform: Moving to inactive " + aan );
 					active_set.remove( aan );
 					inactive_set.add( aan );
 				}
 				else {
-					System.out.println( "\tSubtreeUniform: Closing " + aan );
+//					System.out.println( "\tSubtreeUniform: Closing " + aan );
 					active_set.remove( aan );
 				}
 				continue;
 			}
 			
+			// We're going to use all new instances for the new subtree, so
+			// we remove the old instances from the maps.
+			forgetSubtreeNodes( aan );
+//			for( final FsssAbstractActionNode<S, A> active : active_set ) {
+//				System.out.println( "\tUnforgotten: " + active );
+//			}
 			
-			
+			repr.refine( aan, proposal );
 			upSample( aan, parameters );
 			backupToRoot( aan );
 			
-			// Move all descendents to the Active set
+			// Move all descendents to the Active set, since even the ones
+			// that had been inactive might have been reactivated.
 			populateActiveSet( aan );
-			for( final FsssAbstractActionNode<S, A> active : active_set ) {
-				System.out.println( "\tActive: " + active );
-			}
+//			for( final FsssAbstractActionNode<S, A> active : active_set ) {
+//				System.out.println( "\tActive: " + active );
+//			}
 			
 			break;
 		}
@@ -182,5 +180,16 @@ public class SubtreeUniformRefinementOrder<S extends State, A extends VirtualCon
 	public FsssAbstractActionNode<S, A> rootAction()
 	{
 		return root_action;
+	}
+
+	@Override
+	public void addNewStateNode( final FsssAbstractStateNode<S, A> asn )
+	{
+		assert( asn.predecessor != null );
+		final boolean check = active_set.add( asn.predecessor );
+//		assert( !check );
+		inactive_set.remove( asn.predecessor );
+		
+		System.out.println( "\tSubtreeUniform: Added new ASN: " + asn );
 	}
 }

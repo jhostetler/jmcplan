@@ -55,7 +55,7 @@ public class RandomPartitionRepresenter<S extends State, A extends VirtualConstr
 		
 		public Map<Representation<S>, DataNode<S, A>> assignments = new LinkedHashMap<Representation<S>, DataNode<S, A>>();
 		
-		public MapSplitNode( final RandomGenerator rng, final int k, final DataNodeFactory<S, A> f )
+		public MapSplitNode( final RandomGenerator rng, final int k, final DataNode.Factory<S, A> f )
 		{
 			this.rng = rng;
 			for( int i = 0; i < k; ++i ) {
@@ -64,7 +64,7 @@ public class RandomPartitionRepresenter<S extends State, A extends VirtualConstr
 		}
 		
 		@Override
-		public SplitNode<S, A> create( final DataNodeFactory<S, A> f )
+		public SplitNode<S, A> create( final DataNode.Factory<S, A> f )
 		{
 			return new MapSplitNode<S, A>( rng, nodes.size(), f );
 		}
@@ -108,11 +108,11 @@ public class RandomPartitionRepresenter<S extends State, A extends VirtualConstr
 	// -----------------------------------------------------------------------
 
 	private static class MyDataNodeFactory<S extends State, A extends VirtualConstructor<A>>
-		extends DataNodeFactory<S, A>
+		extends DataNode.Factory<S, A>
 	{
 		private final RandomGenerator rng;
 		private final int k;
-		private final DataNodeFactory<S, A> base_dnf = new DefaultDataNodeFactory<S, A>();
+		private final DataNode.Factory<S, A> base_dnf = new DataNode.DefaultFactory<S, A>();
 		
 		public MyDataNodeFactory( final RandomGenerator rng, final int k )
 		{
