@@ -122,6 +122,13 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	{
 		assert( !backed_up );
 		
+		// isTerminal() throws if states.isEmpty()
+		if( !states.isEmpty() && isTerminal() != gsn.isTerminal() ) {
+			throw new IllegalArgumentException(
+				"Adding " + (gsn.isTerminal() ? "terminal" : "non-terminal")
+				+ " gsn to " + (isTerminal() ? "terminal" : "non-terminal") + " asn" );
+		}
+		
 //		System.out.println( "ASN: addGroundStateNode(): states.size() = " + states.size() );
 		states.add( gsn );
 		R.add( gsn.r );
@@ -131,6 +138,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		L = Lbar.mean();
 		
 		if( pure && !gsn.x().equals( states.get( 0 ).x() ) ) {
+			assert( states.size() > 1 );
 			pure = false;
 		}
 	}
@@ -147,7 +155,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	
 	public boolean isActive()
 	{
-		return isExpanded() && !isPure();
+		return isExpanded() && !isTerminal() && !isPure();
 	}
 	
 	/**
@@ -286,6 +294,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	public void sample( final int width, final Budget budget )
 	{
 		for( final FsssAbstractActionNode<S, A> an : successors() ) {
+			System.out.print( " !" );
 			an.sample( width, budget );
 		}
 	}
@@ -323,10 +332,10 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 			final FsssAbstractActionNode<S, A> check = addSuccessor( a, an );
 			
 			// TODO: Debugging code
-//			if( check != null ) {
-//				System.out.println( "! " + this + ": child for " + a + " already exists " + check );
-//				FsssTest.printTree( this, System.out, 1 );
-//			}
+			if( check != null ) {
+				System.out.println( "! " + this + ": child for " + a + " already exists " + check );
+				FsssTest.printTree( this, System.out, 1 );
+			}
 			
 			assert( check == null );
 			

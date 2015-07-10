@@ -65,7 +65,7 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 			// Leaf node
 			
 //			System.out.println( "\tbestPath(): Leaf " + dn.aggregate );
-			
+//			assert( dn.aggregate != null );
 			final int n = (dn.aggregate != null ? dn.aggregate.n() : 0);
 			if( n < min_count ) {
 				ret = n;
@@ -85,6 +85,7 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 				}
 			}
 		}
+		// Undo add
 		path.remove( path.size() - 1 );
 		return ret;
 	}
@@ -114,6 +115,93 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 		}
 		
 		return best_path.get( best_path.size() - 1 );
+	}
+	
+	@Override
+	public void prune()
+	{
+		for( final DataNode<S, A> root : dt_roots.values() ) {
+			if( root.split != null ) {
+				pruneDtSubtree( root );
+			}
+			if( root.split == null ) {
+				if( root.aggregate == null ) {
+					System.out.println( "\t! prune(): null root " + root );
+				}
+				assert( root.aggregate != null );
+			}
+		}
+	}
+	
+	/**
+	 * If all of a split node's children have null aggregates, we want to
+	 * remove the entire subtree under the split node. If all but one of its
+	 * children have null aggregates, we want to promote the single non-null
+	 * node to the level of the split node.
+	 * @param dn
+	 */
+	private void pruneDtSubtree( final DataNode<S, A> dn )
+	{
+		assert( dn.split != null ); // dn is a split node
+		assert( dn.aggregate == null );
+		
+		final ArrayList<DataNode<S, A>> leaves = new ArrayList<DataNode<S, A>>();
+		for( final DataNode<S, A> succ : Fn.in( dn.split.children() ) ) {
+			// First do the recursive call
+			if( succ.split != null ) {
+				assert( succ.aggregate == null );
+				pruneDtSubtree( succ );
+			}
+			
+			// succ.aggregate == null could have already been true, or it
+			// could have become true during the recursive call
+//			if( succ.split == null ) {
+				if( succ.split == null && succ.aggregate == null ) {
+					System.out.println( "\tpruntDtSubtree(): succ.aggregate == null " + succ );
+					// The data node has no members;
+					final boolean check = dt_leaves.remove( succ );
+	//				assert( check );
+				}
+				else {
+					leaves.add( succ );
+				}
+//			}
+		}
+		
+//		final ArrayList<DataNode<S, A>> leaves = new ArrayList<DataNode<S, A>>();
+//		for( final DataNode<S, A> succ : Fn.in( dn.split.children() ) ) {
+//			if( succ.split != null ) {
+//				assert( succ.aggregate == null );
+//				pruneDtSubtree( succ );
+//			}
+//			else if( succ.aggregate == null ) {
+//				// The data node has no members;
+//				final boolean check = dt_leaves.remove( succ );
+//				assert( check );
+//			}
+//			else {
+//				leaves.add( succ );
+//			}
+//		}
+		
+		if( leaves.isEmpty() ) {
+			System.out.println( "\tpruneDtSubtree(): no children for " + dn );
+			// Branch is dead. This node will be removed when control
+			// returns to parent.
+			dn.aggregate = null;
+			dn.split = null;
+		}
+		else if( leaves.size() == 1 ) {
+			System.out.println( "\tpruneDtSubtree(): singleton child for " + dn );
+			System.out.println( "\t\t" + leaves.get( 0 ) );
+			// dn is a redundant split node because it has only one child
+			dn.aggregate = leaves.get( 0 ).aggregate;
+			dn.split = leaves.get( 0 ).split;
+			assert( dn.aggregate != null ^ dn.split != null );
+		}
+		else {
+			// Everything's fine
+		}
 	}
 	
 	@Override
@@ -181,6 +269,7 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 	
 	protected void createSplitNode( final DataNode<S, A> dn )
 	{
+		assert( dn.aggregate != null );
 		assert( dn.split == null );
 		dn.split = new MapBinarySplitNode<S, A>( dn_factory );
 		

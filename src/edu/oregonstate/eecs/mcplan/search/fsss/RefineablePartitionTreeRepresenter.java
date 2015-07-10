@@ -102,6 +102,7 @@ public class RefineablePartitionTreeRepresenter<S extends State, A extends Virtu
 		}
 		
 		dn.aggregate.predecessor.splitSuccessor( dn.aggregate, parts );
+		System.out.println( "\tdoSplit(): Setting aggregate to null: " + dn );
 		dn.aggregate = null; // Allow GC of the old ASN
 	}
 	

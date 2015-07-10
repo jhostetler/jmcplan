@@ -26,7 +26,15 @@ public class MapBinarySplitNode<S extends State, A extends VirtualConstructor<A>
 	@Override
 	public String toString()
 	{
-		return "{MapSplit: " + assignments + "}";
+		final StringBuilder sb = new StringBuilder();
+		sb.append( "{MapSplit: " );
+		for( final Map.Entry<Representation<S>, DataNode<S, A>> e : assignments.entrySet() ) {
+			sb.append( e.getKey() ).append( " -> " )
+			  .append( "@" ).append( Integer.toHexString( System.identityHashCode( e.getValue() ) ) );
+		}
+		sb.append( "}" );
+		return sb.toString();
+//		return "{MapSplit: " + assignments + "}";
 	}
 	
 	/**

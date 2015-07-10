@@ -69,9 +69,15 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 				break;
 			}
 			
+			if( use_logging ) {
+				System.out.println( "\tAFSSS: iter " + iter );
+			}
+			
 			// Stop search if L(root, a*) >= U(root, a) forall a != a*
-			final FsssAbstractActionNode<S, A> astar = root.astar();
-			if( astar != null ) {
+			final ArrayList<FsssAbstractActionNode<S, A>> glb = root.greatestLowerBound(); //root.astar();
+			assert( glb != null );
+			if( !glb.isEmpty() ) {
+				final FsssAbstractActionNode<S, A> astar = glb.get( 0 );
 				final double Lstar = astar.L();
 				boolean done = true;
 				for( final FsssAbstractActionNode<S, A> alt : root.successors() ) {
@@ -117,13 +123,13 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 	
 	private void fsss( final FsssAbstractStateNode<S, A> asn, final int d )
 	{
+		System.out.println( "\tFSSS: d = " + d + ", asn = " + asn );
 		if( !asn.isTerminal() ) {
-			if( asn.nvisits() == 0 ) {
+			if( !asn.isExpanded() ) {
 				if( parameters.budget.isExceeded() ) {
-//					System.out.println( "! fsss(): terminating " + model.sampleCount() + " / " + parameters.max_samples );
+					System.out.println( "\t\tFSSS: Exceeded budget" );
 					return;
 				}
-				
 				asn.expand( model.actions( asn.exemplar().s() ), parameters.width, parameters.budget );
 				fireExpand( asn );
 			}

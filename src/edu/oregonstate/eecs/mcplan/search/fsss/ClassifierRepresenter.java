@@ -226,6 +226,15 @@ public abstract class ClassifierRepresenter<S extends State, A extends VirtualCo
 		throw new IllegalStateException( "Classifier should be exhaustive" );
 	}
 	
+	/**
+	 * Called after upSample() to allow the classifier to perform any
+	 * necessary modifications to account for the new abstraction.
+	 * 
+	 * Default implementation does nothing.
+	 */
+	public void prune()
+	{ }
+	
 	/* (non-Javadoc)
 	 * @see edu.oregonstate.eecs.mcplan.search.fsss.RefineableRepresenter#addTrainingSample(edu.oregonstate.eecs.mcplan.search.fsss.FsssAbstractActionNode, S, edu.oregonstate.eecs.mcplan.FactoredRepresentation)
 	 */
@@ -281,6 +290,4 @@ public abstract class ClassifierRepresenter<S extends State, A extends VirtualCo
 		}
 		return null;
 	}
-
-
 }

@@ -253,10 +253,8 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 		R.add( gan.r );
 		Ubar.add( gan.U() );
 		Lbar.add( gan.L() );
-		// Change: from UAI 2015: added R.mean()
-		U = Ubar.mean(); // + R.mean();
-		L = Lbar.mean(); // + R.mean();
-		// end change
+		U = Ubar.mean();
+		L = Lbar.mean();
 	}
 	
 	/**
@@ -298,7 +296,9 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 				break;
 			}
 			
-			final int Na = (int) Math.ceil( width/actions.size() );
+			final int Na = (int) Math.ceil( width / (double) actions.size() );
+			assert( Na > 0 );
+			assert( Na <= width );
 			int N = 0;
 			for( final FsssActionNode<S, A> gan : actions ) {
 				if( gan.nsuccessors() < Na ) {
@@ -329,7 +329,9 @@ public class FsssAbstractActionNode<S extends State, A extends VirtualConstructo
 			}
 			
 //			System.out.println( "\tAAN @" + hashCode() + ": n = " + n );
-			final int Na = width/actions.size() + 1;
+			final int Na = (int) Math.ceil( width / (double) actions.size() );
+			assert( Na > 0 );
+			assert( Na <= width );
 			int N = 0;
 			for( final FsssActionNode<S, A> gan : actions ) {
 				if( gan.nsuccessors() < Na ) {

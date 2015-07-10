@@ -101,9 +101,7 @@ public class ParssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 		
 		// AB-FSSS
 		final AbstractFsss<S, A> fsss = new AbstractFsss<S, A>( parameters, model, root );
-		fsss.setLoggingEnabled( true );
-		final ExpandedNodeCollector<S, A> collector = new ExpandedNodeCollector<S, A>();
-		fsss.addListener( collector );
+		fsss.setLoggingEnabled( use_logging );
 		fsss.run();
 		
 		ArrayList<FsssAbstractActionNode<S, A>> lstar = Fn.copy( root.greatestLowerBound() );
@@ -120,14 +118,17 @@ public class ParssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 				final ArrayList<String> errors = FsssTest.validateTree( root(), model );
 				System.out.println( "\tvalidateTrees(): " + errors.size() + " errors" );
 				for( int i = 0; i < errors.size(); ++i ) {
-					System.out.println( "\t[" + i + "] " + errors.get( i ) );
+					System.out.println( "\t\t[" + i + "] " + errors.get( i ) );
+				}
+				
+				final ArrayList<String> dt_errors = FsssTest.validateAllDecisionTrees( root() );
+				System.out.println( "\tvalidateAllDecisionTrees(): " + dt_errors.size() + " errors" );
+				for( int i = 0; i < dt_errors.size(); ++i ) {
+					System.out.println( "\t\t[" + i + "] " + dt_errors.get( i ) );
 				}
 			}
 			
 			while( !parameters.budget.isExceeded() ) {
-				// Refine one state
-				refinement_order.refine();
-				
 				if( refinement_order.isClosed() ) {
 					// Tree is fully refined.
 					if( use_logging ) {
@@ -135,9 +136,22 @@ public class ParssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 					}
 					break;
 				}
-				else {
-					num_refinements += 1;
+				
+				// Refine one state
+				refinement_order.refine();
+				num_refinements += 1;
+				
+				// If the intersection of the old optimal action set and the
+				// new optimal action set is empty, the best action has changed
+				final ArrayList<FsssAbstractActionNode<S, A>> lprime = Fn.copy( root.greatestLowerBound() );
+				lstar.retainAll( lprime );
+				if( lstar.isEmpty() ) {
+					if( use_logging ) {
+						System.out.println( "\t\tLead change!" );
+					}
+					num_lead_changes += 1;
 				}
+				lstar = lprime;
 				
 				if( use_logging ) {
 					System.out.println( " ===== After refinement ===== " );
@@ -146,25 +160,15 @@ public class ParssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 					final ArrayList<String> errors = FsssTest.validateTree( root(), model );
 					System.out.println( "\tvalidateTrees(): " + errors.size() + " errors" );
 					for( int i = 0; i < errors.size(); ++i ) {
-						System.out.println( "\t[" + i + "] " + errors.get( i ) );
+						System.out.println( "\t\t[" + i + "] " + errors.get( i ) );
+					}
+					
+					final ArrayList<String> dt_errors = FsssTest.validateAllDecisionTrees( root() );
+					System.out.println( "\tvalidateAllDecisionTrees(): " + dt_errors.size() + " errors" );
+					for( int i = 0; i < dt_errors.size(); ++i ) {
+						System.out.println( "\t\t[" + i + "] " + dt_errors.get( i ) );
 					}
 				}
-				
-				// If the intersection of the old optimal action set and the
-				// new optimal action set is empty, the best action has changed
-				final ArrayList<FsssAbstractActionNode<S, A>> lprime = Fn.copy( root.greatestLowerBound() );
-				lstar.retainAll( lprime );
-				if( lstar.isEmpty() ) {
-					num_lead_changes += 1;
-				}
-				lstar = lprime;
-				
-	//			System.out.println( " ===== After FSSS ===== " );
-	//	//		for( final FsssStateNode<S, A> gsn : root.states() ) {
-	//	//			FsssTest.printTree( gsn, System.out, 0 );
-	//	//		}
-	//	//		System.out.println( "********************" );
-	//			FsssTest.printTree( root, System.out, 0 );
 			}
 		}
 		
@@ -177,7 +181,13 @@ public class ParssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 			final ArrayList<String> errors = FsssTest.validateTree( root(), model );
 			System.out.println( "\tvalidateTrees(): " + errors.size() + " errors" );
 			for( int i = 0; i < errors.size(); ++i ) {
-				System.out.println( "\t[" + i + "] " + errors.get( i ) );
+				System.out.println( "\t\t[" + i + "] " + errors.get( i ) );
+			}
+			
+			final ArrayList<String> dt_errors = FsssTest.validateAllDecisionTrees( root() );
+			System.out.println( "\tvalidateAllDecisionTrees(): " + dt_errors.size() + " errors" );
+			for( int i = 0; i < dt_errors.size(); ++i ) {
+				System.out.println( "\t\t[" + i + "] " + dt_errors.get( i ) );
 			}
 		}
 	}

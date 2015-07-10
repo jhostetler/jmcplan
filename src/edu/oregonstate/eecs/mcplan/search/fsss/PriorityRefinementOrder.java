@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import edu.oregonstate.eecs.mcplan.LoggerManager;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Fn;
@@ -46,6 +47,8 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 	
 	// -----------------------------------------------------------------------
 	
+	private final ch.qos.logback.classic.Logger Log = LoggerManager.getLogger( "log.search" );
+	
 	private final Map<FsssAbstractStateNode<S, A>, DataNode<S, A>> dn_map
 		= new HashMap<FsssAbstractStateNode<S, A>, DataNode<S, A>>();
 	
@@ -74,6 +77,22 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 			this.priority = priority;
 			this.nodes = nodes;
 		}
+		
+		@Override
+		public String toString()
+		{
+			final StringBuilder sb = new StringBuilder();
+			sb.append( "[" );
+			for( int i = 0; i < nodes.size(); ++i ) {
+				if( i > 0 ) {
+					sb.append( "," );
+				}
+				final FsssAbstractStateNode<S, A> asn = nodes.get( i );
+				sb.append( "@" + Integer.toHexString( System.identityHashCode( asn ) ) );
+			}
+			sb.append( "]" );
+			return sb.toString();
+		}
 	}
 	
 	/** Allows retrieval of priority elements from ASN keys. */
@@ -91,22 +110,9 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 		this.model = model;
 		this.root = root;
 		
-		addDecisionTreeLeafNodesForSubtree( root );
-	}
-	
-	private void addDecisionTreeLeafNodes( final FsssAbstractActionNode<S, A> aan )
-	{
-		for( final DataNode<S, A> dn : aan.repr.dt_leaves ) {
-			dn_map.put( dn.aggregate, dn );
-		}
-	}
-	
-	private void addDecisionTreeLeafNodesForSubtree( final FsssAbstractStateNode<S, A> asn )
-	{
-		for( final FsssAbstractActionNode<S, A> aan : asn.successors() ) {
-			addDecisionTreeLeafNodes( aan );
-			for( final FsssAbstractStateNode<S, A> asn_succ : aan.successors() ) {
-				addDecisionTreeLeafNodesForSubtree( asn_succ );
+		for( final FsssAbstractActionNode<S, A> aan : root.successors() ) {
+			for( final FsssAbstractStateNode<S, A> asn_prime : aan.successors() ) {
+				addSubtree( asn_prime, aan.repr.getDataNode( asn_prime ) );
 			}
 		}
 	}
@@ -114,35 +120,10 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 	@Override
 	public boolean isClosed()
 	{
-		return active_set.isEmpty() && inactive_set.isEmpty();
+		return active_set.isEmpty(); // && inactive_set.isEmpty();
 	}
 	
 	protected abstract double calculatePriority( final FsssAbstractStateNode<S, A> asn );
-	
-//	private void reprioritize( final FsssAbstractStateNode<S, A> asn )
-//	{
-//		final PrioritySet e = priority_index.get( asn );
-//		final double p = calculatePriority( asn );
-//
-//		// If the new priority value is different...
-//		if( p != e.priority ) {
-//			// Remove ASN from old priority set
-//			final boolean check = e.nodes.remove( asn );
-//			assert( check );
-//
-//			// Lookup new priority set, create if doesn't exist
-//			PrioritySet eprime = priority.get( p );
-//			if( eprime == null ) {
-//				final ArrayList<FsssAbstractStateNode<S, A>> nodes = new ArrayList<FsssAbstractStateNode<S, A>>();
-//				eprime = new PrioritySet( p, nodes );
-//				priority.put( p, eprime );
-//			}
-//			// Add asn to new priority set
-//			eprime.nodes.add( asn );
-//			// Update index
-//			priority_index.put( asn, eprime );
-//		}
-//	}
 	
 	/**
 	 * Calls backup() along the path from 'aan' to the root node.
@@ -150,10 +131,11 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 	 */
 	private void backupToRoot( final FsssAbstractActionNode<S, A> aan )
 	{
+		aan.backup();
 		final FsssAbstractStateNode<S, A> s = aan.predecessor;
 		s.backup();
 		if( s.predecessor != null ) {
-			s.predecessor.backup();
+//			s.predecessor.backup();
 			backupToRoot( s.predecessor );
 		}
 	}
@@ -165,6 +147,12 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 	 */
 	private void upSample( final FsssAbstractStateNode<S, A> asn )
 	{
+		Log.debug( "\tupSample(): " + asn );
+		
+		if( !asn.isExpanded() ) {
+			return;
+		}
+		
 		for( final FsssAbstractActionNode<S, A> aan : asn.successors() ) {
 			// 'added' will contain the ground states added to each ASN successor
 			final Map<FsssAbstractStateNode<S, A>, ArrayList<FsssStateNode<S, A>>> added
@@ -181,17 +169,26 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 					asn_succ.addActionNodes( sn_added );
 				}
 				
-				if( asn_succ.isTerminal() ) {
-					asn_succ.leaf();
-				}
-				else {
-					upSample( asn_succ );
-					asn_succ.backup();
-				}
+//				if( asn_succ.isTerminal() ) {
+////					asn_succ.leaf();
+//				}
+//				else {
+//					upSample( asn_succ );
+////					asn_succ.backup();
+//				}
+				
+				upSample( asn_succ );
 			}
 			
 			assert( aan.nsuccessors() > 0 );
 			aan.backup();
+		}
+		
+		if( asn.isTerminal() ) {
+			asn.leaf();
+		}
+		else {
+			asn.backup();
 		}
 	}
 	
@@ -201,7 +198,7 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 	 */
 	private void forgetStateNode( final FsssAbstractStateNode<S, A> asn )
 	{
-//		System.out.println( "\tForgetting: " + aan );
+		Log.debug( "\tForgetting: " + asn );
 		active_set.remove( asn );
 		inactive_set.remove( asn );
 		final PrioritySet pset = priority_index.get( asn );
@@ -210,12 +207,13 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 			if( pset.nodes.isEmpty() ) {
 				priority.remove( pset.priority );
 			}
+			final DataNode<S, A> check = dn_map.remove( asn );
+			assert( check != null );
 		}
 		else {
 			assert( !asn.isActive() );
+			assert( !dn_map.containsKey( asn ) );
 		}
-		final DataNode<S, A> check = dn_map.remove( asn );
-		assert( check != null );
 	}
 	
 	/**
@@ -240,12 +238,20 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 	private void addStateNode( final FsssAbstractStateNode<S, A> asn, final DataNode<S, A> dn )
 	{
 		// Activate the new subtrees
-		System.out.println( "\t\tAdding " + asn );
+		Log.debug( "\t\tAdding " + asn );
 		assert( dn.aggregate == asn );
 		assert( !active_set.contains( asn ) );
 		assert( !inactive_set.contains( asn ) );
-		if( asn.isPure() ) {
-			System.out.println( "\t\t\tPure" );
+		if( asn.isTerminal() ) {
+			Log.debug( "\t\t\tTerminal" );
+			return;
+		}
+		else if( !asn.isExpanded() ) {
+			Log.debug( "\t\t\tNot expanded" );
+			return;
+		}
+		else if( asn.isPure() ) {
+			Log.debug( "\t\t\tPure" );
 			// We can close the node if all of its ancestors are closed.
 			// It is sufficient to check if its parent is closed, because:
 			//		1. The first time the root node is not refined, its
@@ -256,16 +262,17 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 			//		   predecessors are closed.
 			final FsssAbstractStateNode<S, A> asn_pred = asn.predecessor.predecessor;
 			if( active_set.contains( asn_pred ) || inactive_set.contains( asn_pred ) ) {
-				System.out.println( "\t\t\tInactive" );
+				Log.debug( "\t\t\tInactive" );
 				inactive_set.add( asn );
+				return;
 			}
 			else {
-				System.out.println( "\t\t\tClosed" );
+				Log.debug( "\t\t\tClosed" );
 				return;
 			}
 		}
 		else {
-			System.out.println( "\t\t\tNot pure" );
+			Log.debug( "\t\t\tNot pure" );
 			active_set.add( asn );
 		}
 		
@@ -273,6 +280,7 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 		PrioritySet pset = priority.get( p );
 		if( pset == null ) {
 			pset = new PrioritySet( p );
+			priority.put( p, pset );
 		}
 		pset.nodes.add( asn );
 		priority_index.put( asn, pset );
@@ -289,7 +297,11 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 	{
 		addStateNode( asn, dn );
 		for( final FsssAbstractActionNode<S, A> aan : asn.successors() ) {
+			Log.debug( "\taddSubtree(): aan " + aan );
+			aan.repr.prune();
 			for( final DataNode<S, A> dn_succ : aan.repr.dt_leaves ) {
+				Log.debug( "\t\tdn_succ " + dn_succ + " / " + dn_succ.aggregate );
+				FsssTest.printDecisionTree( dn_succ, Log, 1 );
 				addSubtree( dn_succ.aggregate, dn_succ );
 			}
 		}
@@ -302,25 +314,33 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 		// 1. Should active_set implicitly be everything that's in priority?
 		
 		// Find random ASN from lowest priority set
+		Log.debug( "priority: " + priority );
 		final PrioritySet pset = priority.firstEntry().getValue();
 		final int r = model.rng().nextInt( pset.nodes.size() );
 		final FsssAbstractStateNode<S, A> to_refine = pset.nodes.get( r );
 		final FsssAbstractActionNode<S, A> aan_parent = to_refine.predecessor;
+		final DataNode<S, A> dn = dn_map.get( to_refine );
+		
+		Log.debug( "\tRefining: " + to_refine );
+		Log.debug( "\t\tBelow: " + aan_parent );
+		Log.debug( "\t\tDN: " + dn );
 		
 		// Do refinement
-		final DataNode<S, A> dn = dn_map.get( to_refine );
 		assert( dn.split == null );
 		assert( dn.aggregate.isExpanded() );
-		assert( !dn.aggregate.isPure() );
+		assert( !dn.aggregate.isPure() || inactive_set.contains( dn.aggregate ) );
 		forgetSubtree( dn.aggregate );
 		((RefineableClassifierRepresenter<S, A>) to_refine.predecessor.repr).refine( dn );
-//		refiner.refine( dn );
 		
 		// Complete PAR operation
 		for( final DataNode<S, A> child : Fn.in( dn.split.children() ) ) {
 			upSample( child.aggregate );
 		}
 		backupToRoot( aan_parent );
+		
+		Log.debug( "..... Before AFSSS ....." );
+		FsssTest.printTree( root, Log, 2 );
+		Log.debug( "........................" );
 		
 		// Activate the new subtrees before FSSS. Set of nodes in new subtree
 		// at this point will be disjoint from set of nodes expanded by FSSS.
@@ -338,6 +358,7 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 		// Add newly-expanded nodes
 		for( final ArrayList<FsssAbstractStateNode<S, A>> nodes : collector.expanded.values() ) {
 			for( final FsssAbstractStateNode<S, A> expanded : nodes ) {
+				Log.debug( "\tExpanded: " + expanded );
 				final DataNode<S, A> expanded_dn = expanded.predecessor.repr.getDataNode( expanded );
 				assert( expanded_dn != null );
 				addStateNode( expanded, expanded_dn );

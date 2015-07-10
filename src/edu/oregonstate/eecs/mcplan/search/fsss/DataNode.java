@@ -23,6 +23,10 @@ public class DataNode<S extends State, A extends VirtualConstructor<A>>
 	}
 
 	public SplitNode<S, A> split = null;
+	
+//	private final FsssAbstractStateNode<S, A> sentinel = new FsssAbstractStateNode<S, A>(
+//		-1, null, null, null, new ArrayList<FsssStateNode<S, A>>() );
+	
 	public FsssAbstractStateNode<S, A> aggregate = null;
 	
 	public final int id;
@@ -30,5 +34,24 @@ public class DataNode<S extends State, A extends VirtualConstructor<A>>
 	public DataNode( final int id )
 	{
 		this.id = id;
+	}
+	
+	@Override
+	public String toString()
+	{
+		final StringBuilder sb = new StringBuilder();
+		sb.append( "DataNode@" );
+		sb.append( Integer.toHexString( System.identityHashCode( this ) ) );
+		sb.append( " -> " );
+		if( split != null ) {
+			sb.append( split );
+		}
+		else if( aggregate != null ) {
+			sb.append( aggregate );
+		}
+		else {
+			sb.append( "null" );
+		}
+		return sb.toString();
 	}
 }

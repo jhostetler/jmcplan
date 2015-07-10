@@ -15,9 +15,11 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
+import ch.qos.logback.classic.Level;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
 import edu.oregonstate.eecs.mcplan.JointPolicy;
+import edu.oregonstate.eecs.mcplan.LoggerManager;
 import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
@@ -54,12 +56,10 @@ import edu.oregonstate.eecs.mcplan.search.fsss.RandomPartitionRepresenter;
 import edu.oregonstate.eecs.mcplan.search.fsss.RefineableRandomPartitionRepresenter;
 import edu.oregonstate.eecs.mcplan.search.fsss.SearchAlgorithm;
 import edu.oregonstate.eecs.mcplan.search.fsss.SplitEvaluator;
-import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeBreadthFirstRefinementOrder;
 import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeHeuristicBfsRefinementOrder;
-import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder;
 import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.SplitChooser;
-import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeUniformRefinementOrder;
 import edu.oregonstate.eecs.mcplan.search.fsss.TrivialRepresenterFsssModelAdapter;
+import edu.oregonstate.eecs.mcplan.search.fsss.priority.BreadthFirstPriorityRefinementOrder;
 import edu.oregonstate.eecs.mcplan.search.fsss.priority.UniformPriorityRefinementOrder;
 import edu.oregonstate.eecs.mcplan.sim.Episode;
 import edu.oregonstate.eecs.mcplan.sim.EpisodeListener;
@@ -589,31 +589,14 @@ public class FsssJairExperiments
 	PriorityRefinementOrder.Factory<S, A> createPriorityOrderingFactory( final Configuration config )
 	{
 		final String refinement_order = config.get( "par.priority" );
-		if( "uniform".equals( refinement_order ) ) {
+		if( "bf".equals( refinement_order ) ) {
+			return new BreadthFirstPriorityRefinementOrder.Factory<S, A>();
+		}
+		else if( "uniform".equals( refinement_order ) ) {
 			return new UniformPriorityRefinementOrder.Factory<S, A>();
 		}
 		else {
 			throw new IllegalArgumentException( "par.priority" );
-		}
-	}
-	
-	private static <S extends State, A extends VirtualConstructor<A>>
-	SubtreeRefinementOrder.Factory<S, A> createSubtreeRefinementOrderFactory( final Configuration config )
-	{
-		final String subtree_refinement_order = config.get( "par.subtree_refinement_order" );
-		if( "bfs".equals( subtree_refinement_order ) ) {
-			final boolean randomize = false;
-			return new SubtreeBreadthFirstRefinementOrder.Factory<S, A>( randomize );
-		}
-		else if( "bfs_random".equals( subtree_refinement_order ) ) {
-			final boolean randomize = true;
-			return new SubtreeBreadthFirstRefinementOrder.Factory<S, A>( randomize );
-		}
-		else if( "uniform".equals( subtree_refinement_order ) ) {
-			return new SubtreeUniformRefinementOrder.Factory<S, A>();
-		}
-		else {
-			throw new IllegalArgumentException( "par.subtree_refinement_order" );
 		}
 	}
 	
@@ -673,6 +656,8 @@ public class FsssJairExperiments
 			final KeyValueStore expr_config = csv_config.get( expr );
 			final Configuration config = new Configuration(
 					root_directory.getPath(), experiment_name, expr_config );
+			
+			LoggerManager.getLogger( "log.search" ).setLevel( Level.valueOf( config.get( "log.search") ) );
 			
 			if( "advising".equals( config.domain ) ) {
 				final File domain = new File( config.root_directory, config.get( "rddl.domain" ) + ".rddl" );

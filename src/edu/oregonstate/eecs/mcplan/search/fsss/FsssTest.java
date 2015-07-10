@@ -3,14 +3,19 @@
  */
 package edu.oregonstate.eecs.mcplan.search.fsss;
 
+import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
+import ch.qos.logback.classic.Logger;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.domains.cards.InfiniteSpanishDeck;
@@ -25,6 +30,20 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  */
 public class FsssTest
 {
+	public static void printDecisionTree( final DataNode<?, ?> dn, final PrintStream out, final int ws )
+	{
+		for( int i = 0; i < ws; ++i ) {
+			out.print( "->" );
+		}
+		out.println( dn );
+		if( dn.split != null ) {
+//			out.println( dn.split );
+			for( final DataNode<?, ?> succ : Fn.in( dn.split.children() ) ) {
+				printDecisionTree( succ, out, ws + 1 );
+			}
+		}
+	}
+	
 	public static void printTree( final FsssStateNode<?, ?> sn, final PrintStream out, final int ws )
 	{
 		for( int i = 0; i < ws; ++i ) {
@@ -64,6 +83,11 @@ public class FsssTest
 			out.print( "-+" );
 		}
 		out.println( an );
+		
+		for( final DataNode<?, ?> dn : an.repr.dt_roots.values() ) {
+			printDecisionTree( dn, out, ws + 1 );
+		}
+		
 		for( final FsssAbstractStateNode<?, ?> sn : an.successors() ) {
 			printTree( sn, out, ws + 1 );
 		}
@@ -79,6 +103,93 @@ public class FsssTest
 		else {
 			return findRoot( pred.predecessor );
 		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
+	public static void printDecisionTree( final DataNode<?, ?> dn, final Logger log, final int ws )
+	{
+		if( log.isDebugEnabled() ) {
+			final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			PrintStream ps;
+			try {
+				ps = new PrintStream( baos, true, "utf-8" );
+			}
+			catch( final UnsupportedEncodingException ex ) {
+				throw new RuntimeException( ex );
+			}
+			ps.println();
+			printDecisionTree( dn, ps, ws );
+			log.debug( baos.toString() );
+		}
+	}
+	
+	public static void printTree( final FsssAbstractStateNode<?, ?> sn, final Logger log, final int ws )
+	{
+		if( log.isDebugEnabled() ) {
+			final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			PrintStream ps;
+			try {
+				ps = new PrintStream( baos, true, "utf-8" );
+			}
+			catch( final UnsupportedEncodingException ex ) {
+				throw new RuntimeException( ex );
+			}
+			ps.println();
+			printTree( sn, ps, ws );
+			log.debug( baos.toString() );
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
+	public static <S extends State, A extends VirtualConstructor<A>>
+	ArrayList<String> validateDecisionTree( final DataNode<S, A> root )
+	{
+		final ArrayList<String> errors = new ArrayList<String>();
+		
+		final Set<DataNode<S, A>> dns = new HashSet<DataNode<S, A>>();
+		
+		final Deque<DataNode<S, A>> stack = new ArrayDeque<DataNode<S, A>>();
+		stack.push( root );
+		while( !stack.isEmpty() ) {
+			final DataNode<S, A> dn = stack.pop();
+			if( !dns.add( dn ) ) {
+				errors.add( "Multiple paths to " + dn );
+			}
+			if( dn.split != null ) {
+				if( dn.aggregate != null ) {
+					errors.add( "Non-null aggregate in split " + dn );
+				}
+				for( final DataNode<S, A> succ : Fn.in( dn.split.children() ) ) {
+					stack.push( succ );
+				}
+			}
+			else if( dn.aggregate == null ) {
+				errors.add( "Null aggregate in leaf " + dn );
+			}
+		}
+		
+		return errors;
+	}
+	
+	public static <S extends State, A extends VirtualConstructor<A>>
+	ArrayList<String> validateAllDecisionTrees( final FsssAbstractStateNode<S, A> asn )
+	{
+		final ArrayList<String> errors = new ArrayList<String>();
+		
+		for( final FsssAbstractActionNode<S, A> aan : asn.successors() ) {
+			for( final DataNode<S, A> dn : aan.repr.dt_roots.values() ) {
+				final ArrayList<String> aan_errors = validateDecisionTree( dn );
+				errors.addAll( aan_errors );
+				for( final FsssAbstractStateNode<S, A> asn_succ : aan.successors() ) {
+					final ArrayList<String> succ_errors = validateAllDecisionTrees( asn_succ );
+					errors.addAll( succ_errors );
+				}
+			}
+		}
+		
+		return errors;
 	}
 	
 	// -----------------------------------------------------------------------
