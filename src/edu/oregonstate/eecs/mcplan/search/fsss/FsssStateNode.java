@@ -15,12 +15,12 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  * @author jhostetler
  *
  */
-public class FsssStateNode<S extends State, A extends VirtualConstructor<A>>
+public final class FsssStateNode<S extends State, A extends VirtualConstructor<A>>
 {
 	private final FsssActionNode<S, A> predecessor;
 	private final FsssModel<S, A> model;
 	private final S s;
-	private final FactoredRepresentation<S> x;
+	private final FactoredRepresentation<S> x = null;
 	private int nvisits = 0;
 	
 	private double U;
@@ -35,7 +35,7 @@ public class FsssStateNode<S extends State, A extends VirtualConstructor<A>>
 		this.predecessor = predecessor;
 		this.model = model;
 		this.s = s;
-		this.x = model.base_repr().encode( s );
+//		this.x = model.base_repr().encode( s );
 		this.r = model.reward( s );
 		this.U = model.Vmax( s );
 		this.L = model.Vmin( s );
@@ -47,7 +47,7 @@ public class FsssStateNode<S extends State, A extends VirtualConstructor<A>>
 		this.predecessor = null;
 		this.model = model;
 		this.s = s;
-		this.x = model.base_repr().encode( s );
+//		this.x = model.base_repr().encode( s );
 		this.r = model.reward( s );
 		this.U = model.Vmax( s );
 		this.L = model.Vmin( s );
@@ -75,7 +75,11 @@ public class FsssStateNode<S extends State, A extends VirtualConstructor<A>>
 	
 	public FactoredRepresentation<S> x()
 	{
-		return x;
+//		if( x == null ) {
+//			x = model.base_repr().encode( s );
+//		}
+//		return x;
+		return model.base_repr().encode( s );
 	}
 	
 //	public int n()

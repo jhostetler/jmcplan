@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.util;
 
+import gnu.trove.TIntCollection;
+import gnu.trove.iterator.TIntIterator;
 import gnu.trove.list.TIntList;
 import gnu.trove.list.array.TDoubleArrayList;
 
@@ -347,6 +349,26 @@ public final class Fn
 		public static NullP Null() { return NullP.Instance; }
 	}
 	
+	public static boolean isPowerOf2( final int x )
+	{
+		return x > 0 && (x & (x-1)) == 0;
+	}
+	
+	public static boolean isPerfectSquare( final int x )
+	{
+		// Note: There are faster ways
+		
+		final int quick = x & 0xf;
+		if( quick != 0 && quick != 1 && quick != 4 && quick != 9 ) {
+			return false;
+		}
+		
+		// Add 0.5 to prevent rounding error from pushing sqrt() below the
+		// previous integer.
+		final int test = (int) (Math.sqrt( x ) + 0.5);
+		return test*test == x;
+	}
+	
 	// -----------------------------------------------------------------------
 	// Sequences
 	// -----------------------------------------------------------------------
@@ -572,6 +594,28 @@ public final class Fn
 	}
 	
 	// -----------------------------------------------------------------------
+	// derivative
+	// -----------------------------------------------------------------------
+	
+	public static double[] derivative( final double[] xs )
+	{
+		assert( xs.length > 0 );
+		if( xs.length == 1 ) {
+			return new double[] { 0.0 };
+		}
+		else {
+			final double[] d = new double[xs.length - 1];
+			double x = xs[0];
+			for( int i = 1; i < xs.length; ++i ) {
+				final double y = xs[i];
+				d[i-1] = y - x;
+				x = y;
+			}
+			return d;
+		}
+	}
+	
+	// -----------------------------------------------------------------------
 	// all
 	// -----------------------------------------------------------------------
 	
@@ -642,7 +686,7 @@ public final class Fn
 	}
 	
 	// -----------------------------------------------------------------------
-	// any
+	// min
 	// -----------------------------------------------------------------------
 	
 	/**
@@ -657,6 +701,19 @@ public final class Fn
 		for( final int xi : x ) {
 			if( xi < m ) {
 				m = xi;
+			}
+		}
+		return m;
+	}
+	
+	public static int min( final TIntCollection c )
+	{
+		int m = Integer.MAX_VALUE;
+		final TIntIterator itr = c.iterator();
+		while( itr.hasNext() ) {
+			final int candidate = itr.next();
+			if( candidate < m ) {
+				m = candidate;
 			}
 		}
 		return m;
@@ -1029,6 +1086,21 @@ public final class Fn
 		return choice;
 	}
 	
+	public static <T> T uniform_choice( final RandomGenerator rng, final Iterable<T> xs )
+	{
+		final Iterator<T> g = xs.iterator();
+		T choice = g.next();
+		int i = 1;
+		while( g.hasNext() ) {
+			++i;
+			final T t = g.next();
+			if( rng.nextInt( i ) == 0 ) {
+				choice = t;
+			}
+		}
+		return choice;
+	}
+	
 	// -----------------------------------------------------------------------
 	// take
 	// -----------------------------------------------------------------------
@@ -1117,6 +1189,22 @@ public final class Fn
 		}
 	};
 	
+	private static class ArrayIterable<T> implements Iterable<T>
+	{
+		private final T[] array;
+		
+		public ArrayIterable( final T[] array )
+		{
+			this.array = array;
+		}
+
+		@Override
+		public Iterator<T> iterator()
+		{
+			return new ArraySlice<T>( array );
+		}
+	}
+	
 	/**
 	 * Adapts an Iterator into an Iterable so that it can be used in a for-each
 	 * loop. The returned Iterable will throw an exception if 'iterator()' is
@@ -1135,6 +1223,11 @@ public final class Fn
 		return new OnceIterable<T>( itr );
 	}
 	
+	public static <T> Iterable<T> in( final T[] array )
+	{
+		return new ArrayIterable<T>( array );
+	}
+	
 	public static <T> Iterable<Integer> in( final IntSlice itr )
 	{
 		return new OnceIterable<Integer>( new Generator<Integer>() {
@@ -1146,6 +1239,22 @@ public final class Fn
 			public Integer next()
 			{ return itr.next(); }
 		} );
+	}
+	
+	public static <T> T element( final Iterable<T> iterable, final int index )
+	{
+		assert( index >= 0 );
+		final Iterator<T> itr = iterable.iterator();
+		for( int i = 0; i < index; ++i ) {
+			if( !itr.hasNext() ) {
+				throw new IndexOutOfBoundsException();
+			}
+			itr.next();
+		}
+		if( !itr.hasNext() ) {
+			throw new IndexOutOfBoundsException();
+		}
+		return itr.next();
 	}
 	
 	// -----------------------------------------------------------------------
@@ -1266,6 +1375,21 @@ public final class Fn
 		return memcpy( dest, src, dest.length );
 	}
 	
+	public static byte[] memcpy( final byte[] dest, final byte[] src, final int n )
+	{
+		assert( dest.length >= n );
+		assert( src.length >= n );
+		for( int i = 0; i < n; ++i ) {
+			dest[i] = src[i];
+		}
+		return dest;
+	}
+	
+	public static byte[] memcpy( final byte[] dest, final byte[] src )
+	{
+		return memcpy( dest, src, dest.length );
+	}
+	
 	public static <T> ArrayList<T> memcpy( final ArrayList<T> dest, final ArrayList<T> src )
 	{
 		assert( dest.size() == src.size() );
@@ -1275,6 +1399,14 @@ public final class Fn
 		return dest;
 	}
 	
+	/**
+	 * @deprecated This function can be called accidentally if you try to use
+	 * a higher-dimensional memcpy that is not implemented.
+	 * @param dest
+	 * @param src
+	 * @return
+	 */
+	@Deprecated
 	public static <T> T[] memcpy( final T[] dest, final T[] src )
 	{
 		assert( dest.length == src.length );
@@ -1284,6 +1416,38 @@ public final class Fn
 		return dest;
 	}
 	
+	public static byte[][] memcpy( final byte[][] dest, final byte[][] src )
+	{
+		for( int i = 0; i < dest.length; ++i ) {
+			for( int j = 0; j < dest[i].length; ++j ) {
+				dest[i][j] = src[i][j];
+			}
+		}
+		return dest;
+	}
+	
+	public static short[][] memcpy( final short[][] dest, final short[][] src )
+	{
+		for( int i = 0; i < dest.length; ++i ) {
+			for( int j = 0; j < dest[i].length; ++j ) {
+				dest[i][j] = src[i][j];
+			}
+		}
+		return dest;
+	}
+	
+	public static int[][] memcpy( final int[][] dest, final int[][] src )
+	{
+		for( int i = 0; i < dest.length; ++i ) {
+			for( int j = 0; j < dest[i].length; ++j ) {
+				dest[i][j] = src[i][j];
+			}
+		}
+		return dest;
+	}
+	
+	// Copy
+	
 	public static <T> ArrayList<T> copy( final ArrayList<T> x )
 	{
 		final ArrayList<T> c = new ArrayList<T>( x.size() );
@@ -1292,6 +1456,11 @@ public final class Fn
 	}
 	
 	public static boolean[] copy( final boolean[] x )
+	{
+		return Arrays.copyOf( x, x.length );
+	}
+	
+	public static byte[] copy( final byte[] x )
 	{
 		return Arrays.copyOf( x, x.length );
 	}
@@ -1320,6 +1489,24 @@ public final class Fn
 		return Arrays.copyOf( x, x.length );
 	}
 	
+	public static boolean[][] copy( final boolean[][] a )
+	{
+		final boolean[][] r = new boolean[a.length][];
+		for( int i = 0; i < a.length; ++i ) {
+			r[i] = Arrays.copyOf( a[i], a[i].length );
+		}
+		return r;
+	}
+	
+	public static byte[][] copy( final byte[][] a )
+	{
+		final byte[][] r = new byte[a.length][];
+		for( int i = 0; i < a.length; ++i ) {
+			r[i] = Arrays.copyOf( a[i], a[i].length );
+		}
+		return r;
+	}
+	
 	public static int[][] copy( final int[][] a )
 	{
 		final int[][] r = new int[a.length][];
@@ -1340,20 +1527,27 @@ public final class Fn
 		return r;
 	}
 	
-	public static int[][] memcpy( final int[][] dest, final int[][] src )
+	public static void assign( final byte[] xs, final byte x )
 	{
-		for( int i = 0; i < dest.length; ++i ) {
-			for( int j = 0; j < dest[i].length; ++j ) {
-				dest[i][j] = src[i][j];
-			}
+		for( int i = 0; i < xs.length; ++i ) {
+			xs[i] = x;
 		}
-		return dest;
 	}
 	
 	public static void assign( final int[] xs, final int x )
 	{
 		for( int i = 0; i < xs.length; ++i ) {
 			xs[i] = x;
+		}
+	}
+	
+	public static void assign( final int[][] xs, final int x )
+	{
+		for( int i = 0; i < xs.length; ++i ) {
+			final int[] xsi = xs[i];
+			for( int j = 0; j < xsi.length; ++j ) {
+				xsi[j] = x;
+			}
 		}
 	}
 	
@@ -1407,6 +1601,20 @@ public final class Fn
 	// min/max
 	// -----------------------------------------------------------------------
 	
+	public static int argmin( final int... v )
+	{
+		assert( v.length > 0 );
+		int min = Integer.MAX_VALUE;
+		int min_idx = 0;
+		for( int i = 0; i < v.length; ++i ) {
+			if( v[i] < min ) {
+				min = v[i];
+				min_idx = i;
+			}
+		}
+		return min_idx;
+	}
+	
 	public static int argmax( final double... v )
 	{
 		assert( v.length > 0 );
@@ -1459,6 +1667,19 @@ public final class Fn
 	public static int max( final int... v )
 	{
 		return v[argmax( v )];
+	}
+	
+	/**
+	 * Returns the n mod base. This is different from the Java operator% as
+	 * -1 % 3 == -1, but -1 mod 3 == 2.
+	 * @param n
+	 * @param base
+	 * @return
+	 */
+	public static int mod( final int n, final int base )
+	{
+		final int r = n % base;
+		return (r < 0 ? r + base : r);
 	}
 	
 	// -----------------------------------------------------------------------
@@ -1897,10 +2118,4 @@ public final class Fn
 		System.out.println( Arrays.toString( counts ) );
 	}
 
-	
-
-	
-
-	
-	
 }

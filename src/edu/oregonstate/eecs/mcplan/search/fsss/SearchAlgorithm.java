@@ -14,8 +14,6 @@ public interface SearchAlgorithm<S extends State, A extends VirtualConstructor<A
 {
 	public abstract FsssAbstractStateNode<S, A> root();
 
-	public abstract void enableLogging();
-
 	public abstract void run();
 
 	public abstract int numRefinements();

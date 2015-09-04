@@ -29,7 +29,6 @@ public final class ExpandedNodeCollector<S extends State, A extends VirtualConst
 	@Override
 	public void onExpand( final FsssAbstractStateNode<S, A> asn )
 	{
-		System.out.println( "\tExpandedNodeCollector.onExpand()" );
 		assert( root_action != null );
 		ArrayList<FsssAbstractStateNode<S, A>> subtree = expanded.get( root_action );
 		if( subtree == null ) {

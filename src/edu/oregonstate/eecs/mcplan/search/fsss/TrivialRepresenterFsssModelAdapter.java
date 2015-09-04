@@ -43,6 +43,14 @@ public class TrivialRepresenterFsssModelAdapter<S extends State, A extends Virtu
 	{ return model.Vmax( s ); }
 	
 	@Override
+	public double Vmin( final S s, final A a )
+	{ return model.Vmin( s, a ); }
+
+	@Override
+	public double Vmax( final S s, final A a )
+	{ return model.Vmax( s, a ); }
+	
+	@Override
 	public double heuristic( final S s )
 	{ return model.heuristic( s ); }
 

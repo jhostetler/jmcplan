@@ -34,12 +34,6 @@ public class FsssActionNode<S extends State, A extends VirtualConstructor<A>>
 		this.s = s;
 		this.a = a;
 		this.r = model.reward( s, a );
-		// FIXME: This is incorrect. We need either:
-		// 1. To know the Vmax of successors (not an option)
-		// 2. To have a different Vmax( s, a )
-		// 3. To bring back Vmax() (no arguments)
-		//
-		// Note: Resolved with option #2
 		this.U = model.Vmax( s, a );
 		this.L = model.Vmin( s, a );
 		this.depth = predecessor.depth;
@@ -131,9 +125,9 @@ public class FsssActionNode<S extends State, A extends VirtualConstructor<A>>
 		return snprime;
 	}
 	
-	public void leaf()
-	{
-		L = r;
-		U = L;
-	}
+//	public void leaf()
+//	{
+//		L = r;
+//		U = L;
+//	}
 }

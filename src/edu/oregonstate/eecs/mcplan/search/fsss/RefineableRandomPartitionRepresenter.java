@@ -6,6 +6,7 @@ package edu.oregonstate.eecs.mcplan.search.fsss;
 import java.util.ArrayList;
 
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
+import edu.oregonstate.eecs.mcplan.LoggerManager;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.abstraction.IndexRepresentation;
@@ -43,6 +44,8 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 	
 	// -----------------------------------------------------------------------
 
+	private final ch.qos.logback.classic.Logger Log = LoggerManager.getLogger( "log.search" );
+	
 	public RefineableRandomPartitionRepresenter( final FsssModel<S, A> model,
 			final FsssAbstraction<S, A> abstraction )
 	{
@@ -106,9 +109,9 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 			final DataNode<S, A> child = best_path.get( i + 1 );
 			final DataNode<S, A> check = ((MapBinarySplitNode<S, A>) parent.split).assignments.put( x, child );
 			// TODO: Debugging code
-			if( check != null && check != child ) {
-				System.out.println( "\t! check = " + check );
-				System.out.println( "\t! child = " + child );
+			if( Log.isDebugEnabled() && check != null && check != child ) {
+				Log.debug( "\t! check = {}", check );
+				Log.debug( "\t! child = {}", child );
 			}
 			
 			assert( check == null || check == child );
@@ -117,21 +120,21 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 		return best_path.get( best_path.size() - 1 );
 	}
 	
-	@Override
-	public void prune()
-	{
-		for( final DataNode<S, A> root : dt_roots.values() ) {
-			if( root.split != null ) {
-				pruneDtSubtree( root );
-			}
-			if( root.split == null ) {
-				if( root.aggregate == null ) {
-					System.out.println( "\t! prune(): null root " + root );
-				}
-				assert( root.aggregate != null );
-			}
-		}
-	}
+//	@Override
+//	public void prune()
+//	{
+//		for( final DataNode<S, A> root : dt_roots.values() ) {
+//			if( root.split != null ) {
+//				pruneDtSubtree( root );
+//			}
+//			if( root.split == null ) {
+//				if( Log.isDebugEnabled() && root.aggregate == null ) {
+//					Log.debug( "\t! prune(): null root " + root );
+//				}
+//				assert( root.aggregate != null );
+//			}
+//		}
+//	}
 	
 	/**
 	 * If all of a split node's children have null aggregates, we want to
@@ -140,69 +143,51 @@ public class RefineableRandomPartitionRepresenter<S extends State, A extends Vir
 	 * node to the level of the split node.
 	 * @param dn
 	 */
-	private void pruneDtSubtree( final DataNode<S, A> dn )
-	{
-		assert( dn.split != null ); // dn is a split node
-		assert( dn.aggregate == null );
-		
-		final ArrayList<DataNode<S, A>> leaves = new ArrayList<DataNode<S, A>>();
-		for( final DataNode<S, A> succ : Fn.in( dn.split.children() ) ) {
-			// First do the recursive call
-			if( succ.split != null ) {
-				assert( succ.aggregate == null );
-				pruneDtSubtree( succ );
-			}
-			
-			// succ.aggregate == null could have already been true, or it
-			// could have become true during the recursive call
-//			if( succ.split == null ) {
-				if( succ.split == null && succ.aggregate == null ) {
-					System.out.println( "\tpruntDtSubtree(): succ.aggregate == null " + succ );
-					// The data node has no members;
-					final boolean check = dt_leaves.remove( succ );
-	//				assert( check );
-				}
-				else {
-					leaves.add( succ );
-				}
-//			}
-		}
-		
+//	private void pruneDtSubtree( final DataNode<S, A> dn )
+//	{
+//		assert( dn.split != null ); // dn is a split node
+//		assert( dn.aggregate == null );
+//
 //		final ArrayList<DataNode<S, A>> leaves = new ArrayList<DataNode<S, A>>();
 //		for( final DataNode<S, A> succ : Fn.in( dn.split.children() ) ) {
+//			// First do the recursive call
 //			if( succ.split != null ) {
 //				assert( succ.aggregate == null );
 //				pruneDtSubtree( succ );
 //			}
-//			else if( succ.aggregate == null ) {
+//
+//			// succ.aggregate == null could have already been true, or it
+//			// could have become true during the recursive call
+//			if( succ.split == null && succ.aggregate == null ) {
+//				Log.debug( "\tpruntDtSubtree(): succ.aggregate == null " + succ );
 //				// The data node has no members;
 //				final boolean check = dt_leaves.remove( succ );
-//				assert( check );
+////				assert( check );
 //			}
 //			else {
 //				leaves.add( succ );
 //			}
 //		}
-		
-		if( leaves.isEmpty() ) {
-			System.out.println( "\tpruneDtSubtree(): no children for " + dn );
-			// Branch is dead. This node will be removed when control
-			// returns to parent.
-			dn.aggregate = null;
-			dn.split = null;
-		}
-		else if( leaves.size() == 1 ) {
-			System.out.println( "\tpruneDtSubtree(): singleton child for " + dn );
-			System.out.println( "\t\t" + leaves.get( 0 ) );
-			// dn is a redundant split node because it has only one child
-			dn.aggregate = leaves.get( 0 ).aggregate;
-			dn.split = leaves.get( 0 ).split;
-			assert( dn.aggregate != null ^ dn.split != null );
-		}
-		else {
-			// Everything's fine
-		}
-	}
+//
+//		if( leaves.isEmpty() ) {
+//			Log.debug( "\tpruneDtSubtree(): no children for " + dn );
+//			// Branch is dead. This node will be removed when control
+//			// returns to parent.
+//			dn.aggregate = null;
+//			dn.split = null;
+//		}
+//		else if( leaves.size() == 1 ) {
+//			Log.debug( "\tpruneDtSubtree(): singleton child for " + dn );
+//			Log.debug( "\t\t" + leaves.get( 0 ) );
+//			// dn is a redundant split node because it has only one child
+//			dn.aggregate = leaves.get( 0 ).aggregate;
+//			dn.split = leaves.get( 0 ).split;
+//			assert( dn.aggregate != null ^ dn.split != null );
+//		}
+//		else {
+//			// Everything's fine
+//		}
+//	}
 	
 	@Override
 	public Object proposeRefinement( final FsssAbstractActionNode<S, A> aan )

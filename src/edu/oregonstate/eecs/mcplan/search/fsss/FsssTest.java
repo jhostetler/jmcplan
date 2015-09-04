@@ -72,8 +72,10 @@ public class FsssTest
 			out.print( "-+" );
 		}
 		out.println( sn );
-		for( final FsssAbstractActionNode<?, ?> an : sn.successors() ) {
-			printTree( an, out, ws + 1 );
+		if( sn != null ) {
+			for( final FsssAbstractActionNode<?, ?> an : sn.successors() ) {
+				printTree( an, out, ws + 1 );
+			}
 		}
 	}
 	
@@ -84,24 +86,52 @@ public class FsssTest
 		}
 		out.println( an );
 		
-		for( final DataNode<?, ?> dn : an.repr.dt_roots.values() ) {
-			printDecisionTree( dn, out, ws + 1 );
-		}
+		if( an != null ) {
 		
-		for( final FsssAbstractStateNode<?, ?> sn : an.successors() ) {
-			printTree( sn, out, ws + 1 );
+			for( final DataNode<?, ?> dn : an.repr.dt_roots.values() ) {
+				printDecisionTree( dn, out, ws + 1 );
+			}
+			
+			for( final FsssAbstractStateNode<?, ?> sn : an.successors() ) {
+				printTree( sn, out, ws + 1 );
+			}
+		}
+	}
+	
+	public static <S extends State, A extends VirtualConstructor<A>>
+	FsssAbstractStateNode<S, A> findRoot( final FsssAbstractStateNode<S, A> asn )
+	{
+		if( asn.predecessor == null ) {
+			return asn;
+		}
+		else {
+			return findRoot( asn.predecessor );
 		}
 	}
 	
 	public static <S extends State, A extends VirtualConstructor<A>>
 	FsssAbstractStateNode<S, A> findRoot( final FsssAbstractActionNode<S, A> aan )
 	{
-		final FsssAbstractStateNode<S, A> pred = aan.predecessor;
-		if( pred.predecessor == null ) {
-			return pred;
+		return findRoot( aan.predecessor );
+	}
+	
+	public static void printAncestorChain( final FsssAbstractStateNode<?, ?> asn )
+	{
+		final ArrayList<String> strings = new ArrayList<String>();
+		strings.add( asn.toString() );
+		FsssAbstractActionNode<?, ?> aan_pred = asn.predecessor;
+		while( aan_pred != null ) {
+			strings.add( aan_pred.toString() );
+			final FsssAbstractStateNode<?, ?> asn_pred = aan_pred.predecessor;
+			strings.add( asn_pred.toString() );
+			aan_pred = asn_pred.predecessor;
 		}
-		else {
-			return findRoot( pred.predecessor );
+		
+		for( int i = 0; i < strings.size(); ++i ) {
+			for( int indent = 0; indent < i; ++indent ) {
+				System.out.print( "=>" );
+			}
+			System.out.println( strings.get( strings.size() - 1 - i ) );
 		}
 	}
 	
@@ -256,6 +286,11 @@ public class FsssTest
 						errors.add( "@" + Integer.toHexString( asn.hashCode() )
 									+ ": asn.L() [" + asn.L() + "] != check_L [" + check_L + "]" );
 					}
+				}
+				
+				if( asn.U() - asn.L() < 0 ) {
+					errors.add( "@" + Integer.toHexString( asn.hashCode() )
+								+ ": asn.U() [" + asn.U() + "] - asn.L() [" + asn.L() + "] < 0" );
 				}
 				
 //				if( asn.U() - model_U > 1e-6 ) {

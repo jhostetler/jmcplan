@@ -175,7 +175,8 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 		final int proj_x = s.x + s.dx;
 		final int proj_y = s.y + s.dy;
 		
-		final Iterable<Point> line_cover = lineCover( s.x, s.y, proj_x, proj_y );
+//		final Iterable<Point> line_cover = lineCover( s.x, s.y, proj_x, proj_y );
+		final Iterable<Point> line_cover = rasterLineBresenham( s.x, s.y, proj_x, proj_y );
 		
 		Point prev = null;
 		for( final Point p : line_cover ) {
@@ -230,6 +231,54 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 			this.x = x;
 			this.y = y;
 		}
+		
+		@Override
+		public String toString()
+		{ return "(" + x + ", " + y + ")"; }
+	}
+	
+	/**
+	 * Bresenham's algorithm for rasterizing a line.
+	 * <p>
+	 * Note that this algorithm does *not* return every cell that the line
+	 * would pass through. That is what lineCover() attempts to do.
+	 * <p>
+	 * Adapted from:
+	 * http://tomasjanecek.cz/en/clanky/post/trivial-dda-and-bresenham-algorithm-for-a-line-in-java
+	 * <p>
+	 * Note that the linked implementation does not properly add the starting
+	 * cell if the line consists of more than one pixel.
+	 * @param x1
+	 * @param y1
+	 * @param x2
+	 * @param y2
+	 * @return
+	 */
+	private static Iterable<Point> rasterLineBresenham( int x1, int y1, final int x2, final int y2 )
+	{
+		final ArrayList<Point> line = new ArrayList<Point>();
+		line.add( new Point( x1, y1 ) );
+		if( !(x1 == x2 && y1 == y2) ) {
+			final int dx = Math.abs( x2 - x1 );
+			final int dy = Math.abs( y2 - y1 );
+			int diff = dx - dy;
+			
+			final int shift_x = (x1 < x2 ? 1 : -1);
+			final int shift_y = (y1 < y2 ? 1 : -1);
+			do { // We know the condition is satisfied the first time around
+				final int p = 2 * diff;
+				if( p > -dy ) {
+					diff -= dy;
+					x1 += shift_x;
+				}
+				if( p < dx ) {
+					diff += dx;
+					y1 += shift_y;
+				}
+				line.add( new Point( x1, y1 ) );
+			} while( !(x1 == x2 && y1 == y2) );
+		}
+		return line;
 	}
 	
 	/**
@@ -440,5 +489,43 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 	public String detailString()
 	{
 		return "RacegridSimulator";
+	}
+	
+	// -----------------------------------------------------------------------
+	
+	private static void testBresenham( final int x1, final int y1, final int x2, final int y2 )
+	{
+		System.out.println( "(" + x1 + ", " + y1 + ") -> (" + x2 + ", " + y2 + ")" );
+		final Iterable<Point> line = rasterLineBresenham( x1, y1, x2, y2 );
+		for( final Point p : line ) {
+			System.out.println( "\t" + p );
+		}
+	}
+	
+	public static void main( final String[] args )
+	{
+		// Test the collision algorithms
+		testBresenham( 0, 0, 0, 0 );
+		testBresenham( 0, 0, 1, 1 );
+		testBresenham( 0, 0, 0, 2 );
+		testBresenham( 0, 0, 2, 0 );
+		testBresenham( 0, 0, 10, 1 );
+		testBresenham( 0, 0, 100, 1 );
+		testBresenham( 0, 0, 1, 2 );
+		testBresenham( 0, 0, -1, 2 );
+		testBresenham( 0, 0, 1, -2 );
+		testBresenham( 0, 0, -1, -2 );
+		testBresenham( 0, 0, 2, 1 );
+		testBresenham( 0, 0, -2, 1 );
+		testBresenham( 0, 0, 2, -1 );
+		testBresenham( 0, 0, -2, -1 );
+		testBresenham( 1, 2, 0, 0 );
+		testBresenham( -1, 2, 0, 0 );
+		testBresenham( 1, -2, 0, 0 );
+		testBresenham( -1, -2, 0, 0 );
+		testBresenham( 2, 1, 0, 0 );
+		testBresenham( -2, 1, 0, 0 );
+		testBresenham( 2, -1, 0, 0 );
+		testBresenham( -2, -1, 0, 0 );
 	}
 }

@@ -5,6 +5,7 @@ package edu.oregonstate.eecs.mcplan.search.fsss;
 
 import java.util.ArrayList;
 
+import edu.oregonstate.eecs.mcplan.LoggerManager;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
@@ -28,13 +29,13 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 	
 	// -----------------------------------------------------------------------
 	
+	private final ch.qos.logback.classic.Logger Log = LoggerManager.getLogger( "log.search" );
+	
 	private final FsssParameters parameters;
 	private final FsssModel<S, A> model;
 	private final FsssAbstractStateNode<S, A> root;
 	
 	private final ArrayList<Listener<S, A>> listeners = new ArrayList<Listener<S, A>>();
-	
-	private boolean use_logging = false;
 	private boolean complete = false;
 	private int min_depth = Integer.MAX_VALUE;
 	
@@ -44,11 +45,6 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 		this.parameters = parameters;
 		this.model = model;
 		this.root = root;
-	}
-	
-	public void setLoggingEnabled( final boolean enabled )
-	{
-		use_logging = enabled;
 	}
 	
 	public boolean isComplete()
@@ -69,9 +65,7 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 				break;
 			}
 			
-			if( use_logging ) {
-				System.out.println( "\tAFSSS: iter " + iter );
-			}
+			Log.trace( "\tAFSSS: iter {}", iter );
 			
 			// Stop search if L(root, a*) >= U(root, a) forall a != a*
 			final ArrayList<FsssAbstractActionNode<S, A>> glb = root.greatestLowerBound(); //root.astar();
@@ -113,21 +107,19 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 //			}
 		}
 		
-		if( use_logging ) {
-			System.out.println( "\t=> FSSS: " + iter + " iterations to convergence" );
-			System.out.println( "\t a* = " + root.astar() );
-			System.out.println( "\t L* = " + root.greatestLowerBound() );
-			System.out.println( "\t Sample count: " + model.sampleCount() );
-		}
+		Log.debug( "\t=> FSSS: {} iterations to convergence", iter );
+		Log.debug( "\t a* = {}", root.astar() );
+		Log.debug( "\t L* = {}", root.greatestLowerBound() );
+		Log.debug( "\t Sample count: {}", model.sampleCount() );
 	}
 	
 	private void fsss( final FsssAbstractStateNode<S, A> asn, final int d )
 	{
-		System.out.println( "\tFSSS: d = " + d + ", asn = " + asn );
+		Log.trace( "\tFSSS: d = {}, asn = {}", d, asn );
 		if( !asn.isTerminal() ) {
 			if( !asn.isExpanded() ) {
 				if( parameters.budget.isExceeded() ) {
-					System.out.println( "\t\tFSSS: Exceeded budget" );
+					Log.info( "\t\tFSSS: Exceeded budget" );
 					return;
 				}
 				asn.expand( model.actions( asn.exemplar().s() ), parameters.width, parameters.budget );
@@ -148,9 +140,9 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 //			}
 			
 			// TODO: Debugging code
-			if( astar == null ) {
-				FsssTest.printTree( root, System.out, 1 );
-				System.out.println( asn );
+			if( Log.isDebugEnabled() && astar == null ) {
+				FsssTest.printTree( root, Log, 1 );
+				Log.debug( "{}", asn );
 			}
 			
 //			final FsssAbstractStateNode<S, A> sstar = astar.sstar();
@@ -165,6 +157,10 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 			// non-randomized algorithm. sstar == null should still be an
 			// error if it is not due to running out of budget.
 			if( sstar == null ) {
+				if( !parameters.budget.isExceeded() ) {
+					FsssTest.printTree( root, System.out, 1 );
+				}
+				
 				assert( parameters.budget.isExceeded() );
 				return;
 			}

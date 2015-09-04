@@ -557,6 +557,7 @@ public class SavingProblem
 			attributes.add( new Attribute( "t" ) );
 			attributes.add( new Attribute( "price" ) );
 			attributes.add( new Attribute( "investment" ) );
+			attributes.add( new Attribute( "maturity_t" ) );
 			attributes.add( new Attribute( "invest_t" ) );
 			attributes.add( new Attribute( "loan" ) );
 			attributes.add( new Attribute( "loan_t" ) );
@@ -574,6 +575,7 @@ public class SavingProblem
 			phi[idx++] = s.t;
 			phi[idx++] = s.price;
 			phi[idx++] = s.investment;
+			phi[idx++] = s.maturity_t;
 			phi[idx++] = s.invest_t;
 			phi[idx++] = s.loan;
 			phi[idx++] = s.loan_t;
@@ -615,7 +617,7 @@ public class SavingProblem
 		
 		final int price_min = -4;
 		final int price_max = 4;
-		final int maturity_period = 2;
+		final int maturity_period = 3;
 		final int invest_period = 4;
 		final int loan_period = 4;
 		

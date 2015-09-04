@@ -69,7 +69,8 @@ public class FsssTreeStatistics<S extends State, A extends VirtualConstructor<A>
 	private int subtree_ground_size = 0;
 	private int subtree_num_leaves = 0;
 	private ArrayList<MeanVarianceAccumulator> subtree_depth_branching = null;
-	private int tree_num_samples = 0;
+	public int tree_abstract_size = 0;
+	public int tree_ground_size = 0;
 	
 	private A subtree_action = null;
 	private SubtreeStatistics<S, A> subtree_stats = null;
@@ -97,7 +98,8 @@ public class FsssTreeStatistics<S extends State, A extends VirtualConstructor<A>
 	public void visitRoot( final FsssAbstractStateNode<S, A> root )
 	{
 		root_depth = root.depth;
-		tree_num_samples = 0;
+		tree_abstract_size = 0;
+		tree_ground_size = 0;
 		
 		final FsssAbstractActionNode<S, A> astar = root.astar();
 		
@@ -133,8 +135,8 @@ public class FsssTreeStatistics<S extends State, A extends VirtualConstructor<A>
 			}
 		}
 		
-		num_samples.add( tree_num_samples );
-		min_max_samples.add( tree_num_samples );
+		num_samples.add( tree_ground_size );
+		min_max_samples.add( tree_ground_size );
 	}
 	
 	public void visitActionNode( final FsssAbstractActionNode<S, A> aan )
@@ -155,8 +157,9 @@ public class FsssTreeStatistics<S extends State, A extends VirtualConstructor<A>
 	public void visitStateNode( final FsssAbstractStateNode<S, A> asn )
 	{
 		subtree_abstract_size += 1;
+		tree_abstract_size += 1;
 		subtree_ground_size += asn.states().size();
-		tree_num_samples += asn.states().size();
+		tree_ground_size += asn.states().size();
 		
 		if( asn.isTerminal() || asn.nvisits() == 0 ) {
 			final int increasing_depth = increasingDepth( asn.depth );

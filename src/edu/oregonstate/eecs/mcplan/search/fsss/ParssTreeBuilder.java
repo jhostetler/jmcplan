@@ -6,6 +6,7 @@ package edu.oregonstate.eecs.mcplan.search.fsss;
 import java.util.ArrayList;
 
 import edu.oregonstate.eecs.mcplan.IdentityRepresentation;
+import edu.oregonstate.eecs.mcplan.LoggerManager;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Fn;
@@ -17,6 +18,8 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
 public class ParssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 	implements SearchAlgorithm<S, A>
 {
+	private final ch.qos.logback.classic.Logger Log = LoggerManager.getLogger( "log.search" );
+	
 	private final FsssParameters parameters;
 	private final FsssModel<S, A> model;
 	private final FsssAbstractStateNode<S, A> root;
@@ -28,8 +31,6 @@ public class ParssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 	
 	private int num_refinements = 0;
 	private int num_lead_changes = 0;
-	
-	private boolean use_logging = false;
 	
 	public ParssTreeBuilder( final FsssParameters parameters,
 							   final FsssModel<S, A> model, final FsssAbstraction<S, A> abstraction,
@@ -75,12 +76,6 @@ public class ParssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 	}
 	
 	@Override
-	public void enableLogging()
-	{
-		use_logging = true;
-	}
-	
-	@Override
 	public int numRefinements()
 	{
 		return num_refinements;
@@ -101,7 +96,6 @@ public class ParssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 		
 		// AB-FSSS
 		final AbstractFsss<S, A> fsss = new AbstractFsss<S, A>( parameters, model, root );
-		fsss.setLoggingEnabled( use_logging );
 		fsss.run();
 		
 		ArrayList<FsssAbstractActionNode<S, A>> lstar = Fn.copy( root.greatestLowerBound() );
@@ -110,30 +104,15 @@ public class ParssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 			final PriorityRefinementOrder<S, A> refinement_order
 				= refinement_order_factory.create( parameters, model, root );
 			
-			if( use_logging ) {
-				System.out.println( " ===== Before refinement ===== " );
-				FsssTest.printTree( root, System.out, 0 );
-				System.out.println( "********************" );
-				
-				final ArrayList<String> errors = FsssTest.validateTree( root(), model );
-				System.out.println( "\tvalidateTrees(): " + errors.size() + " errors" );
-				for( int i = 0; i < errors.size(); ++i ) {
-					System.out.println( "\t\t[" + i + "] " + errors.get( i ) );
-				}
-				
-				final ArrayList<String> dt_errors = FsssTest.validateAllDecisionTrees( root() );
-				System.out.println( "\tvalidateAllDecisionTrees(): " + dt_errors.size() + " errors" );
-				for( int i = 0; i < dt_errors.size(); ++i ) {
-					System.out.println( "\t\t[" + i + "] " + dt_errors.get( i ) );
-				}
+			if( Log.isDebugEnabled() ) {
+				Log.debug( " ===== Before refinement ===== " );
+				logDiagnostics();
 			}
 			
 			while( !parameters.budget.isExceeded() ) {
 				if( refinement_order.isClosed() ) {
 					// Tree is fully refined.
-					if( use_logging ) {
-						System.out.println( "\t+++++ Tree is fully refined +++++" );
-					}
+					Log.info( "\t+++++ Tree is fully refined +++++" );
 					break;
 				}
 				
@@ -146,49 +125,40 @@ public class ParssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 				final ArrayList<FsssAbstractActionNode<S, A>> lprime = Fn.copy( root.greatestLowerBound() );
 				lstar.retainAll( lprime );
 				if( lstar.isEmpty() ) {
-					if( use_logging ) {
-						System.out.println( "\t\tLead change!" );
-					}
+					Log.debug( "\t\tLead change!" );
 					num_lead_changes += 1;
 				}
 				lstar = lprime;
 				
-				if( use_logging ) {
-					System.out.println( " ===== After refinement ===== " );
-					FsssTest.printTree( root, System.out, 0 );
-					
-					final ArrayList<String> errors = FsssTest.validateTree( root(), model );
-					System.out.println( "\tvalidateTrees(): " + errors.size() + " errors" );
-					for( int i = 0; i < errors.size(); ++i ) {
-						System.out.println( "\t\t[" + i + "] " + errors.get( i ) );
-					}
-					
-					final ArrayList<String> dt_errors = FsssTest.validateAllDecisionTrees( root() );
-					System.out.println( "\tvalidateAllDecisionTrees(): " + dt_errors.size() + " errors" );
-					for( int i = 0; i < dt_errors.size(); ++i ) {
-						System.out.println( "\t\t[" + i + "] " + dt_errors.get( i ) );
-					}
+				if( Log.isDebugEnabled() ) {
+					Log.debug( " ===== After refinement ===== " );
+					logDiagnostics();
 				}
 			}
 		}
 		
-		if( use_logging ) {
-			System.out.println( " ===== Final ===== " );
-			FsssTest.printTree( root, System.out, 0 );
+		if( Log.isDebugEnabled() ) {
+			Log.debug( " ===== Final ===== " );
+			logDiagnostics();
+		}
+	}
 	
-			System.out.println( "\t==> Sample count = " + model.sampleCount() );
-			
-			final ArrayList<String> errors = FsssTest.validateTree( root(), model );
-			System.out.println( "\tvalidateTrees(): " + errors.size() + " errors" );
-			for( int i = 0; i < errors.size(); ++i ) {
-				System.out.println( "\t\t[" + i + "] " + errors.get( i ) );
-			}
-			
-			final ArrayList<String> dt_errors = FsssTest.validateAllDecisionTrees( root() );
-			System.out.println( "\tvalidateAllDecisionTrees(): " + dt_errors.size() + " errors" );
-			for( int i = 0; i < dt_errors.size(); ++i ) {
-				System.out.println( "\t\t[" + i + "] " + dt_errors.get( i ) );
-			}
+	private void logDiagnostics()
+	{
+		FsssTest.printTree( root, Log, 0 );
+	
+		Log.debug( "\t==> Sample count = {}", model.sampleCount() );
+		
+		final ArrayList<String> errors = FsssTest.validateTree( root(), model );
+		Log.debug( "\tvalidateTrees(): {} errors", errors.size() );
+		for( int i = 0; i < errors.size(); ++i ) {
+			Log.debug( "\t\t[{}] {}", i, errors.get( i ) );
+		}
+		
+		final ArrayList<String> dt_errors = FsssTest.validateAllDecisionTrees( root() );
+		Log.debug( "\tvalidateAllDecisionTrees(): {} errors", dt_errors.size() );
+		for( int i = 0; i < dt_errors.size(); ++i ) {
+			Log.debug( "\t\t[{}] {}", i, dt_errors.get( i ) );
 		}
 	}
 }

@@ -22,18 +22,20 @@ public abstract class FactoredRepresentation<S> extends Representation<S>
 	public abstract FactoredRepresentation<S> copy();
 	
 	@Override
-	public final boolean equals( final Object obj )
+	public boolean equals( final Object obj )
 	{
 		if( obj == null || !(obj instanceof FactoredRepresentation) ) {
 			return false;
 		}
+		// We want a type error here if we've accidentally compared
+		// representations of two things.
 		@SuppressWarnings( "unchecked" )
-		final FactoredRepresentation<S> that = (ArrayFactoredRepresentation<S>) obj;
+		final FactoredRepresentation<S> that = (FactoredRepresentation<S>) obj;
 		return Arrays.equals( phi(), that.phi() );
 	}
 
 	@Override
-	public final int hashCode()
+	public int hashCode()
 	{
 		return Arrays.hashCode( phi() );
 	}

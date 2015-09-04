@@ -88,9 +88,6 @@ public class SpBjFsssModel extends FsssModel<SpBjState, SpBjAction>
 		return s.r;
 	}
 
-	/**
-	 * @see edu.oregonstate.eecs.mcplan.search.fsss.FsssModel#reward(edu.oregonstate.eecs.mcplan.State, java.lang.Object)
-	 */
 	@Override
 	public double reward( final SpBjState s, final SpBjAction a )
 	{

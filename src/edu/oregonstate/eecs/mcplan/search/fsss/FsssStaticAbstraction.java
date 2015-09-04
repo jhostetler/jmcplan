@@ -36,7 +36,7 @@ public class FsssStaticAbstraction<S extends State, A extends VirtualConstructor
 	@Override
 	public ClassifierRepresenter<S, A> createRepresenter()
 	{
-		return new RefineableRepresenterWrapper<S, A>( model, this );
+		return new StaticClassifierRepresenter<S, A>( model, this );
 	}
 
 }

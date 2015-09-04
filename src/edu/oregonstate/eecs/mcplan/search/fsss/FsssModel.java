@@ -14,10 +14,45 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
 /**
  * Provides the domain-specific functions that we need for FSSS.
+ * <p>
+ * FIXME: Should separate out the "dynamics" parts, since we want to be able
+ * to run them with different RNGs. There's a lot of places in the code where
+ * we pass around an FsssModel because we need access to ie. base_repr, and
+ * it's not obvious whether it matters which RNG is associated with the model
+ * we pass to these methods.
+ * 
+ * TODO: should we remove R(s, a) and instead have sampleTransition return a
+ * (reward, next state) tuple? In some domains (e.g. Tetris), calculating the
+ * reward for an action basically requires simulating a transition. R(s, a) is
+ * used only by the constructor of FsssActionNode, and the value will be
+ * overwritten before it's used when GAN.sample() is called.
+ * 
+ * Note that for the time being we wrote Tetris to have only state rewards.
  */
 public abstract class FsssModel<S extends State, A extends VirtualConstructor<A>>
 {
+	/**
+	 * Create a new instance of this model using a different RandomGenerator.
+	 * <p>
+	 * Parameters should be copied, but internal state should be reset.
+	 * 
+	 * @param rng
+	 * @return
+	 */
+	public abstract FsssModel<S, A> create( final RandomGenerator rng );
+	
+	/**
+	 * Must include R(s).
+	 * @param s
+	 * @return
+	 */
 	public abstract double Vmin( final S s );
+	
+	/**
+	 * Must include R(s).
+	 * @param s
+	 * @return
+	 */
 	public abstract double Vmax( final S s );
 	
 	/**
@@ -31,7 +66,9 @@ public abstract class FsssModel<S extends State, A extends VirtualConstructor<A>
 	public abstract double Vmin( final S s, final A a );
 	
 	/**
-	 * @see edu.oregonstate.eecs.mcplan.search.fsss.FsssModel.Vmin(S,A)
+	 * Initial value of U(s, a). Must include the reward R(s, a). Must *not*
+	 * include R(s). Typically, this will be something like:
+	 * 		Vmax( s, a ) = reward( s, a ) + max_{s' \in succ(s, a)} Vmax( s' )
 	 * @param s
 	 * @param a
 	 * @return
@@ -40,6 +77,11 @@ public abstract class FsssModel<S extends State, A extends VirtualConstructor<A>
 	
 	public abstract double discount();
 	
+	/**
+	 * Note: heuristic should *not* include R(s)!
+	 * @param s
+	 * @return
+	 */
 	public abstract double heuristic( final S s );
 	
 	public abstract RandomGenerator rng();
@@ -53,7 +95,16 @@ public abstract class FsssModel<S extends State, A extends VirtualConstructor<A>
 	 */
 	public abstract Representer<S, ? extends Representation<S>> action_repr();
 	
+	/**
+	 * Returns an initial state.
+	 * <p>
+	 * The FsssModel implementation is allowed to store state for efficiency
+	 * reasons. Thus, the state returned by initialState() is required to be
+	 * valid *only until the next call to initialState()*.
+	 * @return
+	 */
 	public abstract S initialState();
+	
 	public abstract Iterable<A> actions( final S s );
 	public abstract S sampleTransition( final S s, final A a );
 	public abstract double reward( final S s );

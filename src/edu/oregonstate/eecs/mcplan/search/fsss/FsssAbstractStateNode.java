@@ -4,14 +4,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+import edu.oregonstate.eecs.mcplan.LoggerManager;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 
-public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor<A>>
+public final class FsssAbstractStateNode<S extends State, A extends VirtualConstructor<A>>
 {
-
+	private static final ch.qos.logback.classic.Logger Log = LoggerManager.getLogger( "log.search" );
+	
 	public final int depth;
 	public final FsssAbstractActionNode<S, A> predecessor;
 	private final FsssModel<S, A> model;
@@ -81,7 +83,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	{
 		// TODO: Debugging code
 		if( isTerminal() ) {
-			System.out.println( "! " + this );
+			Log.error( "! {}", this );
 		}
 		assert( !isTerminal() );
 		final FsssAbstractActionNode<S, A> previous = successors.put( a, aan );
@@ -96,9 +98,14 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	{
 		final StringBuilder sb = new StringBuilder();
 		sb.append( "[@" ).append( Integer.toHexString( System.identityHashCode( this ) ) )
-		  .append( ": " ).append( x )
-		  .append( " (" ).append( isTerminal() ? "terminal" : "non-terminal" ).append( ")" )
-		  .append( "; nvisits: " ).append( nvisits() )
+		  .append( ": " ).append( x );
+		if( isExpanded() ) {
+		  sb.append( " (" ).append( isTerminal() ? "terminal" : "non-terminal" ).append( ")" );
+		}
+		else {
+			sb.append( " (not expanded)" );
+		}
+		sb.append( "; nvisits: " ).append( nvisits() )
 		  .append( "; states.size(): " ).append( states.size() )
 		  .append( "; R: " ).append( R.mean() )
 		  .append( "; U: " ).append( U )
@@ -124,6 +131,13 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 		
 		// isTerminal() throws if states.isEmpty()
 		if( !states.isEmpty() && isTerminal() != gsn.isTerminal() ) {
+			FsssTest.printTree( FsssTest.findRoot( this ), System.out, 1 );
+			
+			Log.error( "! Adding {} gsn to {} asn", (gsn.isTerminal() ? "terminal" : "non-terminal"),
+						(isTerminal() ? "terminal" : "non-terminal") );
+			Log.error( "!\tGSN: {}", gsn );
+			Log.error( "!\tASN: {}", this );
+			
 			throw new IllegalArgumentException(
 				"Adding " + (gsn.isTerminal() ? "terminal" : "non-terminal")
 				+ " gsn to " + (isTerminal() ? "terminal" : "non-terminal") + " asn" );
@@ -294,7 +308,6 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	public void sample( final int width, final Budget budget )
 	{
 		for( final FsssAbstractActionNode<S, A> an : successors() ) {
-			System.out.print( " !" );
 			an.sample( width, budget );
 		}
 	}
@@ -333,7 +346,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 			
 			// TODO: Debugging code
 			if( check != null ) {
-				System.out.println( "! " + this + ": child for " + a + " already exists " + check );
+				Log.error( "! {}: child for {} already exists {}", this, a, check );
 				FsssTest.printTree( this, System.out, 1 );
 			}
 			
@@ -354,13 +367,17 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 //			System.out.println( "\t\t gsn: " + gsn.nsuccessors() + " successors" );
 ////			assert( false );
 //		}
-//		System.out.println( "ASN.buildSubtree2( " + gsn + ", " + old_asn + " )" );
+		Log.trace( "ASN.buildSubtree2( {}, {} )", gsn, old_asn );
 		
 		// TODO: Debugging code
-//		if( !old_asn.states.contains( gsn ) ) {
-//			System.out.println( "! " + old_asn );
-//			System.out.println( "! Does not contain " + gsn );
-//		}
+		if( !old_asn.states.contains( gsn ) ) {
+			Log.error( "! {}", old_asn );
+			Log.error( "! Does not contain {}", gsn );
+			
+			FsssTest.printAncestorChain( old_asn );
+			
+			FsssTest.printTree( FsssTest.findRoot( old_asn.predecessor ), System.out, 1 );
+		}
 		
 		assert( old_asn.states.contains( gsn ) );
 		
@@ -382,8 +399,7 @@ public class FsssAbstractStateNode<S extends State, A extends VirtualConstructor
 	{
 		FsssAbstractActionNode<S, A> succ = successors.get( gan.a() );
 		if( succ == null ) {
-			// FIXME: The 'aggregate' members of the new decision tree should
-			// be set here (or somewhere else?)
+			// Create empty AAN successor with duplicated repr from 'old_aan'
 			final ClassifierRepresenter<S, A> repr = old_aan.repr.emptyInstance();
 			succ = new FsssAbstractActionNode<S, A>( this, model, abstraction, gan.a(), repr );
 			addSuccessor( gan.a(), succ );

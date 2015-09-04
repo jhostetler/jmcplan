@@ -18,20 +18,40 @@ import org.apache.commons.math3.random.RandomGenerator;
 import ch.qos.logback.classic.Level;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
+import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.JointPolicy;
 import edu.oregonstate.eecs.mcplan.LoggerManager;
 import edu.oregonstate.eecs.mcplan.Policy;
+import edu.oregonstate.eecs.mcplan.Representation;
+import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.domains.advising.AdvisingFsssModel;
 import edu.oregonstate.eecs.mcplan.domains.advising.AdvisingParameters;
 import edu.oregonstate.eecs.mcplan.domains.advising.AdvisingRddlParser;
+import edu.oregonstate.eecs.mcplan.domains.firegirl.FireGirlFsssModel;
+import edu.oregonstate.eecs.mcplan.domains.firegirl.FireGirlLocalFeatureRepresenter;
+import edu.oregonstate.eecs.mcplan.domains.firegirl.FireGirlParameters;
 import edu.oregonstate.eecs.mcplan.domains.inventory.InventoryFsssModel;
 import edu.oregonstate.eecs.mcplan.domains.inventory.InventoryProblem;
+import edu.oregonstate.eecs.mcplan.domains.ipc.crossing.IpcCrossingDomains;
+import edu.oregonstate.eecs.mcplan.domains.ipc.crossing.IpcCrossingFsssModel;
+import edu.oregonstate.eecs.mcplan.domains.ipc.crossing.IpcCrossingState;
+import edu.oregonstate.eecs.mcplan.domains.ipc.elevators.IpcElevatorsDomains;
+import edu.oregonstate.eecs.mcplan.domains.ipc.elevators.IpcElevatorsFsssModel;
+import edu.oregonstate.eecs.mcplan.domains.ipc.elevators.IpcElevatorsState;
+import edu.oregonstate.eecs.mcplan.domains.ipc.tamarisk.IpcTamariskDomains;
+import edu.oregonstate.eecs.mcplan.domains.ipc.tamarisk.IpcTamariskFsssModel;
+import edu.oregonstate.eecs.mcplan.domains.ipc.tamarisk.IpcTamariskReachRepresenter;
+import edu.oregonstate.eecs.mcplan.domains.ipc.tamarisk.IpcTamariskState;
 import edu.oregonstate.eecs.mcplan.domains.racegrid.RacegridCircuits;
 import edu.oregonstate.eecs.mcplan.domains.racegrid.RacegridFsssModel;
 import edu.oregonstate.eecs.mcplan.domains.racegrid.RacegridState;
+import edu.oregonstate.eecs.mcplan.domains.sailing.SailingFsssModel;
+import edu.oregonstate.eecs.mcplan.domains.sailing.SailingState;
+import edu.oregonstate.eecs.mcplan.domains.sailing.SailingWorlds;
 import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjFsssModel;
+import edu.oregonstate.eecs.mcplan.domains.tetris.TetrisFsssModel;
 import edu.oregonstate.eecs.mcplan.domains.toy.CliffWorld;
 import edu.oregonstate.eecs.mcplan.domains.toy.RallyWorld;
 import edu.oregonstate.eecs.mcplan.domains.toy.RelevantIrrelevant;
@@ -52,7 +72,7 @@ import edu.oregonstate.eecs.mcplan.search.fsss.FsssTreeStatistics;
 import edu.oregonstate.eecs.mcplan.search.fsss.L1SplitEvaluator;
 import edu.oregonstate.eecs.mcplan.search.fsss.ParssTreeBuilder;
 import edu.oregonstate.eecs.mcplan.search.fsss.PriorityRefinementOrder;
-import edu.oregonstate.eecs.mcplan.search.fsss.RandomPartitionRepresenter;
+import edu.oregonstate.eecs.mcplan.search.fsss.RandomStaticClassifierRepresenter;
 import edu.oregonstate.eecs.mcplan.search.fsss.RefineableRandomPartitionRepresenter;
 import edu.oregonstate.eecs.mcplan.search.fsss.SearchAlgorithm;
 import edu.oregonstate.eecs.mcplan.search.fsss.SplitEvaluator;
@@ -61,8 +81,10 @@ import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.SplitChoos
 import edu.oregonstate.eecs.mcplan.search.fsss.TrivialRepresenterFsssModelAdapter;
 import edu.oregonstate.eecs.mcplan.search.fsss.priority.BreadthFirstPriorityRefinementOrder;
 import edu.oregonstate.eecs.mcplan.search.fsss.priority.UniformPriorityRefinementOrder;
+import edu.oregonstate.eecs.mcplan.search.fsss.priority.VariancePriorityRefinementOrder;
 import edu.oregonstate.eecs.mcplan.sim.Episode;
 import edu.oregonstate.eecs.mcplan.sim.EpisodeListener;
+import edu.oregonstate.eecs.mcplan.sim.HistoryRecorder;
 import edu.oregonstate.eecs.mcplan.sim.LoggingEpisodeListener;
 import edu.oregonstate.eecs.mcplan.sim.RewardAccumulator;
 import edu.oregonstate.eecs.mcplan.sim.Simulator;
@@ -72,6 +94,9 @@ import edu.oregonstate.eecs.mcplan.util.CsvConfigurationParser;
 import edu.oregonstate.eecs.mcplan.util.KeyValueStore;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 import edu.oregonstate.eecs.mcplan.util.MinMaxAccumulator;
+import gnu.trove.iterator.TObjectIntIterator;
+import gnu.trove.map.TObjectIntMap;
+import gnu.trove.map.hash.TObjectIntHashMap;
 
 /**
  * @author jhostetler
@@ -90,13 +115,13 @@ public class FsssJairExperiments
 		public final String training_data;
 		public final String labels;
 		
-		public final int Ntest_episodes_order;
-		public final int Ntest_episodes;
 		public final int Ntest_games;
 		public final double discount;
-		public final int seed;
+		public final int seed_world;
+		public final int seed_sim;
 		
-		public final RandomGenerator rng;
+		public final RandomGenerator rng_world;
+		public final RandomGenerator rng_sim;
 		public final File data_directory;
 		public final String experiment_name;
 		
@@ -138,12 +163,12 @@ public class FsssJairExperiments
 			labels = config.get( "labels" );
 			exclude_.add( "labels" );
 			
-			Ntest_episodes_order = config.getInt( "Ntest_episodes_order" );
-			Ntest_episodes = 1 << Ntest_episodes_order; // 2^order
 			Ntest_games = config.getInt( "Ntest_games" );
 			discount = config.getDouble( "discount" );
-			seed = config.getInt( "seed" );
-			rng = new MersenneTwister( seed );
+			seed_world = config.getInt( "seed.world" );
+			rng_world = new MersenneTwister( seed_world );
+			seed_sim = config.getInt( "seed.sim" );
+			rng_sim = new MersenneTwister( seed_sim );
 			
 			final StringBuilder sb = new StringBuilder();
 			int count = 0;
@@ -216,6 +241,8 @@ public class FsssJairExperiments
 		private final FsssParameters parameters;
 		
 		private final FsssTreeStatistics<S, A> tree_stats;
+		private final MeanVarianceAccumulator tree_abstract_size = new MeanVarianceAccumulator();
+		private final MinMaxAccumulator min_max_tree_abstract_size = new MinMaxAccumulator();
 		private final MeanVarianceAccumulator num_refinements = new MeanVarianceAccumulator();
 		private final MinMaxAccumulator min_max_refinements = new MinMaxAccumulator();
 		private final MeanVarianceAccumulator num_lead_changes = new MeanVarianceAccumulator();
@@ -274,10 +301,6 @@ public class FsssJairExperiments
 						search = new ParssTreeBuilder<S, A>(
 							parameters, model, abstraction, s, refinement_order_factory );
 					}
-					
-					if( config.getBoolean( "log.search" ) ) {
-						search.enableLogging();
-					}
 				}
 
 				@Override
@@ -291,13 +314,16 @@ public class FsssJairExperiments
 					budget.add( parameters.budget.actualDouble() );
 					
 					tree_stats.visitRoot( search.root() );
+					tree_abstract_size.add( tree_stats.tree_abstract_size );
+					min_max_tree_abstract_size.add( tree_stats.tree_abstract_size );
+					
 					num_refinements.add( search.numRefinements() );
 					min_max_refinements.add( search.numRefinements() );
 					num_lead_changes.add( search.numLeadChanges() );
 					min_max_lead_changes.add( search.numLeadChanges() );
 					
 					final ArrayList<FsssAbstractActionNode<S, A>> best = search.root().greatestLowerBound();
-					final A a = best.get( config.rng.nextInt( best.size() ) ).a().create();
+					final A a = best.get( model.rng().nextInt( best.size() ) ).a().create();
 					return a;
 				}
 
@@ -328,6 +354,8 @@ public class FsssJairExperiments
 			
 			csv.cell( "num_samples_mean" ).cell( "num_samples_var" );
 			csv.cell( "min_samples" ).cell( "max_samples" );
+			csv.cell( "tree_abstract_size_mean" ).cell( "tree_abstract_size_var" );
+			csv.cell( "tree_abstract_size_min" ).cell( "tree_abstract_size_max" );
 			csv.cell( "num_refinements_mean" ).cell( "num_refinements_var" );
 			csv.cell( "min_refinements" ).cell( "max_refinements" );
 			csv.cell( "num_lead_changes_mean" ).cell( "num_lead_changes_var" );
@@ -363,6 +391,8 @@ public class FsssJairExperiments
 			
 			csv.cell( tree_stats.num_samples.mean() ).cell( tree_stats.num_samples.variance() );
 			csv.cell( tree_stats.min_max_samples.min() ).cell( tree_stats.min_max_samples.max() );
+			csv.cell( tree_abstract_size.mean() ).cell( tree_abstract_size.variance() );
+			csv.cell( min_max_tree_abstract_size.min() ).cell( min_max_tree_abstract_size.max() );
 			csv.cell( num_refinements.mean() ).cell( num_refinements.variance() );
 			csv.cell( min_max_refinements.min() ).cell( min_max_refinements.max() );
 			csv.cell( num_lead_changes.mean() ).cell( num_lead_changes.variance() );
@@ -394,9 +424,11 @@ public class FsssJairExperiments
 	
 	private static <S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
-	void runGames( final Configuration config, final FsssModel<S, A> model, final int iter ) throws Exception
+	void runGames( final Configuration config, final FsssModel<S, A> base_model, final int iter ) throws Exception
 	{
-		final Algorithm<S, A> algorithm = createAlgorithm( config, model );
+		// Model with independent RNG for simulation
+		final FsssModel<S, A> sim_model = base_model.create( config.rng_sim );
+		final Algorithm<S, A> algorithm = createAlgorithm( config, sim_model );
 		
 		// Time limit?
 		final String T_str = config.get( config.domain + ".T" );
@@ -416,20 +448,32 @@ public class FsssJairExperiments
 		final MinMaxAccumulator steps_minmax = new MinMaxAccumulator();
 		final boolean use_visualization = config.getBoolean( "log.visualization" );
 		
+		final TObjectIntMap<A> action_histogram = new TObjectIntHashMap<A>();
+		
 //		final ArrayList<ArrayList<Pair<A, Double>>> qtable = new ArrayList<ArrayList<Pair<A, Double>>>();
 		
 		for( int i = 0; i < config.Ntest_games; ++i ) {
 			if( i % print_interval == 0 ) {
 				System.out.println( "Episode " + i );
 			}
-
-			final Policy<S, A> pi = algorithm.getControlPolicy( config, model );
 			
-			final S s0 = model.initialState();
-			final Simulator<S, A> sim = new FsssSimulatorAdapter<S, A>( model, s0 );
+			// episode_model is the "real" world. We seed it from rng_world
+			// to get the same sequence of "real" worlds every time.
+			final RandomGenerator episode_rng = new MersenneTwister( config.rng_world.nextInt() );
+			final FsssModel<S, A> episode_model = base_model.create( episode_rng );
+			final S s0 = episode_model.initialState();
+			
+			// Use sim_model for decision-making
+			final Policy<S, A> pi = algorithm.getControlPolicy( config, sim_model );
+			
+			// Use the episode model for the actual execution episode
+			final Simulator<S, A> sim = new FsssSimulatorAdapter<S, A>( episode_model, s0 );
 			final Episode<S, A> episode	= new Episode<S, A>( sim, new JointPolicy<S, A>( pi ), T );
 			final RewardAccumulator<S, A> racc = new RewardAccumulator<S, A>( sim.nagents(), config.discount );
 			episode.addListener( racc );
+			final HistoryRecorder<S, ? extends Representer<S, ? extends Representation<S>>, A> hacc
+				= new HistoryRecorder<>( base_model.base_repr() );
+			episode.addListener( hacc );
 			
 			if( config.getBoolean( "log.execution" ) ) {
 				final LoggingEpisodeListener<S, A> epi_log = new LoggingEpisodeListener<S, A>();
@@ -463,6 +507,10 @@ public class FsssJairExperiments
 			steps.add( racc.steps() );
 			steps_minmax.add( racc.steps() );
 			
+			for( final JointAction<A> j : hacc.actions ) {
+				action_histogram.adjustOrPutValue( j.get( 0 ), 1, 1 );
+			}
+			
 //			System.out.println( "Reward: " + racc.v()[0] );
 		}
 		
@@ -479,11 +527,21 @@ public class FsssJairExperiments
 		System.out.println( "Steps (var): " + steps.variance() );
 		System.out.println( "Steps (min/max): " + steps_minmax.min() + " -- " + steps_minmax.max() );
 		
+		System.out.println( "Action histogram:" );
+		final TObjectIntIterator<A> ahist_itr = action_histogram.iterator();
+		int total_actions = 0;
+		while( ahist_itr.hasNext() ) {
+			ahist_itr.advance();
+			System.out.println( "" + ahist_itr.key() + ": " + ahist_itr.value() );
+			total_actions += ahist_itr.value();
+		}
+		System.out.println( "total_actions: " + total_actions );
+		
 		// This must happen *after* the statistics object has been populated
-		final Csv.Writer data_out = createDataWriter( config, model, algorithm, iter );
+		final Csv.Writer data_out = createDataWriter( config, algorithm, iter );
 		// See: createDataWriter for correct column order
-		data_out.cell( config.experiment_name ).cell( model.base_repr() ).cell( algorithm )
-				.cell( config.Ntest_episodes ).cell( config.Ntest_games )
+		data_out.cell( config.experiment_name ).cell( base_model.base_repr() ).cell( algorithm )
+				.cell( config.Ntest_games )
 				.cell( ret.mean() ).cell( ret.variance() ).cell( ret.confidence() )
 				.cell( steps.mean() ).cell( steps.variance() ).cell( steps_minmax.min() ).cell( steps_minmax.max() );
 				
@@ -496,8 +554,7 @@ public class FsssJairExperiments
 	}
 	
 	private static <S extends State, A extends VirtualConstructor<A>>
-	Csv.Writer createDataWriter( final Configuration config, final FsssModel<S, A> model,
-								 final Algorithm<S, A> algorithm, final int iter )
+	Csv.Writer createDataWriter( final Configuration config, final Algorithm<S, A> algorithm, final int iter )
 	{
 		Csv.Writer data_out;
 		try {
@@ -507,7 +564,7 @@ public class FsssJairExperiments
 			throw new RuntimeException( ex );
 		}
 		data_out.cell( "experiment_name" ).cell( "base_repr" ).cell( "algorithm" )
-				.cell( "Nepisodes" ).cell( "Ngames" )
+				.cell( "Ngames" )
 				.cell( "V_mean" ).cell( "V_var" ).cell( "V_conf" )
 				.cell( "steps_mean" ).cell( "steps_var" ).cell( "steps_min" ).cell( "steps_max" );
 				
@@ -549,10 +606,6 @@ public class FsssJairExperiments
 		final FsssAbstraction<S, A> abstraction;
 		final PriorityRefinementOrder.Factory<S, A> priority_factory;
 		if( "par".equals( config.get( "ss.abstraction" ) ) ) {
-			// FIXME: It isn't quite right to divide the algorithm into
-			// 'classifier' and 'refinement_order', because some refinement
-			// orders assume a particular classifier (e.g. 'heuristic'
-			// subtree order assumes 'PartitionTreeRefinementAbstraction').
 			if( "decision_tree".equals( config.get( "par.classifier" ) ) ) {
 				final SplitChooser<S, A> split_chooser = createSplitChooser( config, parameters, model );
 				abstraction = new FsssPartitionTreeRefinementAbstraction<S, A>( model, split_chooser );
@@ -565,16 +618,16 @@ public class FsssJairExperiments
 			}
 			priority_factory = createPriorityOrderingFactory( config );
 		}
-		else if( "random_partition".equals( config.get( "ss.abstraction" ) ) ) {
-			final int k = config.getInt( "random_partition.k" );
-			abstraction = new RandomPartitionRepresenter.Abstraction<S, A>( model, k );
+		else if( "random".equals( config.get( "ss.abstraction" ) ) ) {
+			final int k = config.getInt( "random_abstraction.k" );
+			abstraction = new RandomStaticClassifierRepresenter.Abstraction<S, A>( model, k );
 			priority_factory = null;
 		}
-		else if( "static".equals( config.get( "ss.abstraction" ) ) ) {
+		else if( "ground".equals( config.get( "ss.abstraction" ) ) ) {
 			abstraction = new FsssStaticAbstraction<S, A>( model );
 			priority_factory = null;
 		}
-		else if( "trivial".equals( config.get( "ss.abstraction" ) ) ) {
+		else if( "top".equals( config.get( "ss.abstraction" ) ) ) {
 			abstraction = new FsssStaticAbstraction<S, A>( new TrivialRepresenterFsssModelAdapter<S, A>( model ) );
 			priority_factory = null;
 		}
@@ -594,6 +647,9 @@ public class FsssJairExperiments
 		}
 		else if( "uniform".equals( refinement_order ) ) {
 			return new UniformPriorityRefinementOrder.Factory<S, A>();
+		}
+		else if( "variance".equals( refinement_order ) ) {
+			return new VariancePriorityRefinementOrder.Factory<S, A>();
 		}
 		else {
 			throw new IllegalArgumentException( "par.priority" );
@@ -657,7 +713,8 @@ public class FsssJairExperiments
 			final Configuration config = new Configuration(
 					root_directory.getPath(), experiment_name, expr_config );
 			
-			LoggerManager.getLogger( "log.search" ).setLevel( Level.valueOf( config.get( "log.search") ) );
+			LoggerManager.getLogger( "log.domain" ).setLevel( Level.valueOf( config.get( "log.domain" ) ) );
+			LoggerManager.getLogger( "log.search" ).setLevel( Level.valueOf( config.get( "log.search" ) ) );
 			
 			if( "advising".equals( config.domain ) ) {
 				final File domain = new File( config.root_directory, config.get( "rddl.domain" ) + ".rddl" );
@@ -665,12 +722,35 @@ public class FsssJairExperiments
 				final int max_grade = config.getInt( "advising.max_grade" );
 				final int passing_grade = config.getInt( "advising.passing_grade" );
 				final AdvisingParameters params = AdvisingRddlParser.parse(
-						config.rng, max_grade, passing_grade, domain, instance );
+						config.rng_world, max_grade, passing_grade, domain, instance );
 				final AdvisingFsssModel model = new AdvisingFsssModel( params );
 				runGames( config, model, expr );
 			}
 			else if( "cliffworld".equals( config.domain ) ) {
-				final CliffWorld.FsssModel model = new CliffWorld.FsssModel( config.rng, config );
+				final CliffWorld.FsssModel model = new CliffWorld.FsssModel( config.rng_world, config );
+				runGames( config, model, expr );
+			}
+			else if( "crossing".equals( config.domain ) ) {
+				final File domain = new File( config.get( "rddl.domain" ) + ".rddl" );
+				final File instance = new File( config.get( "rddl.instance" ) + ".rddl" );
+				final IpcCrossingState s0 = IpcCrossingDomains.parse( domain, instance );
+				final IpcCrossingFsssModel model = new IpcCrossingFsssModel( config.rng_world, s0 );
+				runGames( config, model, expr );
+			}
+			else if( "elevators".equals( config.domain ) ) {
+				final File domain = new File( config.get( "rddl.domain" ) + ".rddl" );
+				final File instance = new File( config.get( "rddl.instance" ) + ".rddl" );
+				final IpcElevatorsState s0 = IpcElevatorsDomains.parse( domain, instance );
+				final IpcElevatorsFsssModel model = new IpcElevatorsFsssModel( config.rng_world, s0 );
+				runGames( config, model, expr );
+			}
+			else if( "firegirl".equals( config.domain ) ) {
+				final int T = config.getInt( "firegirl.T" );
+				final double discount = config.getDouble( "discount" );
+				// TODO: Make parameter
+				final FireGirlLocalFeatureRepresenter base_repr = new FireGirlLocalFeatureRepresenter();
+				final FireGirlParameters params = new FireGirlParameters( T, discount, base_repr );
+				final FireGirlFsssModel model = new FireGirlFsssModel( params, config.rng_world );
 				runGames( config, model, expr );
 			}
 			else if( "inventory".equals( config.domain ) ) {
@@ -691,7 +771,7 @@ public class FsssJairExperiments
 				else {
 					throw new IllegalArgumentException( "inventory.problem" );
 				}
-				final InventoryFsssModel model = new InventoryFsssModel( config.rng, problem );
+				final InventoryFsssModel model = new InventoryFsssModel( config.rng_world, problem );
 				runGames( config, model, expr );
 			}
 			else if( "racegrid".equals( config.domain ) ) {
@@ -700,39 +780,74 @@ public class FsssJairExperiments
 				final int T = config.getInt( "racegrid.T" );
 				final RacegridState ex;
 				if( "bbs_small".equals( circuit ) ) {
-					ex = RacegridCircuits.barto_bradtke_singh_SmallTrack( config.rng, T, scale );
+					ex = RacegridCircuits.barto_bradtke_singh_SmallTrack( config.rng_world, T, scale );
 				}
 				else if( "bbs_large".equals( circuit ) ) {
-					ex = RacegridCircuits.barto_bradtke_singh_LargeTrack( config.rng, T, scale );
+					ex = RacegridCircuits.barto_bradtke_singh_LargeTrack( config.rng_world, T, scale );
 				}
 				else {
 					throw new IllegalArgumentException( "racegrid.circuit" );
 				}
 				final double slip = config.getDouble( "racegrid.slip" );
-				final RacegridFsssModel model = new RacegridFsssModel( config.rng, ex, slip );
+				final RacegridFsssModel model = new RacegridFsssModel( config.rng_world, ex, slip );
 				runGames( config, model, expr );
 			}
 			else if( "rally".equals( config.domain ) ) {
-				final RallyWorld.Parameters params = new RallyWorld.Parameters( config.rng, config );
+				final RallyWorld.Parameters params = new RallyWorld.Parameters( config.rng_world, config );
 				final RallyWorld.FsssModel model = new RallyWorld.FsssModel( params );
 				runGames( config, model, expr );
 			}
 			else if( "relevant_irrelevant".equals( config.domain ) ) {
-				final RelevantIrrelevant.Parameters params = new RelevantIrrelevant.Parameters( config.rng, config );
+				final RelevantIrrelevant.Parameters params = new RelevantIrrelevant.Parameters( config.rng_world, config );
 				final RelevantIrrelevant.FsssModel model = new RelevantIrrelevant.FsssModel( params );
 				runGames( config, model, expr );
 			}
+			else if( "sailing".equals( config.domain ) ) {
+				final String world = config.get( "sailing.world" );
+				final int V = config.getInt( "sailing.V" );
+				final int T = config.getInt( "sailing.T" );
+				final int dim = config.getInt( "sailing.dim" );
+				final SailingState.Factory state_factory;
+				if( "empty".equals( world ) ) {
+					state_factory = new SailingWorlds.EmptyRectangleFactory( V, T, dim, dim );
+				}
+				else if( "island".equals( world ) ) {
+					state_factory = new SailingWorlds.SquareIslandFactory( V, T, dim, dim / 3 );
+				}
+				else if( "random".equals( world ) ) {
+					final double p = config.getDouble( "sailing.p" );
+					state_factory = new SailingWorlds.RandomObstaclesFactory( p, V, T, dim );
+				}
+				else {
+					throw new IllegalArgumentException( "sailing.world" );
+				}
+				final SailingFsssModel model = new SailingFsssModel( config.rng_world, state_factory );
+				runGames( config, model, expr );
+			}
 			else if( "saving".equals( config.domain ) ) {
-				final SavingProblem.Parameters params = new SavingProblem.Parameters( config.rng, config );
+				final SavingProblem.Parameters params = new SavingProblem.Parameters( config.rng_world, config );
 				final SavingProblem.FsssModel model = new SavingProblem.FsssModel( params );
 				runGames( config, model, expr );
 			}
 			else if( "spbj".equals( config.domain ) ) {
-				final SpBjFsssModel model = new SpBjFsssModel( config.rng );
+				final SpBjFsssModel model = new SpBjFsssModel( config.rng_world );
+				runGames( config, model, expr );
+			}
+			else if( "tamarisk".equals( config.domain ) ) {
+				final File domain = new File( config.get( "rddl.domain" ) + ".rddl" );
+				final File instance = new File( config.get( "rddl.instance" ) + ".rddl" );
+				final IpcTamariskState s0 = IpcTamariskDomains.parse( domain, instance );
+				// TODO: Make this a parameter
+				final IpcTamariskReachRepresenter base_repr = new IpcTamariskReachRepresenter( s0.params );
+				final IpcTamariskFsssModel model = new IpcTamariskFsssModel( config.rng_world, s0.params, s0, base_repr );
+				runGames( config, model, expr );
+			}
+			else if( "tetris".equals( config.domain ) ) {
+				final TetrisFsssModel model = new TetrisFsssModel( config.rng_world );
 				runGames( config, model, expr );
 			}
 			else if( "weinstein_littman".equals( config.domain ) ) {
-				final WeinsteinLittman.Parameters params = new WeinsteinLittman.Parameters( config.rng, config );
+				final WeinsteinLittman.Parameters params = new WeinsteinLittman.Parameters( config.rng_world, config );
 				final WeinsteinLittman.FsssModel model = new WeinsteinLittman.FsssModel( params );
 				runGames( config, model, expr );
 			}

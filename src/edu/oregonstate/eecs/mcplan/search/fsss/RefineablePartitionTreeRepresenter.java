@@ -3,8 +3,12 @@
  */
 package edu.oregonstate.eecs.mcplan.search.fsss;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.Iterator;
 
+import edu.oregonstate.eecs.mcplan.LoggerManager;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.abstraction.IndexRepresentation;
@@ -20,6 +24,8 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
 public class RefineablePartitionTreeRepresenter<S extends State, A extends VirtualConstructor<A>>
 	extends RefineableClassifierRepresenter<S, A>
 {
+	private final ch.qos.logback.classic.Logger Log = LoggerManager.getLogger( "log.search" );
+	
 	private final SplitChooser<S, A> split_chooser;
 	
 	public RefineablePartitionTreeRepresenter( final FsssModel<S, A> model, final FsssAbstraction<S, A> abstraction,
@@ -89,7 +95,7 @@ public class RefineablePartitionTreeRepresenter<S extends State, A extends Virtu
 		assert( dn.split != null );
 		final boolean check = dt_leaves.remove( dn );
 		assert( check );
-//		System.out.println( "\tRefining " + dn.aggregate );
+		Log.debug( "\tRefining {}", dn.aggregate );
 		
 		for( final DataNode<S, A> dn_child : Fn.in( dn.split.children() ) ) {
 			dt_leaves.add( dn_child );
@@ -102,7 +108,7 @@ public class RefineablePartitionTreeRepresenter<S extends State, A extends Virtu
 		}
 		
 		dn.aggregate.predecessor.splitSuccessor( dn.aggregate, parts );
-		System.out.println( "\tdoSplit(): Setting aggregate to null: " + dn );
+		Log.debug( "\tdoSplit(): Setting aggregate to null: {}", dn );
 		dn.aggregate = null; // Allow GC of the old ASN
 	}
 	
@@ -112,25 +118,6 @@ public class RefineablePartitionTreeRepresenter<S extends State, A extends Virtu
 		assert( proposal != null );
 		final DataNode<S, A> dn = createSplitNode( aan, proposal );
 		doSplit( dn );
-		
-		/*
-		final boolean check = dt_leaves.remove( dn );
-		assert( check );
-//		System.out.println( "\tRefining " + dn.aggregate );
-		
-		for( final DataNode<S, A> dn_child : Fn.in( dn.split.children() ) ) {
-			dt_leaves.add( dn_child );
-			dn_child.aggregate.visit();
-		}
-		
-		final ArrayList<FsssAbstractStateNode<S, A>> parts = new ArrayList<FsssAbstractStateNode<S, A>>();
-		for( final DataNode<S, A> dn_child : Fn.in( dn.split.children() ) ) {
-			parts.add( dn_child.aggregate );
-		}
-		
-		aan.splitSuccessor( dn.aggregate, parts );
-		dn.aggregate = null; // Allow GC of the old ASN
-		*/
 	}
 
 	@Override
@@ -139,5 +126,118 @@ public class RefineablePartitionTreeRepresenter<S extends State, A extends Virtu
 		final Split split = split_chooser.chooseSplit( dn );
 		createSplitNode( dn, split );
 		doSplit( dn );
+	}
+	
+	@Override
+	public void prune()
+	{
+		// Note: regarding dt_leaves, it's easier to just clear it and
+		// re-build it than to figure out which particular nodes should
+		// be removed/added during pruning, so that's what we do.
+		
+		dt_leaves.clear();
+		final Iterator<DataNode<S, A>> itr = dt_roots.values().iterator();
+//		for( final DataNode<S, A> root : dt_roots.values() ) {
+		while( itr.hasNext() ) {
+			final DataNode<S, A> root = itr.next();
+			if( root.split != null ) {
+				pruneDtSubtree( root );
+			}
+			if( root.split == null ) {
+				if( root.aggregate == null ) {
+					// This happens when a refinement removes an entire
+					// "legal action equivalence class" from the ASN. It was
+					// previously thought to be an error because I was testing
+					// on Saving, where this never happens.
+					
+					Log.warn( "Pruning entire DT: {}", root );
+					itr.remove();
+					continue;
+				}
+				
+//				if( Log.isErrorEnabled() && root.aggregate == null ) {
+//					Log.error( "\t! prune(): null root {}", root );
+//
+//					throw new RuntimeException();
+//				}
+				
+//				assert( root.aggregate != null );
+			}
+			
+			populateDtLeaves( root );
+		}
+	}
+	
+	private void populateDtLeaves( final DataNode<S, A> root )
+	{
+		final Deque<DataNode<S, A>> q = new ArrayDeque<DataNode<S, A>>();
+		q.push( root );
+		while( !q.isEmpty() ) {
+			final DataNode<S, A> dn = q.pop();
+			if( dn.aggregate != null ) {
+				assert( dn.split == null );
+				dt_leaves.add( dn );
+			}
+			else {
+				for( final DataNode<S, A> succ : Fn.in( dn.split.children() ) ) {
+					q.add( succ );
+				}
+			}
+		}
+	}
+	
+	/**
+	 * If all of a split node's children have null aggregates, we want to
+	 * remove the entire subtree under the split node. If all but one of its
+	 * children have null aggregates, we want to promote the single non-null
+	 * node to the level of the split node.
+	 * @param dn
+	 */
+	private void pruneDtSubtree( final DataNode<S, A> dn )
+	{
+		assert( dn.split != null ); // dn is a split node
+		assert( dn.aggregate == null );
+		
+		final ArrayList<DataNode<S, A>> children = new ArrayList<DataNode<S, A>>();
+		for( final DataNode<S, A> succ : Fn.in( dn.split.children() ) ) {
+			// First do the recursive call
+			if( succ.split != null ) {
+				assert( succ.aggregate == null );
+				pruneDtSubtree( succ );
+			}
+			
+			// succ.aggregate == null could have already been true, or it
+			// could have become true during the recursive call
+			if( succ.split == null && succ.aggregate == null ) {
+				Log.debug( "\tpruntDtSubtree(): succ.aggregate == null {}", succ );
+				// The data node has no members;
+//				final boolean check = dt_leaves.remove( succ );
+//				assert( check );
+			}
+			else {
+				children.add( succ );
+			}
+		}
+		
+		if( children.isEmpty() ) {
+			Log.debug( "\tpruneDtSubtree(): no children for {}", dn );
+			// Branch is dead. This node will be removed when control
+			// returns to parent.
+			dn.aggregate = null;
+			dn.split = null;
+		}
+		else if( children.size() == 1 ) {
+			Log.debug( "\tpruneDtSubtree(): singleton child for {}", dn );
+			Log.debug( "\t\t{}", children.get( 0 ) );
+			// dn is a redundant split node because it has only one child
+			// We promote it to the next highest level and update ancestor pointers
+			dn.aggregate = children.get( 0 ).aggregate;
+			dn.split = children.get( 0 ).split;
+			// Exactly one of 'aggregate' and 'split' should be non-null
+			assert( dn.aggregate != null ^ dn.split != null );
+		}
+		else {
+			// Everything's fine
+		}
 	}
 }
