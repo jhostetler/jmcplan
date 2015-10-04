@@ -43,6 +43,10 @@ public final class IpcTamariskState implements State
 	}
 	
 	@Override
+	public void close()
+	{ }
+	
+	@Override
 	public String toString()
 	{
 		final StringBuilder sb = new StringBuilder();

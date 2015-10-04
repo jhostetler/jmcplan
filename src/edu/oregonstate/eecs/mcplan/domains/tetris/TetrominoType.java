@@ -28,7 +28,7 @@ public enum TetrominoType
 									  "..o." } )
 			};
 			
-			public T() { super( I, 4 ); }
+			public T( final TetrisParameters params ) { super( params, I, 4 ); }
 
 			@Override
 			protected void setPositionImpl( final int x, final int y )
@@ -72,8 +72,8 @@ public enum TetrominoType
 		}
 		
 		@Override
-		public Tetromino create()
-		{ return new T(); }
+		public Tetromino create( final TetrisParameters params )
+		{ return new T( params ); }
 	},
 	
 	O {
@@ -85,7 +85,7 @@ public enum TetrominoType
 									  ".oo.",
 									  "...." } );
 			
-			public T() { super( O, 4 ); }
+			public T( final TetrisParameters params ) { super( params, O, 4 ); }
 
 			@Override
 			protected void setPositionImpl( final int x, final int y )
@@ -108,8 +108,8 @@ public enum TetrominoType
 		}
 
 		@Override
-		public Tetromino create()
-		{ return new T(); }
+		public Tetromino create( final TetrisParameters params )
+		{ return new T( params ); }
 	},
 	
 	T() {
@@ -130,7 +130,7 @@ public enum TetrominoType
 									  ".o." } )
 			};
 			
-			public T() { super( T, 3 ); }
+			public T( final TetrisParameters params ) { super( params, T, 3 ); }
 
 			@Override
 			protected void setPositionImpl( final int x, final int y )
@@ -194,8 +194,8 @@ public enum TetrominoType
 		}
 
 		@Override
-		public Tetromino create()
-		{ return new T(); }
+		public Tetromino create( final TetrisParameters params )
+		{ return new T( params ); }
 	},
 	
 	J {
@@ -216,7 +216,7 @@ public enum TetrominoType
 										  ".o." } ),
 			};
 			
-			public T() { super( J, 3 ); }
+			public T( final TetrisParameters params ) { super( params, J, 3 ); }
 
 			@Override
 			protected void setPositionImpl( final int x, final int y )
@@ -280,8 +280,8 @@ public enum TetrominoType
 		}
 
 		@Override
-		public Tetromino create()
-		{ return new T(); }
+		public Tetromino create( final TetrisParameters params )
+		{ return new T( params ); }
 	},
 	
 	L {
@@ -302,7 +302,7 @@ public enum TetrominoType
 										  ".oo" } ),
 			};
 			
-			public T() { super( L, 3 ); }
+			public T( final TetrisParameters params ) { super( params, L, 3 ); }
 
 			@Override
 			protected void setPositionImpl( final int x, final int y )
@@ -366,8 +366,8 @@ public enum TetrominoType
 		}
 
 		@Override
-		public Tetromino create()
-		{ return new T(); }
+		public Tetromino create( final TetrisParameters params )
+		{ return new T( params ); }
 	},
 	
 	S {
@@ -382,7 +382,7 @@ public enum TetrominoType
 										  "..o" } )
 			};
 			
-			public T() { super( S, 3 ); }
+			public T( final TetrisParameters params ) { super( params, S, 3 ); }
 
 			@Override
 			protected void setPositionImpl( final int x, final int y )
@@ -432,8 +432,8 @@ public enum TetrominoType
 		}
 
 		@Override
-		public Tetromino create()
-		{ return new T(); }
+		public Tetromino create( final TetrisParameters params )
+		{ return new T( params ); }
 	},
 	
 	Z {
@@ -448,7 +448,7 @@ public enum TetrominoType
 										  ".o." } )
 			};
 			
-			public T() { super( Z, 3 ); }
+			public T( final TetrisParameters params ) { super( params, Z, 3 ); }
 
 			@Override
 			protected void setPositionImpl( final int x, final int y )
@@ -498,8 +498,8 @@ public enum TetrominoType
 		}
 
 		@Override
-		public Tetromino create()
-		{ return new T(); }
+		public Tetromino create( final TetrisParameters params )
+		{ return new T( params ); }
 	};
 	
 	// -----------------------------------------------------------------------
@@ -509,7 +509,7 @@ public enum TetrominoType
 		return Math.max( Math.min( x, 3 ), -4 );
 	}
 	
-	public abstract Tetromino create();
+	public abstract Tetromino create( final TetrisParameters params );
 
 	private static int rightOneX( final int x )
 	{
@@ -524,16 +524,6 @@ public enum TetrominoType
 	private static int fourWideX( final int x )
 	{
 		return Math.max( Math.min( x, 3 ), -3 );
-	}
-	
-	private static int tallThreeY( final int y )
-	{
-		return Math.min( y, TetrisState.Nrows-1 - 1 );
-	}
-	
-	private static int tallFourY( final int y )
-	{
-		return Math.min( y, TetrisState.Nrows-1 - 2 );
 	}
 	
 }

@@ -25,12 +25,6 @@ public class SpBjNullRepresenter implements FactoredRepresenter<SpBjState, Facto
 	private static final int Nfeatures;
 	private static final int Nplayer_hand_features = 13;
 	
-	// FIXME: This representation is not sound, because there is no way to know
-	// if you're one card away from a 3-card bonus. The right representation is:
-	// - remove the _678 and _777 indicators
-	// + add a single "has 2-of-3 bonus" indicator for {off, suit, spade}
-	// + add a single "has 3-of-3 bonus" indicator (don't need to discriminate sub-categories)
-	//
 	// When you fix this, since you have to re-run anyway, consider changing
 	// the rules to the "official rules":
 	// http://www.wsgc.wa.gov/activities/game-rules.aspx
@@ -217,7 +211,7 @@ public class SpBjNullRepresenter implements FactoredRepresenter<SpBjState, Facto
 	@Override
 	public FactoredRepresentation<SpBjState> encode( final SpBjState s )
 	{
-		final double[] phi = new double[Nfeatures];
+		final float[] phi = new float[Nfeatures];
 		int idx = 0;
 		// Player attributes
 		final SpBjHand h = s.player_hand;

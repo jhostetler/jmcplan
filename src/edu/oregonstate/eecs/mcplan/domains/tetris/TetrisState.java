@@ -20,24 +20,15 @@ import gnu.trove.set.hash.TIntHashSet;
  * @author jhostetler
  *
  */
-public class TetrisState implements State
+public final class TetrisState implements State
 {
-	/**
-	 * Can be changed safely.
-	 */
-	public static final int Nrows = 8;
-	
-	/**
-	 * Must be =10 in current implementation. If you want to change this, you
-	 * need to alter the bounds checking in TetrominoTypes.
-	 */
-	public static final int Ncolumns = 10;
+	public final TetrisParameters params;
 	
 	/**
 	 * Row-major order, bottom-up. Encoding: 0 means empty, > 0 means not empty, cells
 	 * with the same non-zero number are part of the same connected component.
 	 */
-	public final byte[][] cells = new byte[Nrows][Ncolumns];
+	public final byte[][] cells;
 	public int t = 0;
 	public final int T = 50;
 	public double r = 0.0;
@@ -53,26 +44,34 @@ public class TetrisState implements State
 	
 	public TetrisState( final TetrisState that )
 	{
+		this( that.params );
 		Fn.memcpy( this.cells, that.cells );
 		this.frozen.or( that.frozen );
 		this.Ncomponents = that.Ncomponents;
 		this.game_over = that.game_over;
-		this.queued_tetro = that.queued_tetro.type.create();
+		this.queued_tetro = that.queued_tetro.type.create( params );
 		this.t = that.t;
 		this.r = that.r;
 		this.height = that.height;
 		this.Nblocks = that.Nblocks;
 	}
 	
-	public TetrisState()
+	public TetrisState( final TetrisParameters params )
+	{
+		this.params = params;
+		cells = new byte[params.Nrows][params.Ncolumns];
+	}
+	
+	@Override
+	public void close()
 	{ }
 
 	public void advanceTetrominoQueue( final RandomGenerator rng )
 	{
 		final int t = rng.nextInt( TetrominoType.values().length );
 		final int r = rng.nextInt( 4 );
-		final Tetromino tetro = TetrominoType.values()[t].create();
-		tetro.setPosition( 5, TetrisState.Nrows - 1 - tetro.getBoundingBox().top );
+		final Tetromino tetro = TetrominoType.values()[t].create( params );
+		tetro.setPosition( 5, params.Nrows - 1 - tetro.getBoundingBox().top );
 		tetro.setRotation( r );
 		queued_tetro = tetro;
 	}
@@ -180,7 +179,7 @@ public class TetrisState implements State
 			bottom_row[0] = next_comp++;
 			
 		}
-		for( int x = 1; x < Ncolumns; ++x ) {
+		for( int x = 1; x < params.Ncolumns; ++x ) {
 			if( bottom_row[x] != 0 ) {
 				if( bottom_row[x-1] != 0 ) {
 					bottom_row[x] = bottom_row[x-1];
@@ -197,10 +196,10 @@ public class TetrisState implements State
 		
 		// Other rows
 		byte[] prev_row = bottom_row;
-		for( int y = 1; y < Nrows; ++y ) {
+		for( int y = 1; y < params.Nrows; ++y ) {
 			final byte[] row = cells[y];
 			
-			for( int x = 0; x < Ncolumns; ++x ) {
+			for( int x = 0; x < params.Ncolumns; ++x ) {
 				if( row[x] != 0 ) {
 					boolean connected = false;
 					if( prev_row[x] != 0 ) {
@@ -247,8 +246,8 @@ public class TetrisState implements State
 		// Compute and cache some other stuff while we're at it
 		height = 0;
 		Nblocks = 0;
-		for( int y = 0; y < Nrows; ++y ) {
-			for( int x = 0; x < Ncolumns; ++x ) {
+		for( int y = 0; y < params.Nrows; ++y ) {
+			for( int x = 0; x < params.Ncolumns; ++x ) {
 				if( cells[y][x] != 0 ) {
 					cells[y][x] = reduced[cells[y][x] - 1];
 					height = y + 1;
@@ -259,7 +258,7 @@ public class TetrisState implements State
 		
 		// Components touching the ground don't move
 		frozen.clear();
-		for( int x = 0; x < Ncolumns; ++x ) {
+		for( int x = 0; x < params.Ncolumns; ++x ) {
 			if( cells[0][x] > 0 ) {
 //				System.out.println( "Frozen: " + cells[0][x] );
 				frozen.set( cells[0][x] );
@@ -312,10 +311,10 @@ public class TetrisState implements State
 	public int clearCompleteRows()
 	{
 		int count = 0;
-		for( int y = 0; y < Nrows; ++y ) {
+		for( int y = 0; y < params.Nrows; ++y ) {
 			final byte[] row = cells[y];
 			boolean full = true;
-			for( int x = 0; x < Ncolumns; ++x ) {
+			for( int x = 0; x < params.Ncolumns; ++x ) {
 				if( row[x] == 0 ) {
 					full = false;
 					break;
@@ -339,9 +338,9 @@ public class TetrisState implements State
 //		System.out.println( this );
 		
 		byte[] prev_row = cells[0];
-		for( int y = 1; y < Nrows; ++y ) {
+		for( int y = 1; y < params.Nrows; ++y ) {
 			final byte[] row = cells[y];
-			for( int x = 0; x < Ncolumns; ++x ) {
+			for( int x = 0; x < params.Ncolumns; ++x ) {
 				if( row[x] != 0 && !frozen.get( row[x] ) ) {
 					
 					if( prev_row[x] != 0 ) {
@@ -390,14 +389,14 @@ public class TetrisState implements State
 	{
 		frozen.clear();
 		byte[] prev_row = cells[0];
-		for( int x = 0; x < Ncolumns; ++x ) {
+		for( int x = 0; x < params.Ncolumns; ++x ) {
 			if( prev_row[x] != 0 ) {
 				frozen.set( prev_row[x] );
 			}
 		}
-		for( int y = 1; y < Nrows; ++y ) {
+		for( int y = 1; y < params.Nrows; ++y ) {
 			final byte[] row = cells[y];
-			for( int x = 0; x < Ncolumns; ++x ) {
+			for( int x = 0; x < params.Ncolumns; ++x ) {
 				if( prev_row[x] != 0 && prev_row[x] != row[x] ) {
 					frozen.set( row[x] );
 				}
@@ -422,13 +421,13 @@ public class TetrisState implements State
 		
 //		sb.append( "\n" ).append( frozen );
 		
-//		sb.append( "\n" );
-//		for( int y = Nrows - 1; y >= 0; --y ) {
-//			for( int x = 0; x < Ncolumns; ++x ) {
-//				sb.append( cells[y][x] );
-//			}
-//			sb.append( "\n" );
-//		}
+		sb.append( "\n" );
+		for( int y = params.Nrows - 1; y >= 0; --y ) {
+			for( int x = 0; x < params.Ncolumns; ++x ) {
+				sb.append( cells[y][x] );
+			}
+			sb.append( "\n" );
+		}
 		
 		return sb.toString();
 	}

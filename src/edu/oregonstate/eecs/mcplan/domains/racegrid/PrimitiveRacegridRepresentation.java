@@ -13,11 +13,11 @@ import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
  */
 public class PrimitiveRacegridRepresentation extends FactoredRepresentation<RacegridState>
 {
-	private final double[] phi_;
+	private final float[] phi_;
 	
 	public PrimitiveRacegridRepresentation( final RacegridState s )
 	{
-		phi_ = new double[4];
+		phi_ = new float[4];
 		int idx = 0;
 		phi_[idx++] = s.x;
 		phi_[idx++] = s.y;
@@ -31,7 +31,7 @@ public class PrimitiveRacegridRepresentation extends FactoredRepresentation<Race
 	}
 	
 	@Override
-	public double[] phi()
+	public float[] phi()
 	{
 		return phi_;
 	}

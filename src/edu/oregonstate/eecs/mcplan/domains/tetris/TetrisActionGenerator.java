@@ -14,10 +14,17 @@ public class TetrisActionGenerator extends Generator<TetrisAction>
 	private int t = 0;
 	private int r = 0;
 	
+	private final TetrisParameters params;
+	
+	public TetrisActionGenerator( final TetrisParameters params )
+	{
+		this.params = params;
+	}
+	
 	@Override
 	public boolean hasNext()
 	{
-		return t < TetrisState.Ncolumns && r < 4;
+		return t < params.Ncolumns && r < 4;
 	}
 
 	@Override

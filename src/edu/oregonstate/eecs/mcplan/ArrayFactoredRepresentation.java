@@ -11,15 +11,15 @@ import java.util.Arrays;
  */
 public class ArrayFactoredRepresentation<S> extends FactoredRepresentation<S>
 {
-	private final double[] phi_;
+	private final float[] phi_;
 	
-	public ArrayFactoredRepresentation( final double[] phi )
+	public ArrayFactoredRepresentation( final float[] phi )
 	{
 		phi_ = phi;
 	}
 	
 	@Override
-	public double[] phi()
+	public float[] phi()
 	{
 		return phi_;
 	}

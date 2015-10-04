@@ -32,6 +32,7 @@ import edu.oregonstate.eecs.mcplan.domains.advising.AdvisingRddlParser;
 import edu.oregonstate.eecs.mcplan.domains.firegirl.FireGirlFsssModel;
 import edu.oregonstate.eecs.mcplan.domains.firegirl.FireGirlLocalFeatureRepresenter;
 import edu.oregonstate.eecs.mcplan.domains.firegirl.FireGirlParameters;
+import edu.oregonstate.eecs.mcplan.domains.firegirl.FireGirlState;
 import edu.oregonstate.eecs.mcplan.domains.inventory.InventoryFsssModel;
 import edu.oregonstate.eecs.mcplan.domains.inventory.InventoryProblem;
 import edu.oregonstate.eecs.mcplan.domains.ipc.crossing.IpcCrossingDomains;
@@ -51,7 +52,11 @@ import edu.oregonstate.eecs.mcplan.domains.sailing.SailingFsssModel;
 import edu.oregonstate.eecs.mcplan.domains.sailing.SailingState;
 import edu.oregonstate.eecs.mcplan.domains.sailing.SailingWorlds;
 import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjFsssModel;
+import edu.oregonstate.eecs.mcplan.domains.tetris.TetrisBertsekasRepresenter;
 import edu.oregonstate.eecs.mcplan.domains.tetris.TetrisFsssModel;
+import edu.oregonstate.eecs.mcplan.domains.tetris.TetrisGroundRepresenter;
+import edu.oregonstate.eecs.mcplan.domains.tetris.TetrisParameters;
+import edu.oregonstate.eecs.mcplan.domains.tetris.TetrisState;
 import edu.oregonstate.eecs.mcplan.domains.toy.CliffWorld;
 import edu.oregonstate.eecs.mcplan.domains.toy.RallyWorld;
 import edu.oregonstate.eecs.mcplan.domains.toy.RelevantIrrelevant;
@@ -747,8 +752,13 @@ public class FsssJairExperiments
 			else if( "firegirl".equals( config.domain ) ) {
 				final int T = config.getInt( "firegirl.T" );
 				final double discount = config.getDouble( "discount" );
-				// TODO: Make parameter
-				final FireGirlLocalFeatureRepresenter base_repr = new FireGirlLocalFeatureRepresenter();
+				final FactoredRepresenter<FireGirlState, ? extends FactoredRepresentation<FireGirlState>> base_repr;
+				if( "local".equals( config.get( "firegirl.repr" ) ) ) {
+					base_repr = new FireGirlLocalFeatureRepresenter();
+				}
+				else {
+					throw new IllegalArgumentException( "firegirl.repr" );
+				}
 				final FireGirlParameters params = new FireGirlParameters( T, discount, base_repr );
 				final FireGirlFsssModel model = new FireGirlFsssModel( params, config.rng_world );
 				runGames( config, model, expr );
@@ -825,8 +835,8 @@ public class FsssJairExperiments
 				runGames( config, model, expr );
 			}
 			else if( "saving".equals( config.domain ) ) {
-				final SavingProblem.Parameters params = new SavingProblem.Parameters( config.rng_world, config );
-				final SavingProblem.FsssModel model = new SavingProblem.FsssModel( params );
+				final SavingProblem.Parameters params = new SavingProblem.Parameters( config );
+				final SavingProblem.FsssModel model = new SavingProblem.FsssModel( config.rng_world, params );
 				runGames( config, model, expr );
 			}
 			else if( "spbj".equals( config.domain ) ) {
@@ -843,12 +853,24 @@ public class FsssJairExperiments
 				runGames( config, model, expr );
 			}
 			else if( "tetris".equals( config.domain ) ) {
-				final TetrisFsssModel model = new TetrisFsssModel( config.rng_world );
+				final int Nrows = config.getInt( "tetris.Nrows" );
+				final TetrisParameters params = new TetrisParameters( Nrows );
+				final FactoredRepresenter<TetrisState, ? extends FactoredRepresentation<TetrisState>> base_repr;
+				if( "ground".equals( config.get( "tetris.repr" ) ) ) {
+					base_repr = new TetrisGroundRepresenter( params );
+				}
+				else if( "bertsekas".equals( config.get( "tetris.repr" ) ) ) {
+					base_repr = new TetrisBertsekasRepresenter( params );
+				}
+				else {
+					throw new IllegalArgumentException( "tetris.repr" );
+				}
+				final TetrisFsssModel model = new TetrisFsssModel( config.rng_world, params, base_repr );
 				runGames( config, model, expr );
 			}
 			else if( "weinstein_littman".equals( config.domain ) ) {
-				final WeinsteinLittman.Parameters params = new WeinsteinLittman.Parameters( config.rng_world, config );
-				final WeinsteinLittman.FsssModel model = new WeinsteinLittman.FsssModel( params );
+				final WeinsteinLittman.Parameters params = new WeinsteinLittman.Parameters( config );
+				final WeinsteinLittman.FsssModel model = new WeinsteinLittman.FsssModel( config.rng_world, params );
 				runGames( config, model, expr );
 			}
 			else {

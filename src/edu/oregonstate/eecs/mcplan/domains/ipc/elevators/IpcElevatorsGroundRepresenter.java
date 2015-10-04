@@ -52,7 +52,7 @@ public final class IpcElevatorsGroundRepresenter
 	@Override
 	public FactoredRepresentation<IpcElevatorsState> encode( final IpcElevatorsState s )
 	{
-		final double[] phi = new double[attributes.size()];
+		final float[] phi = new float[attributes.size()];
 		int idx = 0;
 		for( int i = 0; i < params.Nelevators; ++i ) {
 //			attributes.add( new Attribute( "e" + i ) );

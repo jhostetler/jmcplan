@@ -3,7 +3,6 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.tetris;
 
-import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
@@ -21,27 +20,38 @@ import gnu.trove.list.TIntList;
 public class TetrisFsssModel extends FsssModel<TetrisState, TetrisAction>
 {
 	private final RandomGenerator rng;
-	private final RandomGenerator world_rng = new MersenneTwister( 42 );
 	
-	private RandomGenerator game_rng = null;
+	private final TetrisParameters params;
 	
 	private int sample_count = 0;
 	
-	private final int[] rewards = new int[] { 0, 100, 300, 500, 800 };
-	private final double chain_bonus_multplier = 1.5;
+	// "Standard" video game scoring: larger score for more lines and bonus for consecutive tetri
+	// FIXME: It just occurred to me that "consecutive" tetri might mean on
+	// consecutive *drops*, not only due to a chain reaction as it is now.
+//	private final int[] rewards = new int[] { 0, 100, 300, 500, 800 };
+//	private final double chain_bonus_multplier = 1.5;
+//	private final double step_reward = 1.0;
 	
-	private final TetrisGroundRepresenter base_repr = new TetrisGroundRepresenter();
+	// "Bertsekas" rewards: reward of 1 for each line cleared, no bonus for consecutive tetri
+	private final int[] rewards = new int[] { 0, 1, 2, 3, 4 };
+	private final double chain_bonus_multplier = 1.0;
+	private final double step_reward = 0;
+	
+	private final FactoredRepresenter<TetrisState, ? extends FactoredRepresentation<TetrisState>> base_repr;
 	private final TetrisActionSetRepresenter action_repr = new TetrisActionSetRepresenter();
 	
-	public TetrisFsssModel( final RandomGenerator rng )
+	public TetrisFsssModel( final RandomGenerator rng, final TetrisParameters params,
+							final FactoredRepresenter<TetrisState, ? extends FactoredRepresentation<TetrisState>> base_repr )
 	{
 		this.rng = rng;
+		this.params = params;
+		this.base_repr = base_repr;
 	}
 	
 	@Override
 	public FsssModel<TetrisState, TetrisAction> create( final RandomGenerator rng )
 	{
-		return new TetrisFsssModel( rng );
+		return new TetrisFsssModel( rng, params, base_repr );
 	}
 	
 	private double futureVmax( final TetrisState s )
@@ -201,16 +211,15 @@ public class TetrisFsssModel extends FsssModel<TetrisState, TetrisAction>
 	@Override
 	public TetrisState initialState()
 	{
-		final TetrisState s = new TetrisState();
-		game_rng = new MersenneTwister( world_rng.nextInt() );
-		s.advanceTetrominoQueue( game_rng );
+		final TetrisState s = new TetrisState( params );
+		s.advanceTetrominoQueue( rng );
 		return s;
 	}
 
 	@Override
 	public Iterable<TetrisAction> actions( final TetrisState s )
 	{
-		return Fn.in( new TetrisActionGenerator() );
+		return Fn.in( new TetrisActionGenerator( params ) );
 	}
 
 	@Override
@@ -245,7 +254,7 @@ public class TetrisFsssModel extends FsssModel<TetrisState, TetrisAction>
 				}
 			}
 			sprime.r = r;
-			sprime.advanceTetrominoQueue( game_rng );
+			sprime.advanceTetrominoQueue( rng );
 			++sample_count;
 			
 //			if( sample_count % 10000 == 0 ) {
@@ -264,7 +273,7 @@ public class TetrisFsssModel extends FsssModel<TetrisState, TetrisAction>
 	@Override
 	public double reward( final TetrisState s, final TetrisAction a )
 	{
-		return 1.0;
+		return step_reward;
 	}
 
 	@Override

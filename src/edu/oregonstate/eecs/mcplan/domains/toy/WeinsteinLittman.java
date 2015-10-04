@@ -47,18 +47,15 @@ public class WeinsteinLittman
 {
 	public static class Parameters
 	{
-		public final RandomGenerator rng;
 		public final int nirrelevant;
 
-		public Parameters( final RandomGenerator rng, final int nirrelevant )
+		public Parameters( final int nirrelevant )
 		{
-			this.rng = rng;
 			this.nirrelevant = nirrelevant;
 		}
 		
-		public Parameters( final RandomGenerator rng, final KeyValueStore config )
+		public Parameters( final KeyValueStore config )
 		{
-			this.rng = rng;
 			this.nirrelevant = config.getInt( "weinstein_littman.nirrelevant" );
 		}
 	}
@@ -66,22 +63,29 @@ public class WeinsteinLittman
 	public static class State implements edu.oregonstate.eecs.mcplan.State
 	{
 		public final Parameters params;
+		private final RandomGenerator rng;
 		
 		public int i = 0;
 		
 		public int irrelevant = 0;
 		
-		public State( final Parameters params )
+		public State( final RandomGenerator rng, final Parameters params )
 		{
 			this.params = params;
+			this.rng = rng;
 		}
 		
 		public State( final State that )
 		{
 			this.params = that.params;
+			this.rng = that.rng;
 			this.i = that.i;
 			this.irrelevant = that.irrelevant;
 		}
+		
+		@Override
+		public void close()
+		{ }
 		
 		@Override
 		public boolean isTerminal()
@@ -122,7 +126,7 @@ public class WeinsteinLittman
 					s.i = 1;
 				}
 				else {
-					if( s.params.rng.nextBoolean() ) {
+					if( s.rng.nextBoolean() ) {
 						s.i = 2;
 					}
 					else {
@@ -153,7 +157,7 @@ public class WeinsteinLittman
 				throw new IllegalStateException( "Acting in state " + s );
 			}
 			
-			s.irrelevant = s.params.rng.nextInt( s.params.nirrelevant );
+			s.irrelevant = s.rng.nextInt( s.params.nirrelevant );
 		}
 
 		@Override
@@ -227,21 +231,29 @@ public class WeinsteinLittman
 	public static class FsssModel extends edu.oregonstate.eecs.mcplan.search.fsss.FsssModel<State, Action>
 	{
 		private final Parameters params;
+		private final RandomGenerator rng;
 		
 		private final PrimitiveRepresenter base_repr = new PrimitiveRepresenter();
 		private final ActionSetRepresenter action_repr = new ActionSetRepresenter();
 		
 		private int sample_count = 0;
 		
-		public FsssModel( final Parameters params )
+		public FsssModel( final RandomGenerator rng, final Parameters params )
 		{
 			this.params = params;
+			this.rng = rng;
+		}
+		
+		@Override
+		public FsssModel create( final RandomGenerator rng )
+		{
+			return new FsssModel( rng, params );
 		}
 		
 		@Override
 		public RandomGenerator rng()
 		{
-			return params.rng;
+			return rng;
 		}
 		
 		@Override
@@ -279,8 +291,8 @@ public class WeinsteinLittman
 		@Override
 		public State initialState()
 		{
-			final State s0 = new State( params );
-			s0.irrelevant = params.rng.nextInt( params.nirrelevant );
+			final State s0 = new State( rng, params );
+			s0.irrelevant = rng.nextInt( params.nirrelevant );
 			return s0;
 		}
 
@@ -357,7 +369,7 @@ public class WeinsteinLittman
 		@Override
 		public FactoredRepresentation<State> encode( final State s )
 		{
-			final double[] phi = new double[attributes.size()];
+			final float[] phi = new float[attributes.size()];
 			int idx = 0;
 			phi[idx++] = s.i;
 			phi[idx++] = s.irrelevant;
@@ -394,9 +406,9 @@ public class WeinsteinLittman
 		final int nirrelevant = 2;
 		
 		while( true ) {
-			final Parameters params = new Parameters( rng, nirrelevant );
+			final Parameters params = new Parameters( nirrelevant );
 			final Actions actions = new Actions( params );
-			final FsssModel model = new FsssModel( params );
+			final FsssModel model = new FsssModel( rng, params );
 			
 			State s = model.initialState();
 			while( !s.isTerminal() ) {

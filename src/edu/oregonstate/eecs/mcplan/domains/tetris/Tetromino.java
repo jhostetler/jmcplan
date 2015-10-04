@@ -24,15 +24,17 @@ public abstract class Tetromino
 		}
 	}
 	
+	public final TetrisParameters params;
 	public final TetrominoType type;
 	public final int dim;
 	public int rotation = 0;
 	public int x = 0;
 	public int y = 0;
 	
-	public Tetromino( final TetrominoType type, final int dim )
+	public Tetromino( final TetrisParameters params, final TetrominoType type, final int dim )
 	{
 		assert( dim == 3 || dim == 4 );
+		this.params = params;
 		this.type = type;
 		this.dim = dim;
 	}
@@ -47,6 +49,16 @@ public abstract class Tetromino
 			sb.append( "\n" );
 		}
 		return sb.toString();
+	}
+	
+	protected int tallThreeY( final int y )
+	{
+		return Math.min( y, params.Nrows-1 - 1 );
+	}
+	
+	protected int tallFourY( final int y )
+	{
+		return Math.min( y, params.Nrows-1 - 2 );
 	}
 	
 	protected abstract void setPositionImpl( final int x, final int y );

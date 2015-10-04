@@ -51,7 +51,7 @@ public class TetrisAction implements Action<TetrisState>, VirtualConstructor<Tet
 	{
 		final Tetromino tetro = s.getCurrentTetromino();
 		tetro.setRotation( rotation );
-		tetro.setPosition( position, TetrisState.Nrows - 1 - tetro.getBoundingBox().top );
+		tetro.setPosition( position, s.params.Nrows - 1 - tetro.getBoundingBox().top );
 		s.createTetromino( tetro );
 		s.t += 1;
 	}

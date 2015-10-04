@@ -96,6 +96,18 @@ public abstract class FsssModel<S extends State, A extends VirtualConstructor<A>
 	public abstract Representer<S, ? extends Representation<S>> action_repr();
 	
 	/**
+	 * Return the action set for a collection of states. Default implementation
+	 * returns the action set for the first state in the collection.
+	 * @param states
+	 * @return
+	 */
+	public Iterable<A> actions( final FsssAbstractStateNode<S, A> asn )
+	{
+		final S s = asn.states().iterator().next().s();
+		return actions( s );
+	}
+	
+	/**
 	 * Returns an initial state.
 	 * <p>
 	 * The FsssModel implementation is allowed to store state for efficiency

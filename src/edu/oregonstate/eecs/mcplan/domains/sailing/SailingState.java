@@ -59,6 +59,10 @@ public class SailingState implements State
 		this.t = s.t;
 	}
 	
+	@Override
+	public void close()
+	{ }
+	
 	public double max_speed()
 	{
 		final double max_speed = 7.5;

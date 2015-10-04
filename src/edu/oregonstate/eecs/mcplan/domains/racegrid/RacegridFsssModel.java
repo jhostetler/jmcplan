@@ -36,6 +36,20 @@ public class RacegridFsssModel extends FsssModel<RacegridState, RacegridAction>
 		this.h = new ShortestPathHeuristic( ex );
 	}
 	
+	private RacegridFsssModel( final RacegridFsssModel that, final RandomGenerator rng )
+	{
+		this.rng = rng;
+		this.ex = that.ex;
+		this.slip = that.slip;
+		this.h = that.h;
+	}
+	
+	@Override
+	public FsssModel<RacegridState, RacegridAction> create( final RandomGenerator rng )
+	{
+		return new RacegridFsssModel( this, rng );
+	}
+	
 	@Override
 	public double Vmin( final RacegridState s )
 	{

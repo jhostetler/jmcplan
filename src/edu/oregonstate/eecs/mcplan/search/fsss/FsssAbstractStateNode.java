@@ -10,7 +10,7 @@ import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 
-public final class FsssAbstractStateNode<S extends State, A extends VirtualConstructor<A>>
+public final class FsssAbstractStateNode<S extends State, A extends VirtualConstructor<A>> implements AutoCloseable
 {
 	private static final ch.qos.logback.classic.Logger Log = LoggerManager.getLogger( "log.search" );
 	
@@ -32,6 +32,8 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 	
 	private boolean backed_up = false;
 	private boolean pure = true;
+	private boolean freed = false;
+	private boolean terminal = false;
 	
 	private final Map<A, FsssAbstractActionNode<S, A>> successors
 		= new HashMap<A, FsssAbstractActionNode<S, A>>();
@@ -71,6 +73,19 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 		}
 	}
 	
+	@Override
+	public void close()
+	{
+		Log.debug( "close()" );
+		Log.debug( "{}", this );
+		
+		for( final FsssStateNode<S, A> sn : states ) {
+			sn.close();
+		}
+		states.clear();
+		freed = true;
+	}
+	
 	/**
 	 * Adds a successor node mapping 'a => aan' to both the successor map
 	 * and the ordered successor list. Returns the previous mapping. No change
@@ -99,8 +114,11 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 		final StringBuilder sb = new StringBuilder();
 		sb.append( "[@" ).append( Integer.toHexString( System.identityHashCode( this ) ) )
 		  .append( ": " ).append( x );
+		if( isClosed() ) {
+			sb.append( " (CLOSED)" );
+		}
 		if( isExpanded() ) {
-		  sb.append( " (" ).append( isTerminal() ? "terminal" : "non-terminal" ).append( ")" );
+			sb.append( " (" ).append( isTerminal() ? "terminal" : "non-terminal" ).append( ")" );
 		}
 		else {
 			sb.append( " (not expanded)" );
@@ -128,9 +146,11 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 	public void addGroundStateNode( final FsssStateNode<S, A> gsn )
 	{
 		assert( !backed_up );
+		assert( !freed );
 		
 		// isTerminal() throws if states.isEmpty()
-		if( !states.isEmpty() && isTerminal() != gsn.isTerminal() ) {
+//		if( !states.isEmpty() && isTerminal() != gsn.isTerminal() ) {
+		if( terminal && !gsn.isTerminal() ) {
 			FsssTest.printTree( FsssTest.findRoot( this ), System.out, 1 );
 			
 			Log.error( "! Adding {} gsn to {} asn", (gsn.isTerminal() ? "terminal" : "non-terminal"),
@@ -151,8 +171,12 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 		U = Ubar.mean();
 		L = Lbar.mean();
 		
+		if( gsn.isTerminal() ) {
+			terminal = true;
+		}
+		
 		if( pure && !gsn.x().equals( states.get( 0 ).x() ) ) {
-			assert( states.size() > 1 );
+			assert( states.size() > 1 ); // We didn't just compare the state to itself
 			pure = false;
 		}
 	}
@@ -167,9 +191,19 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 		return pure;
 	}
 	
+	public boolean isReadyToClose()
+	{
+		return isExpanded() && (isTerminal() || isPure());
+	}
+	
 	public boolean isActive()
 	{
 		return isExpanded() && !isTerminal() && !isPure();
+	}
+	
+	public boolean isClosed()
+	{
+		return freed;
 	}
 	
 	/**
@@ -420,18 +454,10 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 //		U = L = R.mean();
 		U = L = Ubar.mean();
 	}
-	
-	// FIXME: We're assuming that the abstraction does not identify
-	// states that have different legal action sets. Document this
-	// somewhere!
-	public FsssStateNode<S, A> exemplar()
-	{
-		return states.get( 0 );
-	}
 
 	public boolean isTerminal()
 	{
-		return depth == 1 || exemplar().s().isTerminal();
+		return depth == 1 || terminal;
 	}
 	
 	public Representation<S> x()

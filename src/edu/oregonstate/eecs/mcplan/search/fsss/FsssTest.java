@@ -328,8 +328,8 @@ public class FsssTest
 				model_R /= asn.n();
 				double check_U = 0;
 				double check_L = 0;
-				double model_U = 0;
-				double model_L = 0;
+//				double model_U = 0;
+//				double model_L = 0;
 				int check_n = 0;
 				for( final FsssAbstractStateNode<S, A> asn_prime : aan.successors() ) {
 					state_stack.push( asn_prime );
@@ -337,18 +337,18 @@ public class FsssTest
 					final int n = asn_prime.states().size();
 					check_U += n*asn_prime.U();
 					check_L += n*asn_prime.L();
-					model_U += n*model.Vmax( asn_prime.exemplar().s() );
-					model_L += n*model.Vmin( asn_prime.exemplar().s() );
+//					model_U += n*model.Vmax( asn_prime.states().get( 0 ).s() );
+//					model_L += n*model.Vmin( asn_prime.states().get( 0 ).s() );
 					check_n += n;
 				}
 				check_U /= check_n;
 				check_U += aan.R();
 				check_L /= check_n;
 				check_L += aan.R();
-				model_U /= check_n;
-				model_U += model_R;
-				model_L /= check_n;
-				model_L += model_R;
+//				model_U /= check_n;
+//				model_U += model_R;
+//				model_L /= check_n;
+//				model_L += model_R;
 				
 				if( aan.isBackedUp() ) {
 					if( !Fn.approxEq( 1e-6, aan.U(), check_U ) ) {

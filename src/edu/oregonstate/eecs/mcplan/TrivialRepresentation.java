@@ -37,8 +37,8 @@ public class TrivialRepresentation<S> extends FactoredRepresentation<S>
 	}
 
 	@Override
-	public double[] phi()
+	public float[] phi()
 	{
-		return new double[] { 0 };
+		return new float[] { 0 };
 	}
 }

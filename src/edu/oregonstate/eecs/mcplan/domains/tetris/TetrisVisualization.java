@@ -55,7 +55,8 @@ public class TetrisVisualization
 //		}
 		
 		final RandomGenerator rng = new MersenneTwister( 43 );
-		final TetrisFsssModel model = new TetrisFsssModel( rng );
+		final TetrisParameters params = new TetrisParameters( 10 );
+		final TetrisFsssModel model = new TetrisFsssModel( rng, params, new TetrisBertsekasRepresenter( params ) );
 		TetrisState s = model.initialState();
 		
 //		for( final TetrominoType type : TetrominoType.values() ) {
@@ -87,6 +88,7 @@ public class TetrisVisualization
 		int steps = 0;
 		while( !s.isTerminal() ) {
 			System.out.println( s );
+			System.out.println( model.base_repr().encode( s ) );
 
 //			final int t = rng.nextInt( TetrominoType.values().length );
 //			final int r = rng.nextInt( 4 );
@@ -95,7 +97,7 @@ public class TetrisVisualization
 //			System.out.println( "Next:" );
 //			System.out.println( tetro );
 
-			final int input_position = rng.nextInt( TetrisState.Ncolumns );
+			final int input_position = rng.nextInt( params.Ncolumns );
 			final int input_rotation = rng.nextInt( 4 );
 			final TetrisAction a = new TetrisAction( input_position, input_rotation );
 

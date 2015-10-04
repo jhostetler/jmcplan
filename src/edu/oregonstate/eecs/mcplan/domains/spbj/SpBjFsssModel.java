@@ -34,6 +34,12 @@ public class SpBjFsssModel extends FsssModel<SpBjState, SpBjAction>
 	}
 	
 	@Override
+	public SpBjFsssModel create( final RandomGenerator rng )
+	{
+		return new SpBjFsssModel( rng );
+	}
+	
+	@Override
 	public double Vmin( final SpBjState s )
 	{ return -Vmax( s ); }
 

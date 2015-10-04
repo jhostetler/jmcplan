@@ -50,17 +50,17 @@ public class FireGirlLocalFeatureRepresenter implements FactoredRepresenter<Fire
 		final int x = loc[0];
 		final int y = loc[1];
 		
-		final double[] phi = new double[attributes.size()];
+		final float[] phi = new float[attributes.size()];
 		int idx = 0;
 		phi[idx++] = s.ignite_date;
 		phi[idx++] = s.ignite_temp;
 		phi[idx++] = s.ignite_wind;
-		phi[idx++] = s.getPresentTimberValue( x, y );
-		phi[idx++] = s.getValueAverage( x, y, 1 ); //timber_ave8;
-		phi[idx++] = s.getValueAverage( x, y, 2 ); //timber_ave24;
+		phi[idx++] = (float) s.getPresentTimberValue( x, y );
+		phi[idx++] = (float) s.getValueAverage( x, y, 1 ); //timber_ave8;
+		phi[idx++] = (float) s.getValueAverage( x, y, 2 ); //timber_ave24;
 		phi[idx++] = s.fuel_load[x][y];
-		phi[idx++] = s.getFuelAverage( x, y, 1 ); //fire_ave8;
-		phi[idx++] = s.getFuelAverage( x, y, 2 ); //fire_ave24;
+		phi[idx++] = (float) s.getFuelAverage( x, y, 1 ); //fire_ave8;
+		phi[idx++] = (float) s.getFuelAverage( x, y, 2 ); //fire_ave24;
 		
 		return new ArrayFactoredRepresentation<FireGirlState>( phi );
 	}

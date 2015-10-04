@@ -34,7 +34,7 @@ public class SailingGroundRepresenter implements FactoredRepresenter<SailingStat
 	@Override
 	public FactoredRepresentation<SailingState> encode( final SailingState s )
 	{
-		final double[] x = new double[4];
+		final float[] x = new float[4];
 		x[0] = s.x;
 		x[1] = s.y;
 		x[2] = s.w;

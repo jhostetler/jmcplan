@@ -19,21 +19,26 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  * A second-generation refinement order implementation, intended to subsume
  * all of the existing RefinementOrder / SubtreeRefinementOrder types. This
  * implementation follows the pseudocode in the UAI paper more closely.
- * 
+ * <p>
  * At any given time, the ASNs in the search tree are in one of three states:
  *     1. Active - Expanded and not pure
  *     2. Inactive - Unexpanded or pure, but might become Active again
  *     3. Closed - Inactive and will never be Active again
- * 
+ * <p>
  * This class maintains a priority ordering over the Active ASNs, and manages
  * the bookkeeping for deciding which state each ASN is in. Priority is
  * calculated by a user-supplied function. ASNs with equal priority are kept
  * in a collection together. When it is time to choose an ASN to refine, one
  * is chosen at random from the lowest-priority collection.
- * 
+ * <p>
  * The existing breadth-first ordering can be implemented by setting priority
  * equal to depth. The fully-randomized ordering assigns equal priority to
  * every ASN.
+ * <p>
+ * FIXME: This code pre-dates the FsssNodeCloser addition to AbstractFsss. This
+ * code is maintaining its own table of closed nodes. Should be refactored to
+ * use ASN.isClosed(), but I don't want to do that now because the existing
+ * code works.
  */
 public abstract class PriorityRefinementOrder<S extends State, A extends VirtualConstructor<A>>
 	implements RefinementOrder<S, A>
@@ -272,11 +277,19 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 			final FsssAbstractStateNode<S, A> asn_pred = asn.predecessor.predecessor;
 			if( active_set.contains( asn_pred ) || inactive_set.contains( asn_pred ) ) {
 				Log.trace( "\t\t\tInactive" );
+				// Check for consistency with the "official" closed flag
+				final boolean not_error = !asn.isClosed() && (!asn.isReadyToClose() || !asn_pred.isClosed());
+				if( !not_error ) {
+					Log.error( "! {}", asn );
+				}
+				assert( not_error );
 				inactive_set.add( asn );
 				return;
 			}
 			else {
 				Log.trace( "\t\t\tClosed" );
+				// Check for consistency with the "official" closed flag
+				assert( asn.isClosed() || asn.isReadyToClose() );
 				return;
 			}
 		}

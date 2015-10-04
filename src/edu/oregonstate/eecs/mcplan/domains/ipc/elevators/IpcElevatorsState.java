@@ -62,6 +62,10 @@ public final class IpcElevatorsState implements State
 	}
 	
 	@Override
+	public void close()
+	{ }
+	
+	@Override
 	public String toString()
 	{
 		final StringBuilder sb = new StringBuilder();

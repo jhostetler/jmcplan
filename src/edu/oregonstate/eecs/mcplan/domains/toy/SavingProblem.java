@@ -32,7 +32,6 @@ public class SavingProblem
 {
 	public static class Parameters
 	{
-		public final RandomGenerator rng;
 		public final int T;
 		public final int price_min;
 		public final int price_max;
@@ -43,12 +42,11 @@ public class SavingProblem
 		public final int Nprices;
 		
 		
-		public Parameters( final RandomGenerator rng, final int T,
+		public Parameters( final int T,
 						   final int price_min, final int price_max,
 						   final int maturity_period,
 						   final int invest_period, final int loan_period )
 		{
-			this.rng = rng;
 			this.T = T;
 			this.price_min = price_min;
 			this.price_max = price_max;
@@ -62,10 +60,9 @@ public class SavingProblem
 			this.Nprices = price_max - price_min + 1;
 		}
 		
-		public Parameters( final RandomGenerator rng, final KeyValueStore config )
+		public Parameters( final KeyValueStore config )
 		{
-			this( rng,
-				  config.getInt( "saving.T" ),
+			this( config.getInt( "saving.T" ),
 				  config.getInt( "saving.price_min" ),
 				  config.getInt( "saving.price_max" ),
 				  config.getInt( "saving.maturity_period" ),
@@ -106,6 +103,10 @@ public class SavingProblem
 		}
 		
 		@Override
+		public void close()
+		{ }
+		
+		@Override
 		public boolean isTerminal()
 		{
 			return t >= params.T;
@@ -119,9 +120,9 @@ public class SavingProblem
 				   + ", invest_t: " + invest_t + ", loan: " + loan + ", loan_t: " + loan_t;
 		}
 		
-		public int samplePrice()
+		public int samplePrice( final RandomGenerator rng )
 		{
-			final int p = params.rng.nextInt( params.Nprices );
+			final int p = rng.nextInt( params.Nprices );
 			return p + params.price_min;
 		}
 	}
@@ -400,7 +401,7 @@ public class SavingProblem
 		s.r = 0;
 	}
 	
-	public static void applyPostDynamics( final State s )
+	public static void applyPostDynamics( final RandomGenerator rng, final State s )
 	{
 		if( s.investment > 0 && s.invest_t == 0 ) {
 			assert( s.maturity_t == 0 );
@@ -422,7 +423,7 @@ public class SavingProblem
 		if( s.loan > 0 ) {
 			s.loan_t -= 1;
 		}
-		s.price = s.samplePrice();
+		s.price = s.samplePrice( rng );
 		s.t += 1;
 	}
 	
@@ -431,21 +432,29 @@ public class SavingProblem
 	public static class FsssModel extends edu.oregonstate.eecs.mcplan.search.fsss.FsssModel<State, Action>
 	{
 		private final Parameters params;
+		private final RandomGenerator rng;
 		
 		private final PrimitiveRepresenter base_repr = new PrimitiveRepresenter();
 		private final ActionSetRepresenter action_repr = new ActionSetRepresenter();
 		
 		private int sample_count = 0;
 		
-		public FsssModel( final Parameters params )
+		public FsssModel( final RandomGenerator rng, final Parameters params )
 		{
 			this.params = params;
+			this.rng = rng;
+		}
+		
+		@Override
+		public FsssModel create( final RandomGenerator rng )
+		{
+			return new FsssModel( rng, params );
 		}
 		
 		@Override
 		public RandomGenerator rng()
 		{
-			return params.rng;
+			return rng;
 		}
 		
 		@Override
@@ -492,7 +501,7 @@ public class SavingProblem
 		public State initialState()
 		{
 			final State s0 = new State( params );
-			s0.price = s0.samplePrice();
+			s0.price = s0.samplePrice( rng );
 			return s0;
 		}
 
@@ -512,7 +521,7 @@ public class SavingProblem
 			final State copy = new State( s );
 			applyPreDynamics( copy );
 			a.create().doAction( copy );
-			applyPostDynamics( copy );
+			applyPostDynamics( rng, copy );
 			
 			return copy;
 		}
@@ -570,7 +579,7 @@ public class SavingProblem
 		@Override
 		public FactoredRepresentation<State> encode( final State s )
 		{
-			final double[] phi = new double[attributes.size()];
+			final float[] phi = new float[attributes.size()];
 			int idx = 0;
 			phi[idx++] = s.t;
 			phi[idx++] = s.price;
@@ -622,9 +631,9 @@ public class SavingProblem
 		final int loan_period = 4;
 		
 		final Parameters params = new Parameters(
-			rng, T, price_min, price_max, maturity_period, invest_period, loan_period );
+			T, price_min, price_max, maturity_period, invest_period, loan_period );
 		final Actions actions = new Actions( params );
-		final FsssModel model = new FsssModel( params );
+		final FsssModel model = new FsssModel( rng, params );
 		
 		State s = model.initialState();
 		while( !s.isTerminal() ) {

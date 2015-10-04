@@ -1401,7 +1401,9 @@ public final class Fn
 	
 	/**
 	 * @deprecated This function can be called accidentally if you try to use
-	 * a higher-dimensional memcpy that is not implemented.
+	 * a higher-dimensional memcpy that is not implemented. It's not
+	 * deprecated per se, I just want to see the strikethrough when I use it
+	 * so that I remember to check whether this is the function I want.
 	 * @param dest
 	 * @param src
 	 * @return

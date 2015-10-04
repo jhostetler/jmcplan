@@ -39,7 +39,7 @@ public class TerminatingRacegridRepresenter
 	@Override
 	public FactoredRepresentation<RacegridState> encode( final RacegridState s )
 	{
-		final double[] phi = new double[attributes_.size()];
+		final float[] phi = new float[attributes_.size()];
 		int idx = 0;
 		phi[idx++] = s.x;
 		phi[idx++] = s.y;

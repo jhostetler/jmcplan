@@ -36,8 +36,8 @@ public final class FireGirlState implements State
 	
 	public int ignite_date = -1;
 	public int[] ignite_loc = null;
-	public double ignite_wind = 0.0;
-	public double ignite_temp = 0.0;
+	public float ignite_wind = 0.0f;
+	public float ignite_temp = 0.0f;
 	
 	public double r = 0.0;
 	
@@ -60,6 +60,10 @@ public final class FireGirlState implements State
 		this.ignite_wind = that.ignite_wind;
 		this.ignite_temp = that.ignite_temp;
 	}
+	
+	@Override
+	public void close()
+	{ }
 	
 	@Override
 	public String toString()
@@ -180,8 +184,8 @@ public final class FireGirlState implements State
 		if( ignite_date >= 0 ) {
 			assert( ignite_date < 365 );
 			
-			ignite_wind = drawWindSpeed( rng, ignite_date );
-			ignite_temp = drawTemperature( rng, ignite_date );
+			ignite_wind = (float) drawWindSpeed( rng, ignite_date );
+			ignite_temp = (float) drawTemperature( rng, ignite_date );
 		}
 		else {
 			ignite_wind = 0;

@@ -76,6 +76,10 @@ public class RacegridState implements State
 		this.t = that.t;
 	}
 	
+	@Override
+	public void close()
+	{ }
+	
 	public void setRandomStartState( final RandomGenerator rng )
 	{
 		final int start_idx = rng.nextInt( starts.size() );

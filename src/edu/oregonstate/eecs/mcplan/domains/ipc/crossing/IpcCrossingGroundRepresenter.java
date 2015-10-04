@@ -46,7 +46,7 @@ public final class IpcCrossingGroundRepresenter
 	@Override
 	public FactoredRepresentation<IpcCrossingState> encode( final IpcCrossingState s )
 	{
-		final double[] phi = new double[attributes.size()];
+		final float[] phi = new float[attributes.size()];
 		int idx = 0;
 		phi[idx++] = s.x;
 		phi[idx++] = s.y;

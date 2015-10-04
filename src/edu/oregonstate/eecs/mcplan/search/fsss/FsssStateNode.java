@@ -15,7 +15,7 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  * @author jhostetler
  *
  */
-public final class FsssStateNode<S extends State, A extends VirtualConstructor<A>>
+public final class FsssStateNode<S extends State, A extends VirtualConstructor<A>> implements AutoCloseable
 {
 	private final FsssActionNode<S, A> predecessor;
 	private final FsssModel<S, A> model;
@@ -52,6 +52,12 @@ public final class FsssStateNode<S extends State, A extends VirtualConstructor<A
 		this.U = model.Vmax( s );
 		this.L = model.Vmin( s );
 		this.depth = depth;
+	}
+	
+	@Override
+	public void close()
+	{
+		s.close();
 	}
 	
 	@Override

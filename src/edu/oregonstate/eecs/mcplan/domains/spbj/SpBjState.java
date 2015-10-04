@@ -37,6 +37,10 @@ public class SpBjState implements State
 		deck = s.deck.copy();
 	}
 	
+	@Override
+	public void close()
+	{ }
+	
 	public SpBjState copy()
 	{
 		return new SpBjState( this );

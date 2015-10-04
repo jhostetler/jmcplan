@@ -16,7 +16,7 @@ public abstract class FactoredRepresentation<S> extends Representation<S>
 	 * Returns the feature vector representation.
 	 * @return
 	 */
-	public abstract double[] phi();
+	public abstract float[] phi();
 	
 	@Override
 	public abstract FactoredRepresentation<S> copy();

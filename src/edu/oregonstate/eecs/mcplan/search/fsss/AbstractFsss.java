@@ -107,6 +107,9 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 //			}
 		}
 		
+		final FsssNodeCloser<S, A> closer = new FsssNodeCloser<S, A>();
+		closer.traverse( root );
+		
 		Log.debug( "\t=> FSSS: {} iterations to convergence", iter );
 		Log.debug( "\t a* = {}", root.astar() );
 		Log.debug( "\t L* = {}", root.greatestLowerBound() );
@@ -122,7 +125,7 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 					Log.info( "\t\tFSSS: Exceeded budget" );
 					return;
 				}
-				asn.expand( model.actions( asn.exemplar().s() ), parameters.width, parameters.budget );
+				asn.expand( model.actions( asn ), parameters.width, parameters.budget );
 				fireExpand( asn );
 			}
 			

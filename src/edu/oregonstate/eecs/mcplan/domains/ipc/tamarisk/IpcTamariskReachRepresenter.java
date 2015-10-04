@@ -38,7 +38,7 @@ public final class IpcTamariskReachRepresenter
 	@Override
 	public FactoredRepresentation<IpcTamariskState> encode( final IpcTamariskState s )
 	{
-		final double[] x = new double[attributes.size()];
+		final float[] x = new float[attributes.size()];
 		int idx = 0;
 		for( int i = 0; i < params.Nreaches; ++i ) {
 			final byte[] r = s.reaches[i];
