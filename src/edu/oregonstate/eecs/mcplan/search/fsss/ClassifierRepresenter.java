@@ -20,8 +20,10 @@ import edu.oregonstate.eecs.mcplan.abstraction.IndexRepresentation;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
- * @author jhostetler
- *
+ * Represents an abstraction relation as a partition tree.
+ * <p>
+ * WARNING: This class has a lot of subtly different interface methods and
+ * not all of them are used by any working code. Modify with care!
  */
 public abstract class ClassifierRepresenter<S extends State, A extends VirtualConstructor<A>>
 	implements Representer<S, Representation<S>>

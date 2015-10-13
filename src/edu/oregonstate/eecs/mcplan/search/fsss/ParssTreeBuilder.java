@@ -12,8 +12,7 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
- * @author jhostetler
- *
+ * The PARSS algorithm.
  */
 public class ParssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 	implements SearchAlgorithm<S, A>
@@ -120,6 +119,9 @@ public class ParssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 				refinement_order.refine();
 				num_refinements += 1;
 				
+//				final FsssNodeCloser<S, A> closer = new FsssNodeCloser<S, A>();
+//				closer.traverse( root );
+				
 				// If the intersection of the old optimal action set and the
 				// new optimal action set is empty, the best action has changed
 				final ArrayList<FsssAbstractActionNode<S, A>> lprime = Fn.copy( root.greatestLowerBound() );
@@ -149,7 +151,7 @@ public class ParssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 	
 		Log.debug( "\t==> Sample count = {}", model.sampleCount() );
 		
-		final ArrayList<String> errors = FsssTest.validateTree( root(), model );
+		final ArrayList<String> errors = FsssTest.validateTree( parameters, root(), model );
 		Log.debug( "\tvalidateTrees(): {} errors", errors.size() );
 		for( int i = 0; i < errors.size(); ++i ) {
 			Log.debug( "\t\t[{}] {}", i, errors.get( i ) );

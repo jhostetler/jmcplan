@@ -47,7 +47,7 @@ public class AdvisingGroundRepresenter implements FactoredRepresenter<AdvisingSt
 	@Override
 	public FactoredRepresentation<AdvisingState> encode( final AdvisingState s )
 	{
-		final double[] phi = Fn.copyAsDouble( s.grade );
+		final float[] phi = Fn.copyAsFloat( s.grade );
 		return new ArrayFactoredRepresentation<AdvisingState>( phi );
 	}
 }

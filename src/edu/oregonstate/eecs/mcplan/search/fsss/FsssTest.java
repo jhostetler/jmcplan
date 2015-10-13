@@ -224,8 +224,20 @@ public class FsssTest
 	
 	// -----------------------------------------------------------------------
 	
+	/**
+	 * Performs consistency checks on an AFSSS tree.
+	 * <p>
+	 * The most common reason for failing these checks is incorrect
+	 * implementation of Vmin/Vmax in the FsssModel.
+	 * @param params
+	 * @param root
+	 * @param model
+	 * @return List of errors
+	 */
 	public static <S extends State, A extends VirtualConstructor<A>>
-	ArrayList<String> validateTree( final FsssAbstractStateNode<S, A> root, final FsssModel<S, A> model )
+	ArrayList<String> validateTree( final FsssParameters params,
+									final FsssAbstractStateNode<S, A> root,
+									final FsssModel<S, A> model )
 	{
 		final ArrayList<String> errors = new ArrayList<String>();
 		
@@ -234,86 +246,77 @@ public class FsssTest
 		
 		while( !state_stack.isEmpty() ) {
 			final FsssAbstractStateNode<S, A> asn = state_stack.pop();
-			
-//			final S s = asn.exemplar().s();
-			
 			{
-			
-				double model_R = 0;
-				double model_U = 0;
-				double model_L = 0;
-				double model_H = 0;
-				for( final FsssStateNode<S, A> gsn : asn.states() ) {
-					model_R += model.reward( gsn.s() );
-					model_U += model.Vmax( gsn.s() );
-					model_L += model.Vmin( gsn.s() );
-					model_H += model.heuristic( gsn.s() );
-				}
-				model_R /= asn.n();
-//				check_U /= asn.n();
-//				check_L /= asn.n();
-				model_U /= asn.n();
-				model_L /= asn.n();
-				model_H /= asn.n();
-				
-				double check_U = -Double.MAX_VALUE;
-				double check_L = -Double.MAX_VALUE;
-				if( asn.nsuccessors() > 0 ) {
-					for( final FsssAbstractActionNode<S, A> aan : asn.successors() ) {
-						check_U = Math.max( check_U, aan.U() );
-						check_L = Math.max( check_L, aan.L() );
+				if( !asn.isClosed() ) {
+					// These checks compare the ASN value to the average
+					// over GSN values. They don't work on closed nodes.
+					double model_R = 0;
+					double model_U = 0;
+					double model_L = 0;
+					double model_H = 0;
+					for( final FsssStateNode<S, A> gsn : asn.states() ) {
+						model_R += model.reward( gsn.s() );
+						model_U += model.Vmax( gsn.s() );
+						model_L += model.Vmin( gsn.s() );
+						model_H += model.heuristic( gsn.s() );
 					}
-				}
-				else if( asn.nvisits() > 0 && asn.isTerminal() ) {
-					check_U = check_L = model_H;
-				}
-				else {
-					check_U = model_U;
-					check_L = model_L;
-				}
-				check_U += model_R;
-				check_L += model_R;
-				
-				if( asn.nvisits() > 0 ) {
-					// These give spurious errors in unvisited states due to
-					// immediate reward, which is counted by 'check_X', but
-					// which is not applied to U/L until backup() is executed.
-					if( !Fn.approxEq( 1e-6, asn.U(), check_U ) ) {
+					model_R /= asn.n();
+	//				check_U /= asn.n();
+	//				check_L /= asn.n();
+					model_U /= asn.n();
+					model_L /= asn.n();
+					model_H /= asn.n();
+					
+					double check_U = -Double.MAX_VALUE;
+					double check_L = -Double.MAX_VALUE;
+					if( asn.nsuccessors() > 0 ) {
+						for( final FsssAbstractActionNode<S, A> aan : asn.successors() ) {
+							check_U = Math.max( check_U, aan.U() );
+							check_L = Math.max( check_L, aan.L() );
+						}
+					}
+					else if( asn.isExpanded() && asn.isTerminal() ) {
+						check_U = check_L = model_H;
+					}
+					else {
+						check_U = model_U;
+						check_L = model_L;
+					}
+					check_U += model_R;
+					check_L += model_R;
+					
+					if( !Fn.approxEq( 1e-6, asn.R(), model_R ) ) {
 						errors.add( "@" + Integer.toHexString( asn.hashCode() )
-									+ ": asn.U() [" + asn.U() + "] != check_U [" + check_U + "]" );
+									+ ": asn.R() [" + asn.R() + "] != model_R [" + model_R + "]" );
 					}
-					if( !Fn.approxEq( 1e-6, asn.L(), check_L ) ) {
-						errors.add( "@" + Integer.toHexString( asn.hashCode() )
-									+ ": asn.L() [" + asn.L() + "] != check_L [" + check_L + "]" );
+					
+					if( asn.nvisits() > 0 ) {
+						// These give spurious errors in unvisited states due to
+						// immediate reward, which is counted by 'check_X', but
+						// which is not applied to U/L until backup() is executed.
+						if( !Fn.approxEq( 1e-6, asn.U(), check_U ) ) {
+							errors.add( "@" + Integer.toHexString( asn.hashCode() )
+										+ ": asn.U() [" + asn.U() + "] != check_U [" + check_U + "]" );
+						}
+						if( !Fn.approxEq( 1e-6, asn.L(), check_L ) ) {
+							errors.add( "@" + Integer.toHexString( asn.hashCode() )
+										+ ": asn.L() [" + asn.L() + "] != check_L [" + check_L + "]" );
+						}
 					}
 				}
 				
+				// U() > L()
 				if( asn.U() - asn.L() < 0 ) {
 					errors.add( "@" + Integer.toHexString( asn.hashCode() )
 								+ ": asn.U() [" + asn.U() + "] - asn.L() [" + asn.L() + "] < 0" );
 				}
-				
-//				if( asn.U() - model_U > 1e-6 ) {
-//					errors.add( "@" + Integer.toHexString( asn.hashCode() )
-//								+ ": asn.U() [" + asn.U() + "] >~ model_U [" + model_U + "]" );
-//				}
-//				if( model_L - asn.L() > 1e-6 ) {
-//					errors.add( "@" + Integer.toHexString( asn.hashCode() )
-//								+ ": asn.L() [" + asn.L() + "] <~ model_L [" + model_L + "]" );
-//				}
+
+				// Unvisited nodes should have no successors
 				if( asn.nvisits() == 0 ) {
 					if( asn.nsuccessors() > 0 ) {
 						errors.add( "@" + Integer.toHexString( asn.hashCode() )
 									+ ": asn.nvisits() == 0 and asn.nsuccessors() [" + asn.nsuccessors() + "] > 0" );
 					}
-	//				if( asn.U() != model.Vmax( s ) ) {
-	//					errors.add( "@" + Integer.toHexString( asn.hashCode() )
-	//								+ ": asn.nvisits() == 0 and asn.U() != model.Vmax()" );
-	//				}
-	//				if( asn.L() != model.Vmin( s ) ) {
-	//					errors.add( "@" + Integer.toHexString( asn.hashCode() )
-	//								+ ": asn.nvisits() == 0 and asn.L() != model.Vmin()" );
-	//				}
 				}
 			
 			}
@@ -321,58 +324,52 @@ public class FsssTest
 			for( final FsssAbstractActionNode<S, A> aan : asn.successors() ) {
 				final A a = aan.a();
 				
-				double model_R = 0;
-				for( final FsssStateNode<S, A> gsn : asn.states() ) {
-					model_R += model.reward( gsn.s(), a );
+				if( !asn.isClosed() ) {
+					double model_R = 0;
+					for( final FsssStateNode<S, A> gsn : asn.states() ) {
+						model_R += model.reward( gsn.s(), a );
+					}
+					model_R /= asn.n();
+					if( !Fn.approxEq( 1e-6, aan.R(), model_R ) ) {
+						errors.add( "@" + Integer.toHexString( aan.hashCode() )
+									+ ": aan.R() [" + aan.R() + "] != model_R [" + model_R + "]" );
+					}
 				}
-				model_R /= asn.n();
+				
+				
 				double check_U = 0;
 				double check_L = 0;
-//				double model_U = 0;
-//				double model_L = 0;
 				int check_n = 0;
 				for( final FsssAbstractStateNode<S, A> asn_prime : aan.successors() ) {
 					state_stack.push( asn_prime );
 					
-					final int n = asn_prime.states().size();
+					final int n = asn_prime.n();
 					check_U += n*asn_prime.U();
 					check_L += n*asn_prime.L();
-//					model_U += n*model.Vmax( asn_prime.states().get( 0 ).s() );
-//					model_L += n*model.Vmin( asn_prime.states().get( 0 ).s() );
 					check_n += n;
 				}
 				check_U /= check_n;
 				check_U += aan.R();
 				check_L /= check_n;
 				check_L += aan.R();
-//				model_U /= check_n;
-//				model_U += model_R;
-//				model_L /= check_n;
-//				model_L += model_R;
 				
-				if( aan.isBackedUp() ) {
-					if( !Fn.approxEq( 1e-6, aan.U(), check_U ) ) {
-						errors.add( "@" + Integer.toHexString( aan.hashCode() )
-									+ ": aan.U() [" + aan.U() + "] != check_U [" + check_U + "]" );
-					}
-					if( !Fn.approxEq( 1e-6, aan.L(), check_L ) ) {
-						errors.add( "@" + Integer.toHexString( aan.hashCode() )
-									+ ": aan.L() [" + aan.L() + "] != check_L [" + check_L + "]" );
-					}
-	//				if( !Fn.approxEq( 1e-6, aan.R(), model_R ) ) {
-	//					errors.add( "@" + Integer.toHexString( aan.hashCode() )
-	//								+ ": aan.R() != model_R [" + model_R + "]" );
-	//				}
-//					if( aan.U() - model_U > 1e-6 ) {
-//						errors.add( "@" + Integer.toHexString( aan.hashCode() )
-//									+ ": aan.U() [" + aan.U() + "] >~ model_U [" + model_U + "]" );
-//					}
-//					if( model_L - aan.L() > 1e-6 ) {
-//						errors.add( "@" + Integer.toHexString( aan.hashCode() )
-//									+ ": aan.L() [" + aan.L() + "] <~ model_L [" + model_L + "]" );
-//					}
+				// Correct value estimates
+				if( !Fn.approxEq( 1e-6, aan.U(), check_U ) ) {
+					errors.add( "@" + Integer.toHexString( aan.hashCode() )
+								+ ": aan.U() [" + aan.U() + "] != check_U [" + check_U + "]" );
+				}
+				if( !Fn.approxEq( 1e-6, aan.L(), check_L ) ) {
+					errors.add( "@" + Integer.toHexString( aan.hashCode() )
+								+ ": aan.L() [" + aan.L() + "] != check_L [" + check_L + "]" );
 				}
 				
+				// Action sampled at least C times
+				if( check_n < params.width ) {
+					errors.add( "@" + Integer.toHexString( aan.hashCode() )
+								+ ": check_n [" + check_n + "] < params.width [" + params.width + "]" );
+				}
+				
+				// Action nodes should always have successors
 				if( aan.nsuccessors() == 0 ) {
 					errors.add( "@" + Integer.toHexString( aan.hashCode() )
 								+ ": aan.nsuccessors() == 0" );

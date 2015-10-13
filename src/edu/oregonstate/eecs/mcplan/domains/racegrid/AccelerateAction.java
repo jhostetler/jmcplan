@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.racegrid;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 
 /**
  * @author jhostetler
@@ -45,7 +47,7 @@ public class AccelerateAction extends RacegridAction
 	}
 
 	@Override
-	public void doAction( final RacegridState s )
+	public void doAction( final RandomGenerator rng, final RacegridState s )
 	{
 		assert( !done_ );
 		

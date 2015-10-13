@@ -76,6 +76,13 @@ public class RacegridState implements State
 		this.t = that.t;
 	}
 	
+//	private static int nfinalized = 0;
+//	@Override
+//	public void finalize()
+//	{
+//		System.out.println( "finalize(): " + (nfinalized++) + " RacegridState" );
+//	}
+	
 	@Override
 	public void close()
 	{ }

@@ -7,8 +7,7 @@ import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
 /**
- * @author jhostetler
- *
+ * Sample budget.
  */
 public class FsssSampleBudget<S extends State, A extends VirtualConstructor<A>> implements Budget
 {

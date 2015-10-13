@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.ipc.tamarisk;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.Action;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
@@ -47,7 +49,7 @@ public final class IpcTamariskAction implements Action<IpcTamariskState>, Virtua
 	}
 
 	@Override
-	public void doAction( final IpcTamariskState s )
+	public void doAction( final RandomGenerator rng, final IpcTamariskState s )
 	{
 		throw new UnsupportedOperationException();
 	}

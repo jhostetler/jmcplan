@@ -5,6 +5,8 @@ package edu.oregonstate.eecs.mcplan.domains.advising;
 
 import java.util.Arrays;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
@@ -14,10 +16,10 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  */
 public class AdvisingState implements State
 {
-	public static final int NotTaken = -1;
+	public static final byte NotTaken = -1;
 	
 	public final AdvisingParameters params;
-	public final int[] grade;
+	public final byte[] grade;
 	public int t = 0;
 	
 	public AdvisingState( final AdvisingParameters params )
@@ -33,8 +35,12 @@ public class AdvisingState implements State
 		this.t = that.t;
 	}
 	
+	@Override
+	public void close()
+	{ }
+	
 	// See: academic_advising_mdp.rddl, lines 58-66
-	public int sampleGrade( final int course, final int[] prereq_grades )
+	public byte sampleGrade( final RandomGenerator rng, final int course, final byte[] prereq_grades )
 	{
 		final double pfail;
 		if( prereq_grades.length == 0 ) {
@@ -54,19 +60,19 @@ public class AdvisingState implements State
 		}
 		
 		// Generalizes grade assignment to numerical grades
-		final double r = params.rng.nextDouble();
-		final int new_grade;
+		final double r = rng.nextDouble();
+		final byte new_grade;
 		if( r < pfail ) {
 			new_grade = 0;
 		}
 		else {
 			// Renormalize remainder of interval
 			final double q = (r - pfail) / (1.0 - pfail);
-			new_grade = 1 + (int) (q * params.max_grade);
+			new_grade = (byte) (1 + (int) (q * params.max_grade));
 		}
 		assert( new_grade >= 0 );
 		assert( new_grade <= params.max_grade );
-		final int result = Math.max( new_grade, grade[course] );
+		final byte result = (byte) Math.max( new_grade, grade[course] );
 		return result;
 	}
 

@@ -9,6 +9,12 @@ import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Generator;
 
+/**
+ * Implementation of SplitNode using a map to split instances into arbitrary
+ * sets.
+ * @param <S>
+ * @param <A>
+ */
 public class MapBinarySplitNode<S extends State, A extends VirtualConstructor<A>>
 	extends SplitNode<S, A>
 {
@@ -65,7 +71,7 @@ public class MapBinarySplitNode<S extends State, A extends VirtualConstructor<A>
 	{
 		DataNode<S, A> dn = child( gsn.x() );
 		if( dn == null ) {
-			if( left.aggregate.states().size() < right.aggregate.states().size() ) {
+			if( left.aggregate.n() < right.aggregate.n() ) {
 				dn = left;
 			}
 			else {

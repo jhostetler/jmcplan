@@ -204,7 +204,7 @@ public class SailingFsssModel extends FsssModel<SailingState, SailingAction>
 	public SailingState sampleTransition( final SailingState s, final SailingAction a )
 	{
 		final SailingState sprime = new SailingState( s );
-		a.doAction( sprime );
+		a.doAction( rng, sprime );
 		sprime.randomizeWind( rng );
 		sprime.t += 1;
 		sample_count += 1;

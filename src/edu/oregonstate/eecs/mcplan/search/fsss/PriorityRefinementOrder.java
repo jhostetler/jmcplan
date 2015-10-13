@@ -35,10 +35,10 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  * equal to depth. The fully-randomized ordering assigns equal priority to
  * every ASN.
  * <p>
- * FIXME: This code pre-dates the FsssNodeCloser addition to AbstractFsss. This
- * code is maintaining its own table of closed nodes. Should be refactored to
- * use ASN.isClosed(), but I don't want to do that now because the existing
- * code works.
+ * FIXME: This code pre-dates the AutoCloseable implementation for the AFSSS
+ * classes. This code is maintaining its own table of closed nodes. Should be
+ * refactored to use ASN.isClosed(), but I don't want to do that now because
+ * the existing code works.
  */
 public abstract class PriorityRefinementOrder<S extends State, A extends VirtualConstructor<A>>
 	implements RefinementOrder<S, A>
@@ -140,7 +140,6 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 		final FsssAbstractStateNode<S, A> s = aan.predecessor;
 		s.backup();
 		if( s.predecessor != null ) {
-//			s.predecessor.backup();
 			backupToRoot( s.predecessor );
 		}
 	}
@@ -180,14 +179,6 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 				if( sn_added != null ) {
 					asn_succ.addActionNodes( sn_added );
 				}
-				
-//				if( asn_succ.isTerminal() ) {
-////					asn_succ.leaf();
-//				}
-//				else {
-//					upSample( asn_succ );
-////					asn_succ.backup();
-//				}
 				
 				upSample( asn_succ );
 			}
@@ -289,7 +280,13 @@ public abstract class PriorityRefinementOrder<S extends State, A extends Virtual
 			else {
 				Log.trace( "\t\t\tClosed" );
 				// Check for consistency with the "official" closed flag
-				assert( asn.isClosed() || asn.isReadyToClose() );
+				assert( !parameters.use_close
+						|| (asn_pred.isClosed() && (asn.isClosed() || asn.isReadyToClose())) );
+				if( parameters.use_close
+						&& !asn.isClosed() && asn.isReadyToClose() ) {
+					Log.debug( "close(): [PriorityRefinementOrder]" );
+					asn.close();
+				}
 				return;
 			}
 		}

@@ -9,7 +9,6 @@ import java.util.BitSet;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.State;
-import edu.oregonstate.eecs.mcplan.util.Fn;
 import gnu.trove.iterator.TIntIterator;
 import gnu.trove.list.TIntList;
 import gnu.trove.list.array.TIntArrayList;
@@ -28,12 +27,12 @@ public final class TetrisState implements State
 	 * Row-major order, bottom-up. Encoding: 0 means empty, > 0 means not empty, cells
 	 * with the same non-zero number are part of the same connected component.
 	 */
-	public final byte[][] cells;
+//	public final byte[][] cells;
+//	public final ArrayList<BitSet> cells;
+	private final BitSet cells;
+	
 	public int t = 0;
-	public final int T = 50;
 	public double r = 0.0;
-	public int height = 0;
-	public int Nblocks = 0;
 	
 	private final BitSet frozen = new BitSet();
 	private int Ncomponents = 0;
@@ -45,27 +44,72 @@ public final class TetrisState implements State
 	public TetrisState( final TetrisState that )
 	{
 		this( that.params );
-		Fn.memcpy( this.cells, that.cells );
+		
+//		Fn.memcpy( this.cells, that.cells );
+//		for( int i = 0; i < params.Nrows; ++i ) {
+//			this.cells.get( i ).or( that.cells.get( i ) );
+//		}
+		this.cells.or( that.cells );
+		
 		this.frozen.or( that.frozen );
 		this.Ncomponents = that.Ncomponents;
 		this.game_over = that.game_over;
 		this.queued_tetro = that.queued_tetro.type.create( params );
 		this.t = that.t;
 		this.r = that.r;
-		this.height = that.height;
-		this.Nblocks = that.Nblocks;
 	}
 	
 	public TetrisState( final TetrisParameters params )
 	{
 		this.params = params;
-		cells = new byte[params.Nrows][params.Ncolumns];
+//		cells = new byte[params.Nrows][params.Ncolumns];
+//		cells = new ArrayList<BitSet>( params.Nrows );
+//		for( int i = 0; i < params.Nrows; ++i ) {
+//			cells.set( i, new BitSet( params.Ncolumns ) );
+//		}
+		cells = new BitSet( params.Nrows * params.Ncolumns );
 	}
 	
 	@Override
 	public void close()
 	{ }
+	
+//	private static int nfinalized = 0;
+//	@Override
+//	public void finalize()
+//	{
+//		System.out.println( "finalize(): " + (nfinalized++) + " TetrisState" );
+//	}
 
+	public final boolean cell( final int y, final int x )
+	{
+		return cells.get( y * params.Ncolumns + x );
+	}
+	
+	private final void clear( final int y, final int x )
+	{
+		cells.clear( y * params.Ncolumns + x );
+	}
+	
+	private final void clearRow( final int y )
+	{
+		cells.clear( y * params.Ncolumns, y * params.Ncolumns + params.Nrows );
+	}
+	
+	/*package*/ final void setCell( final int y, final int x )
+	{
+		cells.set( y * params.Ncolumns + x );
+	}
+	
+	public final int Nblocks()
+	{
+		int sum = 0;
+		for( int i = cells.nextSetBit( 0 ); i >= 0; i = cells.nextSetBit( i + 1 ) ) {
+			sum += 1;
+		}
+		return sum;
+	}
+	
 	public void advanceTetrominoQueue( final RandomGenerator rng )
 	{
 		final int t = rng.nextInt( TetrominoType.values().length );
@@ -167,27 +211,45 @@ public final class TetrisState implements State
 	 * ordered first by the y-coordinate of the lowest block in the class,
 	 * then by the x-coordinate of the left-most block in the class.
 	 */
-	public void assignComponents()
+	/*package*/ final void assignComponents()
 	{
 		byte next_comp = 1;
 		final Partition partition = new Partition();
 		
 		// Bottom row
-		final byte[] bottom_row = cells[0];
-		if( bottom_row[0] != 0 ) {
+//		final byte[] bottom_row = cells[0];
+//		final BitSet bottom_row = cells.get( 0 );
+//		if( bottom_row != 0 ) {
+//		if( bottom_row.get( 0 ) ) {
+		if( cell( 0, 0 ) ) {
 			partition.addEquivalence( next_comp, next_comp );
-			bottom_row[0] = next_comp++;
-			
+//			bottom_row[0] = next_comp++;
+			params.scratch[0][0] = next_comp++;
+		}
+		else {
+			// NOTE: This and the similar 'else 0' clauses don't seem to be
+			// necessary, it's difficult to tell if the algorithm is
+			// correct without them, and I don't want to risk it.
+			params.scratch[0][0] = 0;
 		}
 		for( int x = 1; x < params.Ncolumns; ++x ) {
-			if( bottom_row[x] != 0 ) {
-				if( bottom_row[x-1] != 0 ) {
-					bottom_row[x] = bottom_row[x-1];
+//			if( bottom_row[x] != 0 ) {
+//			if( bottom_row.get( x ) ) {
+			if( cell( 0, x ) ) {
+//				if( bottom_row[x-1] != 0 ) {
+//				if( bottom_row.get( x - 1 ) ) {
+				if( cell( 0, x - 1 ) ) {
+//					bottom_row[x] = bottom_row[x-1];
+					params.scratch[0][x] = params.scratch[0][x-1];
 				}
 				else {
 					partition.addEquivalence( next_comp, next_comp );
-					bottom_row[x] = next_comp++;
+//					bottom_row[x] = next_comp++;
+					params.scratch[0][x] = next_comp++;
 				}
+			}
+			else {
+				params.scratch[0][x] = 0;
 			}
 		}
 		
@@ -195,42 +257,60 @@ public final class TetrisState implements State
 //		System.out.println( this );
 		
 		// Other rows
-		byte[] prev_row = bottom_row;
+//		byte[] prev_row = bottom_row;
+//		BitSet prev_row = bottom_row;
 		for( int y = 1; y < params.Nrows; ++y ) {
-			final byte[] row = cells[y];
+//			final byte[] row = cells[y];
+//			final BitSet row = cells.get( y );
 			
 			for( int x = 0; x < params.Ncolumns; ++x ) {
-				if( row[x] != 0 ) {
+//				if( row[x] != 0 ) {
+//				if( row.get( x ) ) {
+				if( cell( y, x ) ) {
 					boolean connected = false;
-					if( prev_row[x] != 0 ) {
+//					if( prev_row[x] != 0 ) {
+//					if( prev_row.get( x ) ) {
+					if( cell( y - 1, x ) ) {
 						// Connected to block below it
-						row[x] = prev_row[x];
+//						row[x] = prev_row[x];
+						params.scratch[y][x] = params.scratch[y-1][x];
 						connected = true;
 					}
-					if( x > 0 && row[x-1] != 0 ) {
+//					if( x > 0 && row[x-1] != 0 ) {
+//					if( x > 0 && row.get( x - 1 ) ) {
+					if( x > 0 && cell( y, x - 1 ) ) {
 						// Connected to block to the left
-						if( prev_row[x] != 0 && row[x-1] != prev_row[x] ) {
+//						if( prev_row[x] != 0 && row[x-1] != prev_row[x] ) {
+//						if( prev_row.get( x ) && params.scratch[y][x-1] != params.scratch[y-1][x] ) {
+						if( cell( y - 1, x ) && params.scratch[y][x-1] != params.scratch[y-1][x] ) {
 							// Different comp index indicates that left and
 							// down are in different eq classes. Current
 							// block joins them, so make them equivalent.
-							partition.addEquivalence( prev_row[x], row[x] );
-							partition.addEquivalence( row[x-1], row[x] );
+//							partition.addEquivalence( prev_row[x], row[x] );
+							partition.addEquivalence( params.scratch[y-1][x], params.scratch[y][x] );
+//							partition.addEquivalence( row[x-1], row[x] );
+							partition.addEquivalence( params.scratch[y][x-1], params.scratch[y][x] );
 							
 //							System.out.println( "" + prev_row[x] + " ~= " + row[x-1] );
 						}
 						else {
-							row[x] = row[x-1];
+//							row[x] = row[x-1];
+							params.scratch[y][x] = params.scratch[y][x-1];
 						}
 						connected = true;
 					}
 					if( !connected ) {
 						partition.addEquivalence( next_comp, next_comp );
-						row[x] = next_comp++;
+//						row[x] = next_comp++;
+						params.scratch[y][x] = next_comp++;
 					}
+				}
+				else {
+					params.scratch[y][x] = 0;
 				}
 			}
 			
-			prev_row = row;
+//			prev_row = row;
 			
 //			System.out.println( "Row " + y + ":" );
 //			System.out.println( this );
@@ -243,15 +323,13 @@ public final class TetrisState implements State
 //		System.out.println( Arrays.toString( reduced ) );
 		
 		// Assign minimal indices
-		// Compute and cache some other stuff while we're at it
-		height = 0;
-		Nblocks = 0;
 		for( int y = 0; y < params.Nrows; ++y ) {
 			for( int x = 0; x < params.Ncolumns; ++x ) {
-				if( cells[y][x] != 0 ) {
-					cells[y][x] = reduced[cells[y][x] - 1];
-					height = y + 1;
-					Nblocks += 1;
+//				if( cells[y][x] != 0 ) {
+//				if( cells.get( y ).get( x ) ) {
+				if( cell( y, x ) ) {
+//					cells[y][x] = reduced[cells[y][x] - 1];
+					params.scratch[y][x] = reduced[params.scratch[y][x] - 1];
 				}
 			}
 		}
@@ -259,9 +337,12 @@ public final class TetrisState implements State
 		// Components touching the ground don't move
 		frozen.clear();
 		for( int x = 0; x < params.Ncolumns; ++x ) {
-			if( cells[0][x] > 0 ) {
+//			if( cells[0][x] > 0 ) {
+//			if( cells.get( 0 ).get( x ) ) {
+			if( cell( 0, x ) ) {
 //				System.out.println( "Frozen: " + cells[0][x] );
-				frozen.set( cells[0][x] );
+//				frozen.set( cells[0][x] );
+				frozen.set( params.scratch[0][x] );
 			}
 		}
 		
@@ -308,20 +389,25 @@ public final class TetrisState implements State
 	 * Clears all complete rows and returns the number of rows cleared.
 	 * @return
 	 */
-	public int clearCompleteRows()
+	private int clearCompleteRows()
 	{
 		int count = 0;
 		for( int y = 0; y < params.Nrows; ++y ) {
-			final byte[] row = cells[y];
+//			final byte[] row = cells[y];
+//			final BitSet row = cells.get( y );
 			boolean full = true;
 			for( int x = 0; x < params.Ncolumns; ++x ) {
-				if( row[x] == 0 ) {
+//				if( row[x] == 0 ) {
+//				if( !row.get( x ) ) {
+				if( !cell( y, x ) ) {
 					full = false;
 					break;
 				}
 			}
 			if( full ) {
-				Fn.assign( row, (byte) 0 );
+//				Fn.assign( row, (byte) 0 );
+//				row.clear();
+				clearRow( y );
 				++count;
 			}
 		}
@@ -332,30 +418,43 @@ public final class TetrisState implements State
 	 * Drops all free blocks one row and re-calculates frozen blocks.
 	 * @return
 	 */
-	public boolean step()
+	private boolean step()
 	{
 //		System.out.println( "step()" );
 //		System.out.println( this );
 		
-		byte[] prev_row = cells[0];
+//		byte[] prev_row = cells[0];
+//		BitSet prev_row = cells.get( 0 );
 		for( int y = 1; y < params.Nrows; ++y ) {
-			final byte[] row = cells[y];
+//			final byte[] row = cells[y];
+//			final BitSet row = cells.get( y );
 			for( int x = 0; x < params.Ncolumns; ++x ) {
-				if( row[x] != 0 && !frozen.get( row[x] ) ) {
-					
-					if( prev_row[x] != 0 ) {
+//				if( row[x] != 0 && !frozen.get( row[x] ) ) {
+//				if( row.get( x ) && !frozen.get( params.scratch[y][x] ) ) {
+				if( cell( y, x ) && !frozen.get( params.scratch[y][x] ) ) {
+//					if( prev_row[x] != 0 ) {
+//					if( prev_row.get( x ) ) {
+					if( cell( y-1, x ) ) {
 						System.out.println( this );
 						System.out.println( "(" + x + ", " + y + ")" );
 						for( int i = 1; i <= Ncomponents; ++i ) {
 							System.out.println( "frozen " + i + ": " + frozen.get( i ) );
 						}
 					}
-					assert( prev_row[x] == 0 );
-					prev_row[x] = row[x];
-					row[x] = 0;
+//					assert( prev_row[x] == 0 );
+//					assert( !prev_row.get( x ) );
+					assert( !cell( y-1, x ) );
+//					prev_row[x] = row[x];
+//					prev_row.set( x );
+					setCell( y-1, x );
+					params.scratch[y-1][x] = params.scratch[y][x];
+//					row[x] = 0;
+//					row.clear( x );
+					clear( y, x );
+					params.scratch[y][x] = 0;
 				}
 			}
-			prev_row = row;
+//			prev_row = row;
 		}
 		
 //		prev_row = cells[0];
@@ -376,6 +475,10 @@ public final class TetrisState implements State
 		
 		refreshFrozen();
 		
+//		for( int y = params.Nrows - 1; y >= 0; --y ) {
+//			System.out.println( "\n" + Arrays.toString( params.scratch[y] ) );
+//		}
+		
 		boolean done = true;
 		for( int i = 1; i <= Ncomponents; ++i ) {
 //			System.out.println( "frozen( " + i + " ): " + frozen.get( i ) );
@@ -385,49 +488,68 @@ public final class TetrisState implements State
 		return !done;
 	}
 	
-	private void refreshFrozen()
+	/*package*/ final void refreshFrozen()
 	{
 		frozen.clear();
-		byte[] prev_row = cells[0];
+		
+//		byte[] prev_row = cells[0];
+//		BitSet prev_row = cells.get( 0 );
+		
+		// Cells touching the bottom are frozen
 		for( int x = 0; x < params.Ncolumns; ++x ) {
-			if( prev_row[x] != 0 ) {
-				frozen.set( prev_row[x] );
+//			if( prev_row[x] != 0 ) {
+//			if( prev_row.get( x ) ) {
+			if( cell( 0, x ) ) {
+//				frozen.set( prev_row[x] );
+				frozen.set( params.scratch[0][x] );
 			}
 		}
+		
 		for( int y = 1; y < params.Nrows; ++y ) {
-			final byte[] row = cells[y];
+//			final byte[] row = cells[y];
+//			final BitSet row = cells.get( y );
 			for( int x = 0; x < params.Ncolumns; ++x ) {
-				if( prev_row[x] != 0 && prev_row[x] != row[x] ) {
-					frozen.set( row[x] );
+//				if( prev_row[x] != 0 && prev_row[x] != row[x] ) {
+//				if( prev_row.get( x ) && params.scratch[y-1][x] != params.scratch[y][x] ) {
+				
+				// A member of A is frozen if it is on top of a member of
+				// B and B is frozen.
+				if( cell( y-1, x ) && params.scratch[y-1][x] != params.scratch[y][x] ) {
+//					frozen.set( row[x] );
+					frozen.set( params.scratch[y][x] );
 				}
 			}
-			prev_row = row;
+//			prev_row = row;
 		}
 	}
 	
 	@Override
 	public boolean isTerminal()
 	{
-		return game_over || t >= T;
+		return game_over || t >= params.T;
 	}
 	
 	@Override
 	public String toString()
 	{
 		final StringBuilder sb = new StringBuilder();
-		sb.append( "[t: " ).append( t ).append( ", next: " ).append( queued_tetro.type )
-		  .append( "/" ).append( queued_tetro.rotation ).append( ", height: " ).append( height )
-		  .append( ", Nblocks: " ).append( Nblocks ).append( ", Ncomponents: " ).append( Ncomponents ).append( "]" );
+		sb.append( "[t: " ).append( t ).append( ", r: " ).append( r ).append( ", next: " ).append( queued_tetro.type )
+		  .append( "/" ).append( queued_tetro.rotation )
+		  .append( ", Ncomponents: " ).append( Ncomponents ).append( "]" );
+		
+//		sb.append( "\n" ).append( new TetrisBertsekasRepresenter( params ).encode( this ) );
 		
 //		sb.append( "\n" ).append( frozen );
 		
-		sb.append( "\n" );
-		for( int y = params.Nrows - 1; y >= 0; --y ) {
-			for( int x = 0; x < params.Ncolumns; ++x ) {
-				sb.append( cells[y][x] );
-			}
-			sb.append( "\n" );
-		}
+//		sb.append( "\n" );
+//		for( int y = params.Nrows - 1; y >= 0; --y ) {
+//			for( int x = 0; x < params.Ncolumns; ++x ) {
+////				sb.append( cells[y][x] );
+////				sb.append( cells.get( y ).get( x ) ? "X" : "." );
+//				sb.append( cell( y, x ) ? "X" : "." );
+//			}
+//			sb.append( "\n" );
+//		}
 		
 		return sb.toString();
 	}

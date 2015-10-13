@@ -58,7 +58,9 @@ public class TetrisBertsekasRepresenter implements FactoredRepresenter<TetrisSta
 		// Height of each column
 		for( int i = 0; i < s.params.Ncolumns; ++i ) {
 			for( int j = s.params.Nrows - 1; j >= 0; --j ) {
-				if( s.cells[j][i] == 0 ) {
+//				if( s.cells[j][i] == 0 ) {
+//				if( !s.cells.get( j ).get( i ) ) {
+				if( !s.cell( j, i ) ) {
 					if( phi[i] > 0 ) {
 						// Empty cell with full cell somewhere above it
 						holes += 1;

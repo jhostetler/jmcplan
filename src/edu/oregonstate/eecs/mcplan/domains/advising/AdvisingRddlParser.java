@@ -6,8 +6,6 @@ package edu.oregonstate.eecs.mcplan.domains.advising;
 import java.io.File;
 import java.util.ArrayList;
 
-import org.apache.commons.math3.random.RandomGenerator;
-
 import rddl.RDDL.LCONST;
 import rddl.RDDL.PVAR_INST_DEF;
 import rddl.RDDL.TYPE_NAME;
@@ -21,8 +19,7 @@ import gnu.trove.list.array.TIntArrayList;
  */
 public class AdvisingRddlParser
 {
-	public static AdvisingParameters parse( final RandomGenerator rng,
-											final int max_grade, final int passing_grade,
+	public static AdvisingParameters parse( final int max_grade, final int passing_grade,
 											final File domain, final File instance )
 	{
 		final RddlSpec spec = new RddlSpec( domain, instance, 1, 42, "unused" );
@@ -61,6 +58,6 @@ public class AdvisingRddlParser
 			prereqs.add( list.toArray() );
 		}
 		
-		return new AdvisingParameters( rng, T, max_grade, passing_grade, Ncourses, requirements, prereqs );
+		return new AdvisingParameters( T, max_grade, passing_grade, Ncourses, requirements, prereqs );
 	}
 }

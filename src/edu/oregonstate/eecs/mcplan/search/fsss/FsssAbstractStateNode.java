@@ -10,6 +10,11 @@ import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 
+/**
+ * A state node in an Abstract FSSS tree.
+ * @param <S>
+ * @param <A>
+ */
 public final class FsssAbstractStateNode<S extends State, A extends VirtualConstructor<A>> implements AutoCloseable
 {
 	private static final ch.qos.logback.classic.Logger Log = LoggerManager.getLogger( "log.search" );
@@ -20,6 +25,7 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 	private final FsssAbstraction<S, A> abstraction;
 	private final Representation<S> x;
 	private final ArrayList<FsssStateNode<S, A>> states = new ArrayList<FsssStateNode<S, A>>();
+	private int n = 0;
 	private int nvisits = 0;
 	
 	private final MeanVarianceAccumulator R = new MeanVarianceAccumulator();
@@ -76,13 +82,21 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 	@Override
 	public void close()
 	{
-		Log.debug( "close()" );
-		Log.debug( "{}", this );
+		Log.debug( "close(): {}", this );
+		
+		if( freed ) {
+			throw new IllegalStateException( "already closed" );
+		}
 		
 		for( final FsssStateNode<S, A> sn : states ) {
 			sn.close();
 		}
 		states.clear();
+		states.trimToSize();
+		for( final FsssAbstractActionNode<S, A> aan : ordered_successors ) {
+			aan.close();
+		}
+		
 		freed = true;
 	}
 	
@@ -96,11 +110,10 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 	 */
 	private FsssAbstractActionNode<S, A> addSuccessor( final A a, final FsssAbstractActionNode<S, A> aan )
 	{
-		// TODO: Debugging code
 		if( isTerminal() ) {
 			Log.error( "! {}", this );
+			throw new IllegalStateException( "Adding successor to terminal ASN" );
 		}
-		assert( !isTerminal() );
 		final FsssAbstractActionNode<S, A> previous = successors.put( a, aan );
 		if( previous == null ) {
 			ordered_successors.add( aan );
@@ -124,7 +137,7 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 			sb.append( " (not expanded)" );
 		}
 		sb.append( "; nvisits: " ).append( nvisits() )
-		  .append( "; states.size(): " ).append( states.size() )
+		  .append( "; n: " ).append( n() )
 		  .append( "; R: " ).append( R.mean() )
 		  .append( "; U: " ).append( U )
 		  .append( "; L: " ).append( L )
@@ -146,10 +159,9 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 	public void addGroundStateNode( final FsssStateNode<S, A> gsn )
 	{
 		assert( !backed_up );
-		assert( !freed );
+		assert( !isClosed() );
 		
-		// isTerminal() throws if states.isEmpty()
-//		if( !states.isEmpty() && isTerminal() != gsn.isTerminal() ) {
+		// Can't mix terminal and non-terminal GSNs.
 		if( terminal && !gsn.isTerminal() ) {
 			FsssTest.printTree( FsssTest.findRoot( this ), System.out, 1 );
 			
@@ -163,13 +175,13 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 				+ " gsn to " + (isTerminal() ? "terminal" : "non-terminal") + " asn" );
 		}
 		
-//		System.out.println( "ASN: addGroundStateNode(): states.size() = " + states.size() );
 		states.add( gsn );
 		R.add( gsn.r );
 		Ubar.add( gsn.U() );
 		Lbar.add( gsn.L() );
 		U = Ubar.mean();
 		L = Lbar.mean();
+		n = states.size();
 		
 		if( gsn.isTerminal() ) {
 			terminal = true;
@@ -212,7 +224,7 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 	 */
 	public int n()
 	{
-		return states.size();
+		return n;
 	}
 	
 	public int nvisits()
@@ -223,6 +235,11 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 	public void visit()
 	{
 		nvisits += 1;
+	}
+	
+	public double R()
+	{
+		return R.mean();
 	}
 	
 	public double U()
@@ -324,7 +341,6 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 	
 	public Iterable<FsssAbstractActionNode<S, A>> successors()
 	{
-//		return successors.values();
 		return ordered_successors;
 	}
 	
@@ -337,10 +353,12 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 	{
 		createActionNodes( actions );
 		sample( width, budget );
+		visit();
 	}
 	
 	public void sample( final int width, final Budget budget )
 	{
+		assert( !isClosed() );
 		for( final FsssAbstractActionNode<S, A> an : successors() ) {
 			an.sample( width, budget );
 		}
@@ -378,13 +396,11 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 				this, model, abstraction, a, abstraction.createRepresenter() );
 			final FsssAbstractActionNode<S, A> check = addSuccessor( a, an );
 			
-			// TODO: Debugging code
 			if( check != null ) {
 				Log.error( "! {}: child for {} already exists {}", this, a, check );
 				FsssTest.printTree( this, System.out, 1 );
+				throw new IllegalStateException( "Duplicate action node successor" );
 			}
-			
-			assert( check == null );
 			
 			for( final FsssStateNode<S, A> s : states ) {
 				final FsssActionNode<S, A> gan = s.createActionNode( a );
@@ -395,12 +411,6 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 	
 	public void buildSubtree2( final FsssStateNode<S, A> gsn, final FsssAbstractStateNode<S, A> old_asn )
 	{
-//		if( old_asn.nvisits() == 0 ) {
-//			System.out.println( "!\tbuildSubtree2() on unvisited ASN " + old_asn );
-//			System.out.println( "\t\t asn: " + old_asn.nsuccessors() + " successors" );
-//			System.out.println( "\t\t gsn: " + gsn.nsuccessors() + " successors" );
-////			assert( false );
-//		}
 		Log.trace( "ASN.buildSubtree2( {}, {} )", gsn, old_asn );
 		
 		// TODO: Debugging code
@@ -409,11 +419,10 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 			Log.error( "! Does not contain {}", gsn );
 			
 			FsssTest.printAncestorChain( old_asn );
-			
 			FsssTest.printTree( FsssTest.findRoot( old_asn.predecessor ), System.out, 1 );
+			
+			throw new IllegalStateException( "gsn not in old_asn" );
 		}
-		
-		assert( old_asn.states.contains( gsn ) );
 		
 		if( isTerminal() ) {
 			leaf();
@@ -444,6 +453,7 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 	
 	public void leaf()
 	{
+		assert( !isClosed() );
 		visit();
 		final MeanVarianceAccumulator Ubar = new MeanVarianceAccumulator();
 		for( final FsssStateNode<S, A> gsn : states ) {
@@ -451,7 +461,6 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 			assert( gsn.U() == gsn.L() );
 			Ubar.add( gsn.U() );
 		}
-//		U = L = R.mean();
 		U = L = Ubar.mean();
 	}
 

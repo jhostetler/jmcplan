@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.sailing;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.util.Fn;
@@ -98,7 +100,7 @@ public class SailingAction implements UndoableAction<SailingState>, VirtualConst
 	}
 
 	@Override
-	public void doAction( final SailingState s )
+	public void doAction( final RandomGenerator rng, final SailingState s )
 	{
 		final int relative_wind = relativeWind( s.w ); //Math.abs( s.w - direction );
 		if( relative_wind != 0 && !s.isNeighborObstacle( direction ) ) {

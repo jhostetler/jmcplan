@@ -6,8 +6,6 @@ package edu.oregonstate.eecs.mcplan.domains.advising;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-import org.apache.commons.math3.random.RandomGenerator;
-
 /**
  * @author jhostetler
  *
@@ -21,7 +19,6 @@ public class AdvisingParameters
 	
 	public static final double missing_requirement_reward = -5;
 	
-	public final RandomGenerator rng;
 	public final int T;
 	public final int max_grade;
 	public final int passing_grade;
@@ -29,18 +26,22 @@ public class AdvisingParameters
 	public final int[] requirements;
 	public final ArrayList<int[]> prereqs;
 	
-	public AdvisingParameters( final RandomGenerator rng, final int T,
+	public AdvisingParameters( final int T,
 							   final int max_grade, final int passing_grade,
 							   final int Ncourses,
 							   final int[] requirements, final ArrayList<int[]> prereqs )
 	{
-		this.rng = rng;
 		this.T = T;
 		this.max_grade = max_grade;
 		this.passing_grade = passing_grade;
 		this.Ncourses = Ncourses;
 		this.requirements = requirements;
 		this.prereqs = prereqs;
+		
+		assert( max_grade > 0 );
+		assert( max_grade <= Byte.MAX_VALUE );
+		assert( passing_grade >= 0 );
+		assert( passing_grade <= max_grade );
 	}
 	
 	@Override

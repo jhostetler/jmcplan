@@ -859,6 +859,13 @@ public final class Fn
 		return result;
 	}
 	
+	public static byte[] repeat( final byte x, final int n )
+	{
+		final byte[] result = new byte[n];
+		Arrays.fill( result, x );
+		return result;
+	}
+	
 	public static int[] repeat( final int x, final int n )
 	{
 		final int[] result = new int[n];
@@ -1480,6 +1487,24 @@ public final class Fn
 	public static double[] copyAsDouble( final int[] x )
 	{
 		final double[] c = new double[x.length];
+		for( int i = 0; i < x.length; ++i ) {
+			c[i] = x[i];
+		}
+		return c;
+	}
+	
+	public static float[] copyAsFloat( final byte[] x )
+	{
+		final float[] c = new float[x.length];
+		for( int i = 0; i < x.length; ++i ) {
+			c[i] = x[i];
+		}
+		return c;
+	}
+	
+	public static float[] copyAsFloat( final int[] x )
+	{
+		final float[] c = new float[x.length];
 		for( int i = 0; i < x.length; ++i ) {
 			c[i] = x[i];
 		}

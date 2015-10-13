@@ -84,7 +84,7 @@ public class SpBjFsssModel extends FsssModel<SpBjState, SpBjAction>
 	{
 		sample_count += 1;
 		final SpBjState sprime = s.copy();
-		a.create().doAction( sprime );
+		a.create().doAction( rng, sprime );
 		return sprime;
 	}
 	

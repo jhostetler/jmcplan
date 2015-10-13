@@ -10,12 +10,11 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
 
 /**
- * @author jhostetler
- *
+ * Ground action node.
  */
-public class FsssActionNode<S extends State, A extends VirtualConstructor<A>>
+public class FsssActionNode<S extends State, A extends VirtualConstructor<A>> implements AutoCloseable
 {
-	private final FsssStateNode<S, A> predecessor;
+//	private final FsssStateNode<S, A> predecessor;
 	private final FsssModel<S, A> model;
 	private final S s;
 	private final A a;
@@ -29,7 +28,7 @@ public class FsssActionNode<S extends State, A extends VirtualConstructor<A>>
 	
 	public FsssActionNode( final FsssStateNode<S, A> predecessor, final FsssModel<S, A> model, final S s, final A a )
 	{
-		this.predecessor = predecessor;
+//		this.predecessor = predecessor;
 		this.model = model;
 		this.s = s;
 		this.a = a;
@@ -37,6 +36,13 @@ public class FsssActionNode<S extends State, A extends VirtualConstructor<A>>
 		this.U = model.Vmax( s, a );
 		this.L = model.Vmin( s, a );
 		this.depth = predecessor.depth;
+	}
+	
+	@Override
+	public void close()
+	{
+		successors.clear();
+		successors.trimToSize();
 	}
 	
 	@Override

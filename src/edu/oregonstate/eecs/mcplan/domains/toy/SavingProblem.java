@@ -145,7 +145,7 @@ public class SavingProblem
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{ }
 
 		@Override
@@ -184,7 +184,7 @@ public class SavingProblem
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			assert( s.investment == 0 );
 			s.investment = 1;
@@ -226,7 +226,7 @@ public class SavingProblem
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			assert( s.investment > 0 );
 			s.investment -= 1;
@@ -270,7 +270,7 @@ public class SavingProblem
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			assert( s.loan == 0 );
 			s.loan = 1;
@@ -520,7 +520,7 @@ public class SavingProblem
 			
 			final State copy = new State( s );
 			applyPreDynamics( copy );
-			a.create().doAction( copy );
+			a.create().doAction( rng, copy );
 			applyPostDynamics( rng, copy );
 			
 			return copy;

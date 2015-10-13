@@ -15,13 +15,20 @@ public final class TetrisParameters
 	 */
 	public final int Ncolumns = 10;
 	
+	public final int T;
+	
 	/**
 	 * Can be changed safely.
 	 */
 	public final int Nrows;
 	
-	public TetrisParameters( final int Nrows )
+	public final byte[][] scratch;
+	
+	public TetrisParameters( final int T, final int Nrows )
 	{
+		this.T = T;
 		this.Nrows = Nrows;
+		
+		this.scratch = new byte[Nrows][Ncolumns];
 	}
 }

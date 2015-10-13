@@ -41,6 +41,7 @@ public class AdvisingFsssModel extends FsssModel<AdvisingState, TakeCourseAction
 	
 	// -----------------------------------------------------------------------
 	
+	private final RandomGenerator rng;
 	private final AdvisingParameters params;
 	
 	private int sample_count = 0;
@@ -48,10 +49,17 @@ public class AdvisingFsssModel extends FsssModel<AdvisingState, TakeCourseAction
 	private final AdvisingGroundRepresenter base_repr;
 	private final ActionSetRepresenter action_repr = new ActionSetRepresenter();
 	
-	public AdvisingFsssModel( final AdvisingParameters params )
+	public AdvisingFsssModel( final RandomGenerator rng, final AdvisingParameters params )
 	{
+		this.rng = rng;
 		this.params = params;
 		base_repr = new AdvisingGroundRepresenter( params );
+	}
+	
+	@Override
+	public AdvisingFsssModel create( final RandomGenerator rng )
+	{
+		return new AdvisingFsssModel( rng, params );
 	}
 	
 	@Override
@@ -97,7 +105,7 @@ public class AdvisingFsssModel extends FsssModel<AdvisingState, TakeCourseAction
 	@Override
 	public RandomGenerator rng()
 	{
-		return params.rng;
+		return rng;
 	}
 
 	@Override
@@ -131,7 +139,7 @@ public class AdvisingFsssModel extends FsssModel<AdvisingState, TakeCourseAction
 	{
 		final AdvisingState sprime = new AdvisingState( s );
 		
-		a.doAction( sprime );
+		a.doAction( rng, sprime );
 		
 		sample_count += 1;
 		return sprime;
@@ -143,7 +151,9 @@ public class AdvisingFsssModel extends FsssModel<AdvisingState, TakeCourseAction
 		double r = 0;
 		for( final int req : s.params.requirements ) {
 			if( s.grade[req] < s.params.passing_grade ) {
-				r += AdvisingParameters.missing_requirement_reward;
+//				r += AdvisingParameters.missing_requirement_reward;
+				r = AdvisingParameters.missing_requirement_reward;
+				break;
 			}
 		}
 		return r;

@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.tetris;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.Action;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
@@ -47,7 +49,7 @@ public class TetrisAction implements Action<TetrisState>, VirtualConstructor<Tet
 	}
 
 	@Override
-	public void doAction( final TetrisState s )
+	public void doAction( final RandomGenerator rng, final TetrisState s )
 	{
 		final Tetromino tetro = s.getCurrentTetromino();
 		tetro.setRotation( rotation );

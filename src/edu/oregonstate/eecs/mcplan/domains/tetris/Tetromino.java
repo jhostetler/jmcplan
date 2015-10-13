@@ -92,39 +92,79 @@ public abstract class Tetromino
 		return r;
 	}
 	
-	public boolean setCells( final TetrisState s, final int component ) //throws TetrisGameOver
+	public boolean setCells( final TetrisState s, final int component )
 	{
 		if( this.dim == 3 ) {
-			return setCells3( s.cells, mask(), component );
+//			return setCells3( s.cells, mask(), component );
+			return setCells3( s, mask(), component );
 		}
 		else {
-			return setCells4( s.cells, mask(), component );
+//			return setCells4( s.cells, mask(), component );
+			return setCells4( s, mask(), component );
 		}
-		
-//		s.assignComponents();
 	}
-
-	private boolean setCells3( final byte[][] cells, final int[][] mask, final int component ) //throws TetrisGameOver
+	
+	private boolean setCells3( final TetrisState s, final int[][] mask, final int component )
 	{
 		final BoundingBox bb = getBoundingBox();
 		for( int dx = bb.left; dx <= bb.right; ++dx ) {
 			final int corrected_x = this.x + dx + 5;
 			for( int dy = bb.bottom; dy <= bb.top; ++dy ) {
 				final int corrected_y = this.y + dy;
-				if( cells[corrected_y][corrected_x] != 0 ) {
+//				if( cells[corrected_y][corrected_x] != 0 ) {
+				if( s.cell( corrected_y, corrected_x ) ) {
 					return false;
-//					throw new TetrisGameOver( corrected_x, corrected_y );
 				}
 				if( mask[dy + 1][dx + 1] > 0 ) {
-					cells[corrected_y][corrected_x] = (byte) component;
+//					cells[corrected_y][corrected_x] = (byte) component;
+					s.setCell( corrected_y, corrected_x );
+					s.params.scratch[corrected_y][corrected_x] = (byte) component;
 				}
-//				cells[corrected_y][corrected_x] = mask[dy + 1][dx + 1];
 			}
 		}
 		return true;
 	}
 	
-	private boolean setCells4( final byte[][] cells, final int[][] mask, final int component ) //throws TetrisGameOver
+	private boolean setCells4( final TetrisState s, final int[][] mask, final int component )
+	{
+		final BoundingBox bb = getBoundingBox();
+		for( int dx = bb.left; dx <= bb.right; ++dx ) {
+			final int corrected_x = this.x + dx + 5;
+			for( int dy = bb.bottom; dy <= bb.top; ++dy ) {
+				final int corrected_y = this.y + dy;
+//				if( cells[corrected_y][corrected_x] != 0 ) {
+				if( s.cell( corrected_y, corrected_x ) ) {
+					return false;
+				}
+				if( mask[dy + 1][dx + 2] > 0 ) {
+//					cells[corrected_y][corrected_x] = (byte) component;
+					s.setCell( corrected_y, corrected_x );
+					s.params.scratch[corrected_y][corrected_x] = (byte) component;
+				}
+			}
+		}
+		return true;
+	}
+
+//	private boolean setCells3( final byte[][] cells, final int[][] mask, final int component )
+//	{
+//		final BoundingBox bb = getBoundingBox();
+//		for( int dx = bb.left; dx <= bb.right; ++dx ) {
+//			final int corrected_x = this.x + dx + 5;
+//			for( int dy = bb.bottom; dy <= bb.top; ++dy ) {
+//				final int corrected_y = this.y + dy;
+//				if( cells[corrected_y][corrected_x] != 0 ) {
+//					return false;
+//				}
+//				if( mask[dy + 1][dx + 1] > 0 ) {
+//					cells[corrected_y][corrected_x] = (byte) component;
+//				}
+//			}
+//		}
+//		return true;
+//	}
+	
+	private boolean setCells4( final byte[][] cells, final int[][] mask, final int component )
 	{
 		final BoundingBox bb = getBoundingBox();
 		for( int dx = bb.left; dx <= bb.right; ++dx ) {

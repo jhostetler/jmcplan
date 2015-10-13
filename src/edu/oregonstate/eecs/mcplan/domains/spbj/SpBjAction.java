@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.domains.cards.Card;
@@ -52,7 +54,7 @@ public class SpBjAction implements UndoableAction<SpBjState>, VirtualConstructor
 	}
 	
 	@Override
-	public void doAction( final SpBjState s )
+	public void doAction( final RandomGenerator rng, final SpBjState s )
 	{
 		assert( !done );
 		

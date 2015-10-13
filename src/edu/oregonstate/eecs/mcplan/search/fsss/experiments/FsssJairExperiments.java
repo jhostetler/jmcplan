@@ -229,6 +229,12 @@ public class FsssJairExperiments
 		return basename + "_" + iter + (ext.isEmpty() ? "" : FilenameUtils.EXTENSION_SEPARATOR + ext);
 	}
 	
+	/**
+	 * Interface between experiment running code and the algorithm being
+	 * experimented on.
+	 * @param <S>
+	 * @param <A>
+	 */
 	private static abstract class Algorithm<S extends State, A extends VirtualConstructor<A>>
 	{
 		public abstract FsssParameters getParameters();
@@ -238,6 +244,11 @@ public class FsssJairExperiments
 		public abstract void writeStatisticsRecord( final Csv.Writer csv );
 	}
 	
+	/**
+	 * Implementation of Algorithm for the PARSS algorithm.
+	 * @param <S>
+	 * @param <A>
+	 */
 	private static class ParssAlgorithm<S extends State, A extends VirtualConstructor<A>> extends Algorithm<S, A>
 	{
 		private final FsssAbstraction<S, A> abstraction;
@@ -297,7 +308,10 @@ public class FsssJairExperiments
 					model.resetSampleCount();
 					
 					if( parameters.depth == 0 ) {
-						assert( false );
+						throw new IllegalArgumentException( "parameters.depth" );
+						
+						// NOTE: Iterative deepening code is unmaintained.
+						
 //						assert( !"par".equals( config.get( "ss.abstraction" ) ) );
 //						search = new IterativeDeepening<S, A>(
 //							parameters, model, abstraction, s, refinement_order_factory );
@@ -321,12 +335,12 @@ public class FsssJairExperiments
 					tree_stats.visitRoot( search.root() );
 					tree_abstract_size.add( tree_stats.tree_abstract_size );
 					min_max_tree_abstract_size.add( tree_stats.tree_abstract_size );
-					
+
 					num_refinements.add( search.numRefinements() );
 					min_max_refinements.add( search.numRefinements() );
 					num_lead_changes.add( search.numLeadChanges() );
 					min_max_lead_changes.add( search.numLeadChanges() );
-					
+
 					final ArrayList<FsssAbstractActionNode<S, A>> best = search.root().greatestLowerBound();
 					final A a = best.get( model.rng().nextInt( best.size() ) ).a().create();
 					return a;
@@ -427,9 +441,16 @@ public class FsssJairExperiments
 		}
 	}
 	
+	/**
+	 * Runs a batch of experiment episodes.
+	 * 
+	 * @param config
+	 * @param base_model base_model.create() is used to create all FsssModels used in the experiment
+	 * @param iter Index of current batch in multi-batch experiment
+	 */
 	private static <S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
-	void runGames( final Configuration config, final FsssModel<S, A> base_model, final int iter ) throws Exception
+	void runGames( final Configuration config, final FsssModel<S, A> base_model, final int iter )
 	{
 		// Model with independent RNG for simulation
 		final FsssModel<S, A> sim_model = base_model.create( config.rng_sim );
@@ -451,11 +472,7 @@ public class FsssJairExperiments
 		final MeanVarianceAccumulator ret = new MeanVarianceAccumulator();
 		final MeanVarianceAccumulator steps = new MeanVarianceAccumulator();
 		final MinMaxAccumulator steps_minmax = new MinMaxAccumulator();
-		final boolean use_visualization = config.getBoolean( "log.visualization" );
-		
 		final TObjectIntMap<A> action_histogram = new TObjectIntHashMap<A>();
-		
-//		final ArrayList<ArrayList<Pair<A, Double>>> qtable = new ArrayList<ArrayList<Pair<A, Double>>>();
 		
 		for( int i = 0; i < config.Ntest_games; ++i ) {
 			if( i % print_interval == 0 ) {
@@ -485,10 +502,7 @@ public class FsssJairExperiments
 				episode.addListener( epi_log );
 			}
 			
-//			if( listener != null ) {
-//				episode.addListener( listener );
-//			}
-			if( use_visualization ) {
+			if( config.getBoolean( "log.visualization" ) ) {
 				// TODO:
 				final EpisodeListener<S, A> vis = null; //domain.getVisualization();
 				if( vis != null ) {
@@ -498,30 +512,18 @@ public class FsssJairExperiments
 					System.out.println( "Warning: No visualization implemented" );
 				}
 			}
-			
-			// TODO: Debugging code
-//			{
-//				final RacegridState rs = (RacegridState) s0;
-//				final RacegridVisualization vis = new RacegridVisualization( null, rs.terrain, 10 );
-//				episode.addListener( (EpisodeListener<S, A>) vis.updater( 500 ) );
-//			}
-			
+
+			// Do the work
 			episode.run();
 			
+			// Episode statistics
 			ret.add( racc.v()[0] );
 			steps.add( racc.steps() );
 			steps_minmax.add( racc.steps() );
-			
 			for( final JointAction<A> j : hacc.actions ) {
 				action_histogram.adjustOrPutValue( j.get( 0 ), 1, 1 );
 			}
-			
-//			System.out.println( "Reward: " + racc.v()[0] );
 		}
-		
-//		for( final ArrayList<Pair<A, Double>> q : qtable ) {
-//			System.out.println( q );
-//		}
 		
 		System.out.println( "****************************************" );
 		System.out.println( "Average return: " + ret.mean() );
@@ -607,7 +609,7 @@ public class FsssJairExperiments
 	{
 		final Budget budget = createBudget( config, model );
 		final FsssParameters parameters = new FsssParameters(
-			config.getInt( "ss.width" ), config.getInt( "ss.depth" ), budget );
+			config.getInt( "ss.width" ), config.getInt( "ss.depth" ), budget, config.getBoolean( "ss.use_close" ) );
 		final FsssAbstraction<S, A> abstraction;
 		final PriorityRefinementOrder.Factory<S, A> priority_factory;
 		if( "par".equals( config.get( "ss.abstraction" ) ) ) {
@@ -727,8 +729,8 @@ public class FsssJairExperiments
 				final int max_grade = config.getInt( "advising.max_grade" );
 				final int passing_grade = config.getInt( "advising.passing_grade" );
 				final AdvisingParameters params = AdvisingRddlParser.parse(
-						config.rng_world, max_grade, passing_grade, domain, instance );
-				final AdvisingFsssModel model = new AdvisingFsssModel( params );
+						max_grade, passing_grade, domain, instance );
+				final AdvisingFsssModel model = new AdvisingFsssModel( config.rng_world, params );
 				runGames( config, model, expr );
 			}
 			else if( "cliffworld".equals( config.domain ) ) {
@@ -853,8 +855,9 @@ public class FsssJairExperiments
 				runGames( config, model, expr );
 			}
 			else if( "tetris".equals( config.domain ) ) {
+				final int T = config.getInt( "tetris.T" );
 				final int Nrows = config.getInt( "tetris.Nrows" );
-				final TetrisParameters params = new TetrisParameters( Nrows );
+				final TetrisParameters params = new TetrisParameters( T, Nrows );
 				final FactoredRepresenter<TetrisState, ? extends FactoredRepresentation<TetrisState>> base_repr;
 				if( "ground".equals( config.get( "tetris.repr" ) ) ) {
 					base_repr = new TetrisGroundRepresenter( params );

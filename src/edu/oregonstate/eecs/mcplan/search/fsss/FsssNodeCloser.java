@@ -7,8 +7,7 @@ import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
 /**
- * @author jhostetler
- *
+ * Calls close() on all closeable nodes in the tree.
  */
 public final class FsssNodeCloser<S extends State, A extends VirtualConstructor<A>>
 	extends FsssDepthFirstTraversal<S, A>

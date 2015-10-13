@@ -56,16 +56,19 @@ public class TetrisFsssModel extends FsssModel<TetrisState, TetrisAction>
 	
 	private double futureVmax( final TetrisState s )
 	{
-		final int remaining_blocks = (s.T - s.t) * 4;
-		final int total_blocks = s.Nblocks + remaining_blocks;
+		final int remaining_blocks = (params.T - s.t) * 4;
+		final int total_blocks = s.Nblocks() + remaining_blocks;
 		// Maximum number of lines we could clear in remaining time
-		final int lines = total_blocks / 10;
-		// Most Tetri we could have
-		final int ntetri = lines / 4;
-		// Assume the rest go in one batch
-		final int spare = lines % 4;
-		// Assume as many Tetri as possible occur as double-Tetri
-		return (ntetri / 2)*chain_bonus_multplier*rewards[4] + (ntetri % 2)*rewards[4] + rewards[spare] + (s.T - s.t);
+		final int lines = total_blocks / params.Ncolumns;
+		
+//		// Most Tetri we could have
+//		final int ntetri = lines / 4;
+//		// Assume the rest go in one batch
+//		final int spare = lines % 4;
+//		// Assume as many Tetri as possible occur as double-Tetri
+//		return (ntetri / 2)*chain_bonus_multplier*rewards[4] + (ntetri % 2)*rewards[4] + rewards[spare] + (params.T - s.t);
+		
+		return lines;
 	}
 	
 	@Override
@@ -226,34 +229,40 @@ public class TetrisFsssModel extends FsssModel<TetrisState, TetrisAction>
 	public TetrisState sampleTransition( final TetrisState s, final TetrisAction a )
 	{
 		final TetrisState sprime = new TetrisState( s );
-		a.doAction( sprime );
+		sprime.assignComponents(); // Initializes params.scratch
+		sprime.refreshFrozen();
+		a.doAction( rng, sprime );
 		if( !sprime.isTerminal() ) {
 			final TIntList clears = sprime.drop();
-			int i = 0;
-			int r = 0;
-			while( i < clears.size() ) {
-				// Count consecutive Tetri
-				int j = i;
-				int ntetri = 0;
-				while( j < clears.size() ) {
-					if( clears.get( j++ ) == 4 ) {
-						ntetri += 1;
-					}
-					else {
-						break;
-					}
-				}
-				// Apply consecutive tetri bonus if applicable
-				if( ntetri > 1 ) {
-					r += ntetri * chain_bonus_multplier*rewards[4];
-					i += ntetri;
-				}
-				else {
-					r += rewards[clears.get( i )];
-					i += 1;
-				}
-			}
-			sprime.r = r;
+			
+//			int i = 0;
+//			int r = 0;
+//			while( i < clears.size() ) {
+//				// Count consecutive Tetri
+//				int j = i;
+//				int ntetri = 0;
+//				while( j < clears.size() ) {
+//					if( clears.get( j++ ) == 4 ) {
+//						ntetri += 1;
+//					}
+//					else {
+//						break;
+//					}
+//				}
+//				// Apply consecutive tetri bonus if applicable
+//				if( ntetri > 1 ) {
+//					r += ntetri * chain_bonus_multplier*rewards[4];
+//					i += ntetri;
+//				}
+//				else {
+//					r += rewards[clears.get( i )];
+//					i += 1;
+//				}
+//			}
+//			sprime.r = r;
+			
+			sprime.r = clears.sum();
+			
 			sprime.advanceTetrominoQueue( rng );
 			++sample_count;
 			

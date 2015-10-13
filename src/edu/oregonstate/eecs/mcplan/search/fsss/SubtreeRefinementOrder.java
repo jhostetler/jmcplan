@@ -104,7 +104,7 @@ public abstract class SubtreeRefinementOrder<S extends State, A extends VirtualC
 		
 		for( final FsssAbstractStateNode<S, A> sn : aan.successors() ) {
 			// If the node has not been expanded yet, do not upSample
-			if( sn.nvisits() == 0 ) {
+			if( !sn.isExpanded() ) {
 //					System.out.println( "!!\t Not recursively upSampling " + sn );
 //					System.out.println( "!!\t nsuccessors = " + sn.nsuccessors() );
 				continue;

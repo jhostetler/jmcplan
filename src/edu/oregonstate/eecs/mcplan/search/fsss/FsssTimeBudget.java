@@ -7,8 +7,14 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 
 /**
- * @author jhostetler
- *
+ * Budget in terms of CPU time.
+ * <p>
+ * The budget accounts for CPU usage by the *current thread only*. This means
+ * that JVM system tasks like garbage collection don't count against the
+ * time budget.
+ * <p>
+ * This budget adds a significant amount to the execution time, due to the
+ * mechnism used to retrieve current thread time.
  */
 public class FsssTimeBudget implements Budget
 {
@@ -33,14 +39,12 @@ public class FsssTimeBudget implements Budget
 	public boolean isExceeded()
 	{
 		if( exceeded ) {
-//			System.out.println( "!\t Already exceeded: " + exceeded_at );
 			return true;
 		}
 		final long now = bean.getCurrentThreadUserTime(); //System.nanoTime();
 		final long interval = (now - start_ns);
 		final boolean b = interval > budget_ns;
 		if( b ) {
-//			System.out.println( "! Shot clock: " + now + " - " + start_ns + " = " + interval );
 			exceeded = true;
 			exceeded_at = interval;
 		}
@@ -50,7 +54,6 @@ public class FsssTimeBudget implements Budget
 	@Override
 	public void reset()
 	{
-//		System.out.println( "! Reset" );
 		start_ns = bean.getCurrentThreadUserTime(); //System.nanoTime();
 		
 		exceeded = false;

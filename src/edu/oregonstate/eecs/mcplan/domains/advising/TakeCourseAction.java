@@ -5,6 +5,8 @@ package edu.oregonstate.eecs.mcplan.domains.advising;
 
 import java.util.Arrays;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.Action;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
@@ -38,18 +40,18 @@ public class TakeCourseAction implements Action<AdvisingState>, VirtualConstruct
 	}
 	
 	@Override
-	public void doAction( final AdvisingState s )
+	public void doAction( final RandomGenerator rng, final AdvisingState s )
 	{
-		final int[] grades = new int[courses.length];
+		final byte[] grades = new byte[courses.length];
 		for( int i = 0; i < courses.length; ++i ) {
 			final int course = courses[i];
 			final int[] prereqs = s.params.prereqs.get( course );
-			final int[] prereq_grades = new int[prereqs.length];
+			final byte[] prereq_grades = new byte[prereqs.length];
 			for( int j = 0; j < prereqs.length; ++j ) {
 				final int pre = prereqs[j];
 				prereq_grades[j] = s.grade[pre];
 			}
-			final int course_grade = s.sampleGrade( course, prereq_grades );
+			final byte course_grade = s.sampleGrade( rng, course, prereq_grades );
 			grades[i] = course_grade;
 		}
 		

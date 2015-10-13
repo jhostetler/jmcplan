@@ -161,7 +161,7 @@ public class FsssTreeStatistics<S extends State, A extends VirtualConstructor<A>
 		subtree_ground_size += asn.states().size();
 		tree_ground_size += asn.states().size();
 		
-		if( asn.isTerminal() || asn.nvisits() == 0 ) {
+		if( asn.isTerminal() || !asn.isExpanded() ) {
 			final int increasing_depth = increasingDepth( asn.depth );
 			subtree_stats.mean_depth.add( increasing_depth );
 			subtree_max_depth = Math.max( subtree_max_depth, increasing_depth );

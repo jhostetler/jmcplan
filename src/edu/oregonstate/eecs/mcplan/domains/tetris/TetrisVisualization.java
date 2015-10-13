@@ -3,7 +3,9 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.tetris;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 
 import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
@@ -54,8 +56,10 @@ public class TetrisVisualization
 //			}
 //		}
 		
+		final int T = 50;
+		final int Nrows = 10;
 		final RandomGenerator rng = new MersenneTwister( 43 );
-		final TetrisParameters params = new TetrisParameters( 10 );
+		final TetrisParameters params = new TetrisParameters( T, Nrows );
 		final TetrisFsssModel model = new TetrisFsssModel( rng, params, new TetrisBertsekasRepresenter( params ) );
 		TetrisState s = model.initialState();
 		
@@ -97,16 +101,19 @@ public class TetrisVisualization
 //			System.out.println( "Next:" );
 //			System.out.println( tetro );
 
-			final int input_position = rng.nextInt( params.Ncolumns );
-			final int input_rotation = rng.nextInt( 4 );
+//			final int input_position = rng.nextInt( params.Ncolumns );
+//			final int input_rotation = rng.nextInt( 4 );
+			
+			// This move sequence produces a cascading clear for seed=43:
+			// 00 41 21 60 91 73 41 01 01 61 83 53 23 31
+			
+			System.out.print( ">>> " );
+			final BufferedReader cin = new BufferedReader( new InputStreamReader( System.in ) );
+			final int choice = Integer.parseInt( cin.readLine() );
+			final int input_position = choice / 10;
+			final int input_rotation = choice - (input_position*10);
+
 			final TetrisAction a = new TetrisAction( input_position, input_rotation );
-
-//			System.out.print( ">>> " );
-//			final BufferedReader cin = new BufferedReader( new InputStreamReader( System.in ) );
-//			final int choice = Integer.parseInt( cin.readLine() );
-//			final int input_position = choice / 10;
-//			final int input_rotation = choice - (input_position*10);
-
 			System.out.println( "Input: " + a );
 
 			final TetrisState sprime = model.sampleTransition( s, a );

@@ -20,14 +20,16 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  * we pass around an FsssModel because we need access to ie. base_repr, and
  * it's not obvious whether it matters which RNG is associated with the model
  * we pass to these methods.
- * 
+ * <p>
  * TODO: should we remove R(s, a) and instead have sampleTransition return a
  * (reward, next state) tuple? In some domains (e.g. Tetris), calculating the
  * reward for an action basically requires simulating a transition. R(s, a) is
  * used only by the constructor of FsssActionNode, and the value will be
- * overwritten before it's used when GAN.sample() is called.
+ * overwritten before it's used when GAN.sample() is called. Note that for the
+ * time being we wrote Tetris to have only state rewards.
  * 
- * Note that for the time being we wrote Tetris to have only state rewards.
+ * @param <S>
+ * @param <A>
  */
 public abstract class FsssModel<S extends State, A extends VirtualConstructor<A>>
 {
@@ -78,14 +80,22 @@ public abstract class FsssModel<S extends State, A extends VirtualConstructor<A>
 	public abstract double discount();
 	
 	/**
-	 * Note: heuristic should *not* include R(s)!
+	 * Heuristic should *not* include R(s)!
 	 * @param s
 	 * @return
 	 */
 	public abstract double heuristic( final S s );
 	
+	/**
+	 * RandomGenerator used by this instance.
+	 * @return
+	 */
 	public abstract RandomGenerator rng();
 	
+	/**
+	 * Ground state representation.
+	 * @return
+	 */
 	public abstract FactoredRepresenter<S, ? extends FactoredRepresentation<S>> base_repr();
 	
 	/**
@@ -117,9 +127,33 @@ public abstract class FsssModel<S extends State, A extends VirtualConstructor<A>
 	 */
 	public abstract S initialState();
 	
+	/**
+	 * Action set.
+	 * @param s
+	 * @return
+	 */
 	public abstract Iterable<A> actions( final S s );
+	
+	/**
+	 * @param s
+	 * @param a
+	 * @return
+	 */
 	public abstract S sampleTransition( final S s, final A a );
+	
+	/**
+	 * Reward for being in 's'.
+	 * @param s
+	 * @return
+	 */
 	public abstract double reward( final S s );
+	
+	/**
+	 * Reward for doing 'a' in 's'. Should *not* include R(s).
+	 * @param s
+	 * @param a
+	 * @return
+	 */
 	public abstract double reward( final S s, final A a );
 	
 	// TODO: These probably don't belong here

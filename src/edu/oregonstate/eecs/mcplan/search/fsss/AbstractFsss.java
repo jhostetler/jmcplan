@@ -10,20 +10,50 @@ import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
 /**
- * @author jhostetler
- *
+ * Abstract FSSS using a fixed abstraction.
  */
 public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 {
 	public static interface Listener<S extends State, A extends VirtualConstructor<A>>
 	{
+		/**
+		 * Before interacting with node.
+		 * @param asn
+		 */
 		public abstract void onVisit( final FsssAbstractStateNode<S, A> asn );
+		
+		/**
+		 * After non-leaf node expanded for the first time.
+		 * @param asn
+		 */
 		public abstract void onExpand( final FsssAbstractStateNode<S, A> asn );
+		
+		/**
+		 * Leaf node expanded for the first time.
+		 * @param asn
+		 */
 		public abstract void onLeaf( final FsssAbstractStateNode<S, A> asn );
 		
+		/**
+		 * Before sampling trajectory begins.
+		 */
 		public abstract void onTrajectoryStart();
+		
+		/**
+		 * Action successor selected.
+		 * @param aan
+		 */
 		public abstract void onActionChoice( final FsssAbstractActionNode<S, A> aan );
+		
+		/**
+		 * State successor selected.
+		 * @param asn
+		 */
 		public abstract void onStateChoice( final FsssAbstractStateNode<S, A> asn );
+		
+		/**
+		 * After sampling trajectory ends.
+		 */
 		public abstract void onTrajectoryEnd();
 	}
 	
@@ -39,6 +69,11 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 	private boolean complete = false;
 	private int min_depth = Integer.MAX_VALUE;
 	
+	/**
+	 * @param parameters
+	 * @param model
+	 * @param root Root state node of partial AFSSS tree
+	 */
 	public AbstractFsss( final FsssParameters parameters, final FsssModel<S, A> model,
 						 final FsssAbstractStateNode<S, A> root )
 	{
@@ -47,16 +82,27 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 		this.root = root;
 	}
 	
+	/**
+	 * True if run() has returned.
+	 * @return
+	 */
 	public boolean isComplete()
 	{
 		return complete;
 	}
 	
+	/**
+	 * Subscribe to algorithm hooks.
+	 * @param listener
+	 */
 	public void addListener( final Listener<S, A> listener )
 	{
 		listeners.add( listener );
 	}
 	
+	/**
+	 * Run search until convergence or budget exhausted.
+	 */
 	public void run()
 	{
 		int iter = 0;
@@ -91,24 +137,7 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 			fireTrajectoryStart();
 			fsss( root, parameters.depth );
 			fireTrajectoryEnd();
-			
-			// TODO: Debugging: This is too much output for "conventional" logging
-//			if( use_logging ) {
-//				System.out.println( " ===== FSSS Iteration " + iter + " ===== " );
-//				FsssTest.printTree( root, System.out, 0 );
-//
-//				System.out.println( "\t==> Sample count = " + model.sampleCount() );
-//
-//				final ArrayList<String> errors = FsssTest.validateTree( root, model );
-//				System.out.println( "\tvalidateTrees(): " + errors.size() + " errors" );
-//				for( int i = 0; i < errors.size(); ++i ) {
-//					System.out.println( "\t[" + i + "] " + errors.get( i ) );
-//				}
-//			}
 		}
-		
-		final FsssNodeCloser<S, A> closer = new FsssNodeCloser<S, A>();
-		closer.traverse( root );
 		
 		Log.debug( "\t=> FSSS: {} iterations to convergence", iter );
 		Log.debug( "\t a* = {}", root.astar() );
@@ -119,6 +148,8 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 	private void fsss( final FsssAbstractStateNode<S, A> asn, final int d )
 	{
 		Log.trace( "\tFSSS: d = {}, asn = {}", d, asn );
+		fireVisit( asn );
+		
 		if( !asn.isTerminal() ) {
 			if( !asn.isExpanded() ) {
 				if( parameters.budget.isExceeded() ) {
@@ -127,33 +158,28 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 				}
 				asn.expand( model.actions( asn ), parameters.width, parameters.budget );
 				fireExpand( asn );
+				
+				if( parameters.use_close
+						&& (asn.predecessor == null || asn.predecessor.predecessor.isClosed())
+						&& asn.isReadyToClose() ) {
+					Log.debug( "close() [AbstractFsss]" );
+					asn.close();
+				}
 			}
 			
-			asn.visit();
-			fireVisit( asn );
-			
-//			final FsssAbstractActionNode<S, A> astar = sn.astar();
 			final FsssAbstractActionNode<S, A> astar = asn.astar_random();
 			fireActionChoice( astar );
 			
-//			if( astar == null ) {
-//				assert( model.sampleCount() >= parameters.max_samples );
-////				System.out.println( "astar == null, but it's cool!" );
-//				return;
-//			}
-			
-			// TODO: Debugging code
 			if( Log.isDebugEnabled() && astar == null ) {
 				FsssTest.printTree( root, Log, 1 );
 				Log.debug( "{}", asn );
 			}
 			
-//			final FsssAbstractStateNode<S, A> sstar = astar.sstar();
 			final FsssAbstractStateNode<S, A> sstar = astar.sstar_random();
 			fireStateChoice( sstar );
 			
 			// Note: Without randomization, sstar is never null because the
-			// first an lexicographically will always have been sampled before
+			// first asn lexicographically will always have been sampled before
 			// time runs out. With randomization, this is no longer true. If
 			// we happen to sample a valid sstar, we'd still like to do a
 			// backup, to be as consistent as possible with the earlier
@@ -172,8 +198,7 @@ public class AbstractFsss<S extends State, A extends VirtualConstructor<A>>
 			astar.backup();
 			asn.backup();
 		}
-		else {
-			// Note: 'leaf()' calls 'visit()'
+		else { // Leaf node
 			asn.leaf();
 			fireLeaf( asn );
 			

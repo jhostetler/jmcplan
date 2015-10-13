@@ -55,7 +55,9 @@ public final class TetrisGroundRepresenter implements FactoredRepresenter<Tetris
 		phi[idx++] = t.rotation;
 		for( int y = 0; y < s.params.Nrows; ++y ) {
 			for( int x = 0; x < s.params.Ncolumns; ++x ) {
-				if( s.cells[y][x] > 0 ) {
+//				if( s.cells[y][x] > 0 ) {
+//				if( s.cells.get( y ).get( x ) ) {
+				if( s.cell( y, x ) ) {
 					phi[idx] = 1;
 				}
 				++idx;

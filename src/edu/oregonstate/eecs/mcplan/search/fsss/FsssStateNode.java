@@ -8,19 +8,15 @@ import java.util.ArrayList;
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
-import edu.oregonstate.eecs.mcplan.util.Fn;
 
 
 /**
- * @author jhostetler
- *
+ * Ground state node.
  */
 public final class FsssStateNode<S extends State, A extends VirtualConstructor<A>> implements AutoCloseable
 {
-	private final FsssActionNode<S, A> predecessor;
 	private final FsssModel<S, A> model;
 	private final S s;
-	private final FactoredRepresentation<S> x = null;
 	private int nvisits = 0;
 	
 	private double U;
@@ -28,14 +24,16 @@ public final class FsssStateNode<S extends State, A extends VirtualConstructor<A
 	public final double r;
 	public final int depth;
 	
+	//FIXME: Memory debugging
+//	public final char[] deadweight = new char[1000];
+	
 	private final ArrayList<FsssActionNode<S, A>> successors = new ArrayList<FsssActionNode<S, A>>();
 	
 	public FsssStateNode( final FsssActionNode<S, A> predecessor, final FsssModel<S, A> model, final S s )
 	{
-		this.predecessor = predecessor;
+//		this.predecessor = predecessor;
 		this.model = model;
 		this.s = s;
-//		this.x = model.base_repr().encode( s );
 		this.r = model.reward( s );
 		this.U = model.Vmax( s );
 		this.L = model.Vmin( s );
@@ -44,20 +42,32 @@ public final class FsssStateNode<S extends State, A extends VirtualConstructor<A
 	
 	public FsssStateNode( final int depth, final FsssModel<S, A> model, final S s )
 	{
-		this.predecessor = null;
+//		this.predecessor = null;
 		this.model = model;
 		this.s = s;
-//		this.x = model.base_repr().encode( s );
 		this.r = model.reward( s );
 		this.U = model.Vmax( s );
 		this.L = model.Vmin( s );
 		this.depth = depth;
 	}
 	
+//	private static int nfinalized = 0;
+//	@Override
+//	public void finalize()
+//	{
+//		System.out.println( "finalize(): " + (nfinalized++) + " FsssStateNode" );
+//	}
+	
 	@Override
 	public void close()
 	{
 		s.close();
+		
+		for( final FsssActionNode<S, A> an : successors ) {
+			an.close();
+		}
+		successors.clear();
+		successors.trimToSize();
 	}
 	
 	@Override
@@ -81,17 +91,8 @@ public final class FsssStateNode<S extends State, A extends VirtualConstructor<A
 	
 	public FactoredRepresentation<S> x()
 	{
-//		if( x == null ) {
-//			x = model.base_repr().encode( s );
-//		}
-//		return x;
 		return model.base_repr().encode( s );
 	}
-	
-//	public int n()
-//	{
-//		return n;
-//	}
 	
 	public int nvisits()
 	{
@@ -174,12 +175,6 @@ public final class FsssStateNode<S extends State, A extends VirtualConstructor<A
 	
 	public FsssActionNode<S, A> createActionNode( final A a )
 	{
-		// TODO: Debugging code
-		if( !Fn.takeAll( model.actions( s() ) ).contains( a ) ) {
-			System.out.println( "!\t In GSN " + this + ": illegal action " + a );
-			assert( false );
-		}
-		
 		final FsssActionNode<S, A> an = new FsssActionNode<S, A>( this, model, s, a );
 		successors.add( an );
 		return an;
@@ -188,7 +183,6 @@ public final class FsssStateNode<S extends State, A extends VirtualConstructor<A
 	public void createActionNodes( final Iterable<A> actions )
 	{
 		for( final A a : actions ) {
-//			System.out.println( "StateNode.expand(): Action " + a );
 			final FsssActionNode<S, A> an = new FsssActionNode<S, A>( this, model, s, a );
 			successors.add( an );
 		}
