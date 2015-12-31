@@ -5,8 +5,8 @@ package edu.oregonstate.eecs.mcplan.domains.blackjack;
 
 import java.util.ArrayList;
 
+import edu.oregonstate.eecs.mcplan.ActionSet;
 import edu.oregonstate.eecs.mcplan.ActionSpace;
-import edu.oregonstate.eecs.mcplan.util.Generator;
 
 /**
  * @author jhostetler
@@ -18,7 +18,7 @@ public class BlackjackActionSpace extends ActionSpace<BlackjackMdpState, Blackja
 	private final ArrayList<BlackjackAction> pass_only_ = new ArrayList<BlackjackAction>();
 	
 	private BlackjackMdpState s_ = null;
-	private ArrayList<BlackjackAction> actions_ = null;
+	private final ArrayList<BlackjackAction> actions_ = null;
 	
 	private final BlackjackParameters params_;
 	
@@ -33,15 +33,17 @@ public class BlackjackActionSpace extends ActionSpace<BlackjackMdpState, Blackja
 	}
 	
 	@Override
-	public void setState( final BlackjackMdpState s )
+	public ActionSet<BlackjackMdpState, BlackjackAction> getActionSet( final BlackjackMdpState s )
 	{
 		s_ = s;
 		if( s_.dealer_value > params_.max_score || s_.player_value > params_.max_score || s_.player_passed
 			|| s_ == BlackjackMdpState.TheAbsorbingState ) {
-			actions_ = pass_only_;
+//			actions_ = pass_only_;
+			return ActionSet.wrap( pass_only_ );
 		}
 		else {
-			actions_ = pass_hit_;
+//			actions_ = pass_hit_;
+			return ActionSet.wrap( pass_hit_ );
 		}
 	}
 	
@@ -64,9 +66,15 @@ public class BlackjackActionSpace extends ActionSpace<BlackjackMdpState, Blackja
 	}
 
 	@Override
-	public Generator<BlackjackAction> generator()
+	public int index( final BlackjackAction a )
 	{
-		return Generator.fromIterator( actions_.iterator() );
+		throw new UnsupportedOperationException();
 	}
+
+//	@Override
+//	public Generator<BlackjackAction> generator()
+//	{
+//		return Generator.fromIterator( actions_.iterator() );
+//	}
 
 }

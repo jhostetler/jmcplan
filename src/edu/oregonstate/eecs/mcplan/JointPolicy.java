@@ -49,6 +49,12 @@ public class JointPolicy<S, A extends VirtualConstructor<A>> extends Policy<S, J
 	}
 	
 	@Override
+	public String toString()
+	{
+		return Pi_.toString();
+	}
+	
+	@Override
 	public int hashCode()
 	{
 		return Pi_.hashCode();

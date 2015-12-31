@@ -3,7 +3,15 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.tetris;
 
+import java.lang.reflect.Type;
+
 import org.apache.commons.math3.random.RandomGenerator;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 
 import edu.oregonstate.eecs.mcplan.Action;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
@@ -14,6 +22,20 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  */
 public class TetrisAction implements Action<TetrisState>, VirtualConstructor<TetrisAction>
 {
+	public static final class GsonSerializer implements JsonSerializer<TetrisAction>
+	{
+		@Override
+		public JsonElement serialize( final TetrisAction a, final Type t, final JsonSerializationContext ctx )
+		{
+			final JsonObject root = new JsonObject();
+			root.add( "p", new JsonPrimitive( a.position ) );
+			root.add( "r", new JsonPrimitive( a.rotation ) );
+			return root;
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
 	public final int position;
 	public final int rotation;
 	

@@ -9,18 +9,17 @@ import java.util.Comparator;
 
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
-import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.Split;
-import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.SplitChoice;
-import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.SplitChooser;
 
 /**
  * Chooses splits based on an evaluation function.
+ * @deprecated Obsolete name. Use 'HeuristicSplitChooser'
  */
+@Deprecated
 public class SubtreeHeuristicBfsRefinementOrder<S extends State, A extends VirtualConstructor<A>>
-	implements SubtreeRefinementOrder.SplitChooser<S, A>
+	implements SplitChooser<S, A>
 {
 	public static class Factory<S extends State, A extends VirtualConstructor<A>>
-		implements SubtreeRefinementOrder.SplitChooser.Factory<S, A>
+		implements SplitChooser.Factory<S, A>
 	{
 		private final SplitEvaluator<S, A> evaluator;
 		

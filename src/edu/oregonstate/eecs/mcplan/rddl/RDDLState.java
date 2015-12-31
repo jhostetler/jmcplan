@@ -21,6 +21,10 @@ public class RDDLState extends rddl.State implements State
 		this.horizon = horizon;
 	}
 	
+	@Override
+	public void close()
+	{ }
+	
 	public RDDLState( final RDDLState that )
 	{
 		t = that.t;

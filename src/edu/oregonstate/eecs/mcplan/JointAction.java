@@ -5,13 +5,11 @@ package edu.oregonstate.eecs.mcplan;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
-import edu.oregonstate.eecs.mcplan.search.ActionNode;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 import edu.oregonstate.eecs.mcplan.util.Generator;
 
@@ -103,62 +101,9 @@ public final class JointAction<A extends VirtualConstructor<A>>
 		, as );
 	}
 	
-//	public static final <S, A extends VirtualConstructor<A>>
-//	Generator<Generator<JointAction<A>>> partition( final int i, final Generator<JointAction<A>> as )
-//	{
-//		final HashMap<A, List<JointAction<A>>> parts = new HashMap<A, List<JointAction<A>>>();
-//		for( final JointAction<A> j : Fn.in( as ) ) {
-//			List<JointAction<A>> p = parts.get( j.get( i ) );
-//			if( p == null ) {
-//				p = new ArrayList<JointAction<A>>();
-//			}
-//			p.add( j );
-//		}
-//		final Iterator<List<JointAction<A>>> pitr = parts.values().iterator();
-//		return new Generator<Generator<JointAction<A>>>() {
-//			@Override
-//			public boolean hasNext()
-//			{ return pitr.hasNext(); }
-//
-//			@Override
-//			public Generator<JointAction<A>> next()
-//			{ return Generator.fromIterator( pitr.next().iterator() ); }
-//		};
-//	}
-	
-	// TODO: If we're not going to use the JointAction class, this probably
-	// belongs somewhere else?
-	public static final <S, A extends VirtualConstructor<A>>
-	Generator<Generator<ActionNode<S, A>>> partition(
-		final int i, final Generator<? extends ActionNode<S, A>> as )
-	{
-		final HashMap<A, List<ActionNode<S, A>>> parts
-			= new HashMap<A, List<ActionNode<S, A>>>();
-		for( final ActionNode<S, A> j : Fn.in( as ) ) {
-			final A a = j.a( i );
-			List<ActionNode<S, A>> p = parts.get( a );
-			if( p == null ) {
-				p = new ArrayList<ActionNode<S, A>>();
-				parts.put( a, p );
-			}
-			p.add( j );
-		}
-		final Iterator<List<ActionNode<S, A>>> pitr = parts.values().iterator();
-		return new Generator<Generator<ActionNode<S, A>>>() {
-			@Override
-			public boolean hasNext()
-			{ return pitr.hasNext(); }
-
-			@Override
-			public Generator<ActionNode<S, A>> next()
-			{ return Generator.fromIterator( pitr.next().iterator() ); }
-		};
-	}
-	
 	public final int nagents;
 	
 	private final List<A> actions_;
-//	private final String repr_;
 	
 	public JointAction( final A... actions )
 	{
@@ -175,30 +120,6 @@ public final class JointAction<A extends VirtualConstructor<A>>
 	{
 		return actions_.get( i );
 	}
-
-//	@Override
-//	public void doAction( final S s )
-//	{
-//		for( final UndoableAction<S> a : actions_ ) {
-//			a.doAction( s );
-//		}
-//		done_ = true;
-//	}
-//
-//	@Override
-//	public boolean isDone()
-//	{
-//		return done_;
-//	}
-//
-//	@Override
-//	public void undoAction( final S s )
-//	{
-//		for( final UndoableAction<S> a : Fn.reverse( actions_ ) ) {
-//			a.undoAction( s );
-//		}
-//		done_ = false;
-//	}
 
 	@Override
 	public JointAction<A> create()

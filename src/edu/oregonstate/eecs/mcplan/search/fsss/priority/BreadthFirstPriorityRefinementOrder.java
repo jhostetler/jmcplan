@@ -26,6 +26,10 @@ public class BreadthFirstPriorityRefinementOrder<S extends State, A extends Virt
 		{
 			return new BreadthFirstPriorityRefinementOrder<S, A>( parameters, model, root );
 		}
+		
+		@Override
+		public String toString()
+		{ return "priority.bf"; }
 	}
 	
 	// -----------------------------------------------------------------------

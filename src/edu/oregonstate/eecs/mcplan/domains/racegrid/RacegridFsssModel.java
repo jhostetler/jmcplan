@@ -134,7 +134,7 @@ public class RacegridFsssModel extends FsssModel<RacegridState, RacegridAction>
 		sample_count += 1;
 		final RacegridState sprime = new RacegridState( s );
 		a.create().doAction( rng, sprime );
-		RacegridSimulator.applyDynamics( rng, sprime, slip );
+		RacegridDynamics.applyDynamics( rng, sprime, slip );
 		return sprime;
 	}
 

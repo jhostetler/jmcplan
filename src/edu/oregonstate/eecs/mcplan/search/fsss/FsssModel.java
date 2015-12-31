@@ -111,7 +111,7 @@ public abstract class FsssModel<S extends State, A extends VirtualConstructor<A>
 	 * @param states
 	 * @return
 	 */
-	public Iterable<A> actions( final FsssAbstractStateNode<S, A> asn )
+	public Iterable<? extends A> actions( final FsssAbstractStateNode<S, A> asn )
 	{
 		final S s = asn.states().iterator().next().s();
 		return actions( s );

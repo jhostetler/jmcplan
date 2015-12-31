@@ -105,7 +105,7 @@ public class RddlActionGenerator extends ActionGenerator<RDDLState, RDDLAction>
 	}
 
 	@Override
-	public void setState( final RDDLState s, final long t, final int[] turn )
+	public void setState( final RDDLState s, final long t )
 	{
 //		actions = getLegalActions( s );
 //		idx = 0;

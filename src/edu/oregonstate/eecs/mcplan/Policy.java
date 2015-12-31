@@ -9,6 +9,26 @@ package edu.oregonstate.eecs.mcplan;
  */
 public abstract class Policy<S, A>
 {
+	/**
+	 * Called when a new "episode" is about to begin.
+	 * <p>
+	 * A non-stationary policy can use this as an opportunity to start
+	 * recording a new history. Default implementation does nothing.
+	 */
+	public void reset()
+	{ }
+	
+	/**
+	 * Must return false if the policy exploits stored history information to
+	 * choose an action.
+	 * <p>
+	 * Generally, if you've overridden reset(), you should override
+	 * isStationary() to return false.
+	 * @return
+	 */
+	public boolean isStationary()
+	{ return true; }
+	
 	public abstract void setState( final S s, final long t );
 	
 	public abstract A getAction();

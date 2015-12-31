@@ -27,6 +27,10 @@ public class VariancePriorityRefinementOrder<S extends State, A extends VirtualC
 		{
 			return new VariancePriorityRefinementOrder<S, A>( parameters, model, root );
 		}
+		
+		@Override
+		public String toString()
+		{ return "priority.variance"; }
 	}
 	
 	// -----------------------------------------------------------------------

@@ -11,6 +11,7 @@ import gnu.trove.list.array.TDoubleArrayList;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
@@ -1608,6 +1609,29 @@ public final class Fn
 			x += step;
 		}
 		return result;
+	}
+	
+	/**
+	 * Convert a BitSet to a string in which each character represents
+	 * 'block_size' consecutive bits.
+	 * @param bits
+	 * @param block_size Min 1, max 5
+	 * @return
+	 */
+	public static String toDigits( final BitSet bits, final int block_size )
+	{
+		assert( block_size >= 1 );
+		assert( block_size <= 5 );
+		final int radix = 1 << block_size;
+		final StringBuffer sb = new StringBuffer();
+		for( int i = 0; i < bits.length(); i += block_size ) {
+			int c = 0;
+			for( int j = 0; j < block_size; ++j ) {
+				c |= (bits.get( i + j ) ? 1 : 0) << j;
+			}
+			sb.append( Character.forDigit( c, radix ) );
+		}
+		return sb.reverse().toString();
 	}
 	
 	// -----------------------------------------------------------------------

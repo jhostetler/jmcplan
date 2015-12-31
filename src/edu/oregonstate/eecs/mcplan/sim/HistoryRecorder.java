@@ -17,9 +17,9 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 public class HistoryRecorder<S, R extends Representer<S, ? extends Representation<S>>, A extends VirtualConstructor<A>>
 	implements EpisodeListener<S, A>
 {
-	public ArrayList<Representation<S>> states = new ArrayList<Representation<S>>();
-	public ArrayList<JointAction<A>> actions = new ArrayList<JointAction<A>>();
-	public ArrayList<double[]> rewards = new ArrayList<double[]>();
+	public final ArrayList<Representation<S>> states = new ArrayList<Representation<S>>();
+	public final ArrayList<JointAction<A>> actions = new ArrayList<JointAction<A>>();
+	public final ArrayList<double[]> rewards = new ArrayList<double[]>();
 	
 	public final R repr;
 

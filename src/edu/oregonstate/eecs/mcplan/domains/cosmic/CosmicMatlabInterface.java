@@ -1,6 +1,6 @@
 package edu.oregonstate.eecs.mcplan.domains.cosmic;
 
-import jcosmic.Class1;
+import jcosmic.JCosmic;
 
 import com.mathworks.toolbox.javabuilder.Disposable;
 import com.mathworks.toolbox.javabuilder.MWException;
@@ -26,14 +26,17 @@ public final class CosmicMatlabInterface implements AutoCloseable
 	
 	// -----------------------------------------------------------------------
 	
-	public final Class1 m;
+	public final JCosmic m;
 	
 	private MWStructArray opt = null;
+	private CosmicParameters params = null;
+	
+	private String current_case = null;
 	
 	public CosmicMatlabInterface()
 	{
 		try {
-			m = new Class1();
+			m = new JCosmic();
 		}
 		catch( final MWException ex ) {
 			throw new RuntimeException( ex );
@@ -42,28 +45,31 @@ public final class CosmicMatlabInterface implements AutoCloseable
 	
 	public Case init_case9()
 	{
+		assert( current_case == null );
+		current_case = "case9";
+		
 		Object[] cosmic0 = null;
 		try {
 			// [ C, ps, opt, t, x, y, event ] = init_case9();
 			cosmic0 = m.init_case9( 7 );
 			
+			final MWStructArray C = (MWStructArray) cosmic0[0];
+			
+			final MWStructArray ps = (MWStructArray) cosmic0[1];
 			opt = (MWStructArray) cosmic0[2];
-			
 			final int t = ((MWNumericArray) cosmic0[3]).getInt();
-			
 			final MWNumericArray x = (MWNumericArray) cosmic0[4];
 			final MWNumericArray y = (MWNumericArray) cosmic0[5];
+			final MWNumericArray event = (MWNumericArray) cosmic0[6];
 			
 			final int nx = x.getDimensions()[0];
 			final int ny = y.getDimensions()[0];
 			
-			final CosmicParameters params = new CosmicParameters( nx, ny );
+			// FIXME: Remove hardcoded time horizon
+			final double T = 30;
+			params = new CosmicParameters( this, C, ps, nx, ny, T );
 			
-			final CosmicState s0 = new CosmicState( (MWStructArray) cosmic0[1],
-													t,
-													(MWNumericArray) cosmic0[4],
-													(MWNumericArray) cosmic0[5],
-													(MWNumericArray) cosmic0[6] );
+			final CosmicState s0 = new CosmicState( params, ps, t, x, y, event );
 			
 			return new Case( params, s0 );
 		}
@@ -72,24 +78,24 @@ public final class CosmicMatlabInterface implements AutoCloseable
 		}
 		finally {
 			if( cosmic0 != null ) {
-				// The 'C' parameter is unused by Java thus unowned
-				((Disposable) cosmic0[0]).dispose();
-				// We turned 't' into a primitive 'int' earlier.
+				// We turned 't' into a primitive 'int' earlier, so we no
+				// longer need the Matlab object.
 				((Disposable) cosmic0[3]).dispose();
 			}
 		}
 	}
 	
-	public CosmicState take_action( final CosmicState s, final CosmicAction a, final int delta_t )
+	public CosmicState take_action( final CosmicState s, final CosmicAction a, final double delta_t )
 	{
 		Object[] cprime = null;
 		try {
 			// [ ps, t, x, y, event ] = take_action( ps, opt, t, x, y, event, a, delta_t )
-			cprime = m.take_action( 8, s.ps, opt, s.t, s.x, s.y, s.event, a.toMatlab(), delta_t );
+			cprime = m.take_action( 5, s.ps, opt, s.t, s.x, s.y, s.event, a.toMatlab( params, s.t ), delta_t );
 			
-			final int t = ((MWNumericArray) cprime[1]).getInt();
+			final double t = ((MWNumericArray) cprime[1]).getDouble();
 			
-			return new CosmicState( (MWStructArray) cprime[0],
+			return new CosmicState( params,
+									(MWStructArray) cprime[0],
 									t,
 									(MWNumericArray) cprime[2],
 									(MWNumericArray) cprime[3],
@@ -111,6 +117,10 @@ public final class CosmicMatlabInterface implements AutoCloseable
 	{
 		if( opt != null ) {
 			opt.dispose();
+		}
+		
+		if( params != null ) {
+			params.close();
 		}
 		
 		m.dispose();

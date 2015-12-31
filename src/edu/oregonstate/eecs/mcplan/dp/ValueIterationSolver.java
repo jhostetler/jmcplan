@@ -5,6 +5,7 @@ package edu.oregonstate.eecs.mcplan.dp;
 
 import java.util.Arrays;
 
+import edu.oregonstate.eecs.mcplan.ActionSet;
 import edu.oregonstate.eecs.mcplan.MarkovDecisionProblem;
 import edu.oregonstate.eecs.mcplan.util.Generator;
 
@@ -73,10 +74,11 @@ public class ValueIterationSolver<S, A> implements Runnable
 		while( gs.hasNext() ) {
 			final S s = gs.next();
 			double qstar = -Double.MAX_VALUE;
-			m_.A().setState( s );
-			final Generator<A> ga = m_.A().generator();
-			while( ga.hasNext() ) {
-				final A a = ga.next();
+			final ActionSet<S, A> actions = m_.A().getActionSet( s );
+//			final Generator<A> ga = m_.A().generator();
+//			while( ga.hasNext() ) {
+			for( final A a : actions ) {
+//				final A a = ga.next();
 				final Generator<S> gsprime = m_.S().generator();
 				double q = 0.0;
 				int j = 0;

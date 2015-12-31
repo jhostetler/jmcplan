@@ -3,12 +3,20 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.tetris;
 
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.BitSet;
 
 import org.apache.commons.math3.random.RandomGenerator;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
+
 import edu.oregonstate.eecs.mcplan.State;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 import gnu.trove.iterator.TIntIterator;
 import gnu.trove.list.TIntList;
 import gnu.trove.list.array.TIntArrayList;
@@ -21,14 +29,33 @@ import gnu.trove.set.hash.TIntHashSet;
  */
 public final class TetrisState implements State
 {
+	public static class GsonSerializer implements JsonSerializer<TetrisState>
+	{
+		@Override
+		public JsonElement serialize( final TetrisState s, final Type t, final JsonSerializationContext ctx )
+		{
+			final JsonObject root = new JsonObject();
+			
+			root.add( "t", new JsonPrimitive( s.t ) );
+			
+			final StringBuilder sb = new StringBuilder();
+			sb.append( s.queued_tetro.type ).append( "/" ).append( s.queued_tetro.rotation );
+			root.add( "n", new JsonPrimitive( sb.toString() ) );
+			
+			root.add( "c", new JsonPrimitive( Fn.toDigits( s.cells, 5 ) ) );
+			
+			return root;
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+
 	public final TetrisParameters params;
 	
 	/**
 	 * Row-major order, bottom-up. Encoding: 0 means empty, > 0 means not empty, cells
 	 * with the same non-zero number are part of the same connected component.
 	 */
-//	public final byte[][] cells;
-//	public final ArrayList<BitSet> cells;
 	private final BitSet cells;
 	
 	public int t = 0;
@@ -535,7 +562,15 @@ public final class TetrisState implements State
 		final StringBuilder sb = new StringBuilder();
 		sb.append( "[t: " ).append( t ).append( ", r: " ).append( r ).append( ", next: " ).append( queued_tetro.type )
 		  .append( "/" ).append( queued_tetro.rotation )
-		  .append( ", Ncomponents: " ).append( Ncomponents ).append( "]" );
+		  .append( ", cells: [" );
+		final long[] bits = cells.toLongArray();
+		for( int i = 0; i < bits.length; ++i ) {
+			if( i > 0 ) {
+				sb.append( "," );
+			}
+			sb.append( Long.toHexString( bits[i] ) );
+		}
+		sb.append( "]" ).append( "]" );
 		
 //		sb.append( "\n" ).append( new TetrisBertsekasRepresenter( params ).encode( this ) );
 		

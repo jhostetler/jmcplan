@@ -17,7 +17,8 @@ import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
  */
 public final class FsssAbstractStateNode<S extends State, A extends VirtualConstructor<A>> implements AutoCloseable
 {
-	private static final ch.qos.logback.classic.Logger Log = LoggerManager.getLogger( "log.search" );
+//	private static final ch.qos.logback.classic.Logger Log = LoggerManager.getLogger( "log.search" );
+	private static final org.slf4j.Logger Log = LoggerManager.getLogger( "log.search" );
 	
 	public final int depth;
 	public final FsssAbstractActionNode<S, A> predecessor;

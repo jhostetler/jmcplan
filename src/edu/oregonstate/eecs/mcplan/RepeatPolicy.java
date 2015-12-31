@@ -8,21 +8,13 @@ package edu.oregonstate.eecs.mcplan;
  * @author jhostetler
  *
  */
-public class RepeatPolicy<S, A extends UndoableAction<S>> implements AnytimePolicy<S>
+public class RepeatPolicy<S, A extends VirtualConstructor<A>> extends AnytimePolicy<S, A>
 {
-	private final UndoableAction<S> a_;
+	private final A a;
 	
-	public static <S, A extends UndoableAction<S>> RepeatPolicy<S, A> create( final A a )
-	{
-		return new RepeatPolicy<S, A>( a );
-	}
-	
-	/**
-	 * 
-	 */
 	public RepeatPolicy( final A a )
 	{
-		a_ = a;
+		this.a = a;
 	}
 
 	@Override
@@ -30,43 +22,45 @@ public class RepeatPolicy<S, A extends UndoableAction<S>> implements AnytimePoli
 	{ }
 
 	@Override
-	public UndoableAction<S> getAction()
+	public A getAction()
 	{
-		return a_.create();
+		return a.create();
 	}
 
 	@Override
-	public void actionResult( final UndoableAction<S> a, final S sprime, final double r )
+	public void actionResult( final S sprime, final double[] r )
 	{ }
 
 	@Override
 	public String getName()
 	{
-		return "RepeatPolicy[" + a_.toString() + "]";
-	}
-
-	@Override
-	public long minControl()
-	{
-		return 0;
-	}
-
-	@Override
-	public long maxControl()
-	{
-		return 0;
-	}
-
-	@Override
-	public UndoableAction<S> getAction( final long control )
-	{
-		return getAction();
+		return "RepeatPolicy(" + a + ")";
 	}
 	
 	@Override
 	public String toString()
 	{
 		return getName();
+	}
+
+	@Override
+	public boolean improvePolicy()
+	{
+		return false;
+	}
+
+	@Override
+	public int hashCode()
+	{
+		return getClass().hashCode() ^ a.hashCode();
+	}
+
+	@Override
+	public boolean equals( final Object obj )
+	{
+		@SuppressWarnings( "unchecked" )
+		final RepeatPolicy<S, A> that = (RepeatPolicy<S, A>) obj;
+		return a.equals( that.a );
 	}
 
 }

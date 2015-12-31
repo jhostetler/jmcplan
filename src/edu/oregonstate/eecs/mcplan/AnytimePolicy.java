@@ -6,12 +6,15 @@ package edu.oregonstate.eecs.mcplan;
 
 
 /**
- * @author jhostetler
- *
+ * An AnytimePolicy is a Policy that can be improved incrementally.
+ * <p>
+ * The getAction() function should have minimal overhead (ie. returning a
+ * member variable or performing a single argmax operation).
  */
 public abstract class AnytimePolicy<S, A> extends Policy<S, A>
 {
-	public abstract long minControl();
-	public abstract long maxControl();
-	public abstract A getAction( final long control );
+	/**
+	 * @return False iff no further improvement is possible.
+	 */
+	public abstract boolean improvePolicy();
 }

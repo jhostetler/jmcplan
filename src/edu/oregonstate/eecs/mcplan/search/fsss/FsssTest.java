@@ -12,16 +12,9 @@ import java.util.Deque;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.commons.math3.random.MersenneTwister;
-import org.apache.commons.math3.random.RandomGenerator;
-
 import ch.qos.logback.classic.Logger;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
-import edu.oregonstate.eecs.mcplan.domains.cards.InfiniteSpanishDeck;
-import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjAction;
-import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjFsssModel;
-import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjState;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
@@ -378,24 +371,5 @@ public class FsssTest
 		}
 		
 		return errors;
-	}
-	
-	// -----------------------------------------------------------------------
-	
-	/**
-	 * @param args
-	 */
-	public static void main( final String[] args )
-	{
-		final int width = 10;
-		final int depth = 10;
-		final RandomGenerator rng = new MersenneTwister( 43 );
-		final SpBjFsssModel model = new SpBjFsssModel( rng );
-		final InfiniteSpanishDeck deck = new InfiniteSpanishDeck( rng );
-		final SpBjState s0 = new SpBjState( deck );
-		s0.init();
-		final FsssTreeBuilder<SpBjState, SpBjAction> tb
-			= new FsssTreeBuilder<SpBjState, SpBjAction>( model, width, depth );
-		tb.buildTree( s0 );
 	}
 }

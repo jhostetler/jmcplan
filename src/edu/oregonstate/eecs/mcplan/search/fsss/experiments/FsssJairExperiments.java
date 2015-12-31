@@ -6,7 +6,9 @@ package edu.oregonstate.eecs.mcplan.search.fsss.experiments;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
@@ -16,25 +18,27 @@ import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import ch.qos.logback.classic.Level;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonNull;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
 import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.JointPolicy;
+import edu.oregonstate.eecs.mcplan.JsonRepresentation;
+import edu.oregonstate.eecs.mcplan.JsonRepresenter;
 import edu.oregonstate.eecs.mcplan.LoggerManager;
 import edu.oregonstate.eecs.mcplan.Policy;
-import edu.oregonstate.eecs.mcplan.Representation;
-import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.domains.advising.AdvisingFsssModel;
 import edu.oregonstate.eecs.mcplan.domains.advising.AdvisingParameters;
 import edu.oregonstate.eecs.mcplan.domains.advising.AdvisingRddlParser;
-import edu.oregonstate.eecs.mcplan.domains.firegirl.FireGirlFsssModel;
-import edu.oregonstate.eecs.mcplan.domains.firegirl.FireGirlLocalFeatureRepresenter;
-import edu.oregonstate.eecs.mcplan.domains.firegirl.FireGirlParameters;
-import edu.oregonstate.eecs.mcplan.domains.firegirl.FireGirlState;
-import edu.oregonstate.eecs.mcplan.domains.inventory.InventoryFsssModel;
-import edu.oregonstate.eecs.mcplan.domains.inventory.InventoryProblem;
 import edu.oregonstate.eecs.mcplan.domains.ipc.crossing.IpcCrossingDomains;
 import edu.oregonstate.eecs.mcplan.domains.ipc.crossing.IpcCrossingFsssModel;
 import edu.oregonstate.eecs.mcplan.domains.ipc.crossing.IpcCrossingState;
@@ -52,13 +56,12 @@ import edu.oregonstate.eecs.mcplan.domains.sailing.SailingFsssModel;
 import edu.oregonstate.eecs.mcplan.domains.sailing.SailingState;
 import edu.oregonstate.eecs.mcplan.domains.sailing.SailingWorlds;
 import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjFsssModel;
+import edu.oregonstate.eecs.mcplan.domains.tetris.TetrisAction;
 import edu.oregonstate.eecs.mcplan.domains.tetris.TetrisBertsekasRepresenter;
 import edu.oregonstate.eecs.mcplan.domains.tetris.TetrisFsssModel;
 import edu.oregonstate.eecs.mcplan.domains.tetris.TetrisGroundRepresenter;
 import edu.oregonstate.eecs.mcplan.domains.tetris.TetrisParameters;
 import edu.oregonstate.eecs.mcplan.domains.tetris.TetrisState;
-import edu.oregonstate.eecs.mcplan.domains.toy.CliffWorld;
-import edu.oregonstate.eecs.mcplan.domains.toy.RallyWorld;
 import edu.oregonstate.eecs.mcplan.domains.toy.RelevantIrrelevant;
 import edu.oregonstate.eecs.mcplan.domains.toy.SavingProblem;
 import edu.oregonstate.eecs.mcplan.domains.toy.WeinsteinLittman;
@@ -74,15 +77,15 @@ import edu.oregonstate.eecs.mcplan.search.fsss.FsssSimulatorAdapter;
 import edu.oregonstate.eecs.mcplan.search.fsss.FsssStaticAbstraction;
 import edu.oregonstate.eecs.mcplan.search.fsss.FsssTimeBudget;
 import edu.oregonstate.eecs.mcplan.search.fsss.FsssTreeStatistics;
+import edu.oregonstate.eecs.mcplan.search.fsss.HeuristicSplitChooser;
 import edu.oregonstate.eecs.mcplan.search.fsss.L1SplitEvaluator;
 import edu.oregonstate.eecs.mcplan.search.fsss.ParssTreeBuilder;
 import edu.oregonstate.eecs.mcplan.search.fsss.PriorityRefinementOrder;
 import edu.oregonstate.eecs.mcplan.search.fsss.RandomStaticClassifierRepresenter;
 import edu.oregonstate.eecs.mcplan.search.fsss.RefineableRandomPartitionRepresenter;
 import edu.oregonstate.eecs.mcplan.search.fsss.SearchAlgorithm;
+import edu.oregonstate.eecs.mcplan.search.fsss.SplitChooser;
 import edu.oregonstate.eecs.mcplan.search.fsss.SplitEvaluator;
-import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeHeuristicBfsRefinementOrder;
-import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.SplitChooser;
 import edu.oregonstate.eecs.mcplan.search.fsss.TrivialRepresenterFsssModelAdapter;
 import edu.oregonstate.eecs.mcplan.search.fsss.priority.BreadthFirstPriorityRefinementOrder;
 import edu.oregonstate.eecs.mcplan.search.fsss.priority.UniformPriorityRefinementOrder;
@@ -218,17 +221,6 @@ public class FsssJairExperiments
 	
 	// -----------------------------------------------------------------------
 	
-	private static String deriveDatasetName( final String base, final int iter )
-	{
-		if( iter == -1 ) {
-			return base;
-		}
-		
-		final String basename = FilenameUtils.getBaseName( base );
-		final String ext = FilenameUtils.getExtension( base );
-		return basename + "_" + iter + (ext.isEmpty() ? "" : FilenameUtils.EXTENSION_SEPARATOR + ext);
-	}
-	
 	/**
 	 * Interface between experiment running code and the algorithm being
 	 * experimented on.
@@ -298,6 +290,7 @@ public class FsssJairExperiments
 		@Override
 		public Policy<S, A> getControlPolicy( final Configuration config, final FsssModel<S, A> model )
 		{
+			final ParssAlgorithm<S, A> THIS = this;
 			return new Policy<S, A>() {
 				
 				SearchAlgorithm<S, A> search = null;
@@ -354,6 +347,10 @@ public class FsssJairExperiments
 				public String getName()
 				{ return "PARSS"; }
 
+				@Override
+				public String toString()
+				{ return THIS.toString(); }
+				
 				@Override
 				public int hashCode()
 				{ return System.identityHashCode( this ); }
@@ -447,10 +444,11 @@ public class FsssJairExperiments
 	 * @param config
 	 * @param base_model base_model.create() is used to create all FsssModels used in the experiment
 	 * @param iter Index of current batch in multi-batch experiment
+	 * @throws IOException
 	 */
 	private static <S extends State, X extends FactoredRepresentation<S>,
 					A extends VirtualConstructor<A>, R extends FactoredRepresenter<S, X>>
-	void runGames( final Configuration config, final FsssModel<S, A> base_model, final int iter )
+	void runGames( final Configuration config, final FsssModel<S, A> base_model, final int iter ) throws IOException
 	{
 		// Model with independent RNG for simulation
 		final FsssModel<S, A> sim_model = base_model.create( config.rng_sim );
@@ -473,59 +471,96 @@ public class FsssJairExperiments
 		final MeanVarianceAccumulator steps = new MeanVarianceAccumulator();
 		final MinMaxAccumulator steps_minmax = new MinMaxAccumulator();
 		final TObjectIntMap<A> action_histogram = new TObjectIntHashMap<A>();
+		final PrintWriter history_out;
+		if( config.getBoolean( "log.history" ) ) {
+			history_out = createHistoryPrintStream( config, iter );
+		}
+		else {
+			history_out = null;
+		}
+		int Ncompleted = 0;
+		int Nerrors = 0;
 		
 		for( int i = 0; i < config.Ntest_games; ++i ) {
 			if( i % print_interval == 0 ) {
 				System.out.println( "Episode " + i );
 			}
 			
-			// episode_model is the "real" world. We seed it from rng_world
-			// to get the same sequence of "real" worlds every time.
-			final RandomGenerator episode_rng = new MersenneTwister( config.rng_world.nextInt() );
-			final FsssModel<S, A> episode_model = base_model.create( episode_rng );
-			final S s0 = episode_model.initialState();
-			
-			// Use sim_model for decision-making
-			final Policy<S, A> pi = algorithm.getControlPolicy( config, sim_model );
-			
-			// Use the episode model for the actual execution episode
-			final Simulator<S, A> sim = new FsssSimulatorAdapter<S, A>( episode_model, s0 );
-			final Episode<S, A> episode	= new Episode<S, A>( sim, new JointPolicy<S, A>( pi ), T );
-			final RewardAccumulator<S, A> racc = new RewardAccumulator<S, A>( sim.nagents(), config.discount );
-			episode.addListener( racc );
-			final HistoryRecorder<S, ? extends Representer<S, ? extends Representation<S>>, A> hacc
-				= new HistoryRecorder<>( base_model.base_repr() );
-			episode.addListener( hacc );
-			
-			if( config.getBoolean( "log.execution" ) ) {
-				final LoggingEpisodeListener<S, A> epi_log = new LoggingEpisodeListener<S, A>();
-				episode.addListener( epi_log );
-			}
-			
-			if( config.getBoolean( "log.visualization" ) ) {
-				// TODO:
-				final EpisodeListener<S, A> vis = null; //domain.getVisualization();
-				if( vis != null ) {
-					episode.addListener( vis );
+			try {
+				// episode_model is the "real" world. We seed it from rng_world
+				// to get the same sequence of "real" worlds every time.
+				final RandomGenerator episode_rng = new MersenneTwister( config.rng_world.nextInt() );
+				final FsssModel<S, A> episode_model = base_model.create( episode_rng );
+				final S s0 = episode_model.initialState();
+				
+				// Use sim_model for decision-making
+				final Policy<S, A> pi = algorithm.getControlPolicy( config, sim_model );
+				
+				// Use the episode model for the actual execution episode
+				final Simulator<S, A> sim = new FsssSimulatorAdapter<S, A>( episode_model, s0 );
+				final Episode<S, A> episode	= new Episode<S, A>( sim, new JointPolicy<S, A>( pi ), T );
+				final RewardAccumulator<S, A> racc = new RewardAccumulator<S, A>( sim.nagents(), config.discount );
+				episode.addListener( racc );
+				final HistoryRecorder<S, JsonRepresenter<S>, A> hacc
+					= new HistoryRecorder<>( new JsonRepresenter<S>( gson ) );
+				episode.addListener( hacc );
+				
+				if( config.getBoolean( "log.execution" ) ) {
+					final LoggingEpisodeListener<S, A> epi_log = new LoggingEpisodeListener<S, A>();
+					episode.addListener( epi_log );
 				}
-				else {
-					System.out.println( "Warning: No visualization implemented" );
+				
+				if( config.getBoolean( "log.visualization" ) ) {
+					// TODO:
+					final EpisodeListener<S, A> vis = null; //domain.getVisualization();
+					if( vis != null ) {
+						episode.addListener( vis );
+					}
+					else {
+						System.out.println( "Warning: No visualization implemented" );
+					}
 				}
+	
+				// Do the work
+				episode.run();
+				
+				if( config.getBoolean( "log.history" ) ) {
+					writeEpisodeHistory( history_out, i, hacc );
+				}
+				
+				// Episode statistics
+				ret.add( racc.v()[0] );
+				steps.add( racc.steps() );
+				steps_minmax.add( racc.steps() );
+				for( final JointAction<A> j : hacc.actions ) {
+					action_histogram.adjustOrPutValue( j.get( 0 ), 1, 1 );
+				}
+				if( config.getBoolean( "log.execution" ) ) {
+					System.out.println( "episode" + i + ".ret: " + racc.v()[0] );
+					System.out.println( "episode" + i + ".steps: " + racc.steps() );
+				}
+				
+				// Last thing
+				Ncompleted += 1;
 			}
-
-			// Do the work
-			episode.run();
-			
-			// Episode statistics
-			ret.add( racc.v()[0] );
-			steps.add( racc.steps() );
-			steps_minmax.add( racc.steps() );
-			for( final JointAction<A> j : hacc.actions ) {
-				action_histogram.adjustOrPutValue( j.get( 0 ), 1, 1 );
+			catch( final OutOfMemoryError ex ) {
+				// The vast majority of memory is due to the search tree. So
+				// we'll get it back as soon as the tree goes out of scope.
+				// Thus we can continue.
+				System.out.println( "! Caught OOM:" );
+				System.out.println( ex );
+				
+				Nerrors += 1;
+				if( Nerrors > config.Ntest_games * config.getDouble( "error_rate_limit" ) ) {
+					// Stop if too high a proportion of episodes are failing
+					System.out.println( "Error limit reached" );
+					break;
+				}
 			}
 		}
 		
 		System.out.println( "****************************************" );
+		System.out.println( "Completed: " + Ncompleted + " / " + config.Ntest_games );
 		System.out.println( "Average return: " + ret.mean() );
 		System.out.println( "Return variance: " + ret.variance() );
 		System.out.println( "Confidence: " + ret.confidence() );
@@ -548,7 +583,7 @@ public class FsssJairExperiments
 		final Csv.Writer data_out = createDataWriter( config, algorithm, iter );
 		// See: createDataWriter for correct column order
 		data_out.cell( config.experiment_name ).cell( base_model.base_repr() ).cell( algorithm )
-				.cell( config.Ntest_games )
+				.cell( Ncompleted ).cell( config.Ntest_games )
 				.cell( ret.mean() ).cell( ret.variance() ).cell( ret.confidence() )
 				.cell( steps.mean() ).cell( steps.variance() ).cell( steps_minmax.min() ).cell( steps_minmax.max() );
 				
@@ -558,6 +593,49 @@ public class FsssJairExperiments
 		}
 		data_out.newline();
 		System.out.println();
+	}
+	
+	private static PrintWriter createHistoryPrintStream( final Configuration config, final int iter )
+	{
+		final PrintWriter out;
+		try {
+			out = new PrintWriter( new File( config.data_directory, "history_" + iter + ".json" ) );
+		}
+		catch( final FileNotFoundException ex ) {
+			throw new RuntimeException( ex );
+		}
+		return out;
+	}
+	
+	private static <S extends State, A extends VirtualConstructor<A>>
+	void writeEpisodeHistory( final PrintWriter out, final int episode, final HistoryRecorder<S, ?, A> hacc ) throws IOException
+	{
+		if( hacc.states.isEmpty() ) {
+			System.out.println( "! Warning: Empty history (writeEpisodeHistory)" );
+			return;
+		}
+		
+		final JsonObject root = new JsonObject();
+		root.add( "episode", new JsonPrimitive( episode ) );
+		
+		final JsonArray h = new JsonArray();
+		root.add( "h", h );
+		for( int i = 0; i < hacc.actions.size() - 1; ++i ) {
+			final JsonObject t = new JsonObject();
+			t.add( "s", ((JsonRepresentation<S>) hacc.states.get( i )).json );
+			t.add( "a", gson.toJsonTree( hacc.actions.get( i ).get( 0 ) ) );
+			t.add( "r", gson.toJsonTree( hacc.rewards.get( i )[0] ) );
+			h.add( t );
+		}
+		final JsonObject terminal = new JsonObject();
+		terminal.add( "s", ((JsonRepresentation<S>) hacc.states.get( hacc.states.size() - 1 )).json );
+		terminal.add( "a", JsonNull.INSTANCE );
+		terminal.add( "r", gson.toJsonTree( hacc.rewards.get( hacc.rewards.size() - 1 )[0] ) );
+		h.add( terminal );
+		
+		gson.toJson( root, out );
+		out.println();
+		out.flush();
 	}
 	
 	private static <S extends State, A extends VirtualConstructor<A>>
@@ -571,7 +649,7 @@ public class FsssJairExperiments
 			throw new RuntimeException( ex );
 		}
 		data_out.cell( "experiment_name" ).cell( "base_repr" ).cell( "algorithm" )
-				.cell( "Ngames" )
+				.cell( "Ncompleted" ).cell( "Ngames" )
 				.cell( "V_mean" ).cell( "V_var" ).cell( "V_conf" )
 				.cell( "steps_mean" ).cell( "steps_var" ).cell( "steps_min" ).cell( "steps_max" );
 				
@@ -670,7 +748,7 @@ public class FsssJairExperiments
 		final String chooser = config.get( "par.split_chooser" );
 		if( "heuristic".equals( chooser ) ) {
 			final SplitEvaluator<S, A> split_evaluator = createSplitEvaluator( config );
-			return new SubtreeHeuristicBfsRefinementOrder<S, A>( parameters, model, split_evaluator );
+			return new HeuristicSplitChooser<>( parameters, model, split_evaluator );
 		}
 //		else if( "random".equals( chooser ) ) {
 //			return new SubtreeRandomPartitionBfsRefinementOrder<S, A>( parameters, model );
@@ -699,6 +777,8 @@ public class FsssJairExperiments
 
 	// -----------------------------------------------------------------------
 	
+	private static Gson gson = null;
+	
 	public static void main( final String[] args ) throws Exception
 	{
 		final String experiment_file = args[0];
@@ -723,6 +803,11 @@ public class FsssJairExperiments
 			LoggerManager.getLogger( "log.domain" ).setLevel( Level.valueOf( config.get( "log.domain" ) ) );
 			LoggerManager.getLogger( "log.search" ).setLevel( Level.valueOf( config.get( "log.search" ) ) );
 			
+			final GsonBuilder gson_builder = new GsonBuilder();
+			if( config.getBoolean( "log.history.pretty" ) ) {
+				gson_builder.setPrettyPrinting();
+			}
+			
 			if( "advising".equals( config.domain ) ) {
 				final File domain = new File( config.root_directory, config.get( "rddl.domain" ) + ".rddl" );
 				final File instance = new File( config.root_directory, config.get( "rddl.instance" ) + ".rddl" );
@@ -733,10 +818,10 @@ public class FsssJairExperiments
 				final AdvisingFsssModel model = new AdvisingFsssModel( config.rng_world, params );
 				runGames( config, model, expr );
 			}
-			else if( "cliffworld".equals( config.domain ) ) {
-				final CliffWorld.FsssModel model = new CliffWorld.FsssModel( config.rng_world, config );
-				runGames( config, model, expr );
-			}
+//			else if( "cliffworld".equals( config.domain ) ) {
+//				final CliffWorld.FsssModel model = new CliffWorld.FsssModel( config.rng_world, config );
+//				runGames( config, model, expr );
+//			}
 			else if( "crossing".equals( config.domain ) ) {
 				final File domain = new File( config.get( "rddl.domain" ) + ".rddl" );
 				final File instance = new File( config.get( "rddl.instance" ) + ".rddl" );
@@ -751,41 +836,41 @@ public class FsssJairExperiments
 				final IpcElevatorsFsssModel model = new IpcElevatorsFsssModel( config.rng_world, s0 );
 				runGames( config, model, expr );
 			}
-			else if( "firegirl".equals( config.domain ) ) {
-				final int T = config.getInt( "firegirl.T" );
-				final double discount = config.getDouble( "discount" );
-				final FactoredRepresenter<FireGirlState, ? extends FactoredRepresentation<FireGirlState>> base_repr;
-				if( "local".equals( config.get( "firegirl.repr" ) ) ) {
-					base_repr = new FireGirlLocalFeatureRepresenter();
-				}
-				else {
-					throw new IllegalArgumentException( "firegirl.repr" );
-				}
-				final FireGirlParameters params = new FireGirlParameters( T, discount, base_repr );
-				final FireGirlFsssModel model = new FireGirlFsssModel( params, config.rng_world );
-				runGames( config, model, expr );
-			}
-			else if( "inventory".equals( config.domain ) ) {
-				final String problem_name = config.get( "inventory.problem" );
-				final InventoryProblem problem;
-				if( "Dependent".equals( problem_name ) ) {
-					problem = InventoryProblem.Dependent();
-				}
-				else if( "Geometric".equals( problem_name ) ) {
-					problem = InventoryProblem.Geometric();
-				}
-				else if( "Geometric2".equals( problem_name ) ) {
-					problem = InventoryProblem.Geometric2();
-				}
-				else if( "TwoProducts".equals( problem_name ) ) {
-					problem = InventoryProblem.TwoProducts();
-				}
-				else {
-					throw new IllegalArgumentException( "inventory.problem" );
-				}
-				final InventoryFsssModel model = new InventoryFsssModel( config.rng_world, problem );
-				runGames( config, model, expr );
-			}
+//			else if( "firegirl".equals( config.domain ) ) {
+//				final int T = config.getInt( "firegirl.T" );
+//				final double discount = config.getDouble( "discount" );
+//				final FactoredRepresenter<FireGirlState, ? extends FactoredRepresentation<FireGirlState>> base_repr;
+//				if( "local".equals( config.get( "firegirl.repr" ) ) ) {
+//					base_repr = new FireGirlLocalFeatureRepresenter();
+//				}
+//				else {
+//					throw new IllegalArgumentException( "firegirl.repr" );
+//				}
+//				final FireGirlParameters params = new FireGirlParameters( T, discount, base_repr );
+//				final FireGirlFsssModel model = new FireGirlFsssModel( params, config.rng_world );
+//				runGames( config, model, expr );
+//			}
+//			else if( "inventory".equals( config.domain ) ) {
+//				final String problem_name = config.get( "inventory.problem" );
+//				final InventoryProblem problem;
+//				if( "Dependent".equals( problem_name ) ) {
+//					problem = InventoryProblem.Dependent();
+//				}
+//				else if( "Geometric".equals( problem_name ) ) {
+//					problem = InventoryProblem.Geometric();
+//				}
+//				else if( "Geometric2".equals( problem_name ) ) {
+//					problem = InventoryProblem.Geometric2();
+//				}
+//				else if( "TwoProducts".equals( problem_name ) ) {
+//					problem = InventoryProblem.TwoProducts();
+//				}
+//				else {
+//					throw new IllegalArgumentException( "inventory.problem" );
+//				}
+//				final InventoryFsssModel model = new InventoryFsssModel( config.rng_world, problem );
+//				runGames( config, model, expr );
+//			}
 			else if( "racegrid".equals( config.domain ) ) {
 				final String circuit = config.get( "racegrid.circuit" );
 				final int scale = config.getInt( "racegrid.scale" );
@@ -804,14 +889,14 @@ public class FsssJairExperiments
 				final RacegridFsssModel model = new RacegridFsssModel( config.rng_world, ex, slip );
 				runGames( config, model, expr );
 			}
-			else if( "rally".equals( config.domain ) ) {
-				final RallyWorld.Parameters params = new RallyWorld.Parameters( config.rng_world, config );
-				final RallyWorld.FsssModel model = new RallyWorld.FsssModel( params );
-				runGames( config, model, expr );
-			}
+//			else if( "rally".equals( config.domain ) ) {
+//				final RallyWorld.Parameters params = new RallyWorld.Parameters( config.rng_world, config );
+//				final RallyWorld.FsssModel model = new RallyWorld.FsssModel( params );
+//				runGames( config, model, expr );
+//			}
 			else if( "relevant_irrelevant".equals( config.domain ) ) {
-				final RelevantIrrelevant.Parameters params = new RelevantIrrelevant.Parameters( config.rng_world, config );
-				final RelevantIrrelevant.FsssModel model = new RelevantIrrelevant.FsssModel( params );
+				final RelevantIrrelevant.Parameters params = new RelevantIrrelevant.Parameters( config );
+				final RelevantIrrelevant.FsssModel model = new RelevantIrrelevant.FsssModel( config.rng_world, params );
 				runGames( config, model, expr );
 			}
 			else if( "sailing".equals( config.domain ) ) {
@@ -869,6 +954,11 @@ public class FsssJairExperiments
 					throw new IllegalArgumentException( "tetris.repr" );
 				}
 				final TetrisFsssModel model = new TetrisFsssModel( config.rng_world, params, base_repr );
+				
+				gson_builder.registerTypeAdapter( TetrisState.class, new TetrisState.GsonSerializer() );
+				gson_builder.registerTypeAdapter( TetrisAction.class, new TetrisAction.GsonSerializer() );
+				gson = gson_builder.create();
+				
 				runGames( config, model, expr );
 			}
 			else if( "weinstein_littman".equals( config.domain ) ) {

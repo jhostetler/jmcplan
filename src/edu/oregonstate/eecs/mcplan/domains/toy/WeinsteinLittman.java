@@ -18,9 +18,9 @@ import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
 import edu.oregonstate.eecs.mcplan.Representation;
 import edu.oregonstate.eecs.mcplan.Representer;
-import edu.oregonstate.eecs.mcplan.TrivialRepresentation;
 import edu.oregonstate.eecs.mcplan.UndoableAction;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
+import edu.oregonstate.eecs.mcplan.abstraction.IndexRepresentation;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 import edu.oregonstate.eecs.mcplan.util.KeyValueStore;
 
@@ -118,7 +118,7 @@ public class WeinsteinLittman
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			switch( s.i ) {
 			case 0:
@@ -310,7 +310,7 @@ public class WeinsteinLittman
 			sample_count += 1;
 			
 			final State copy = new State( s );
-			a.create().doAction( copy );
+			a.create().doAction( rng, copy );
 			
 			return copy;
 		}
@@ -394,7 +394,12 @@ public class WeinsteinLittman
 		@Override
 		public Representation<State> encode( final State s )
 		{
-			return new TrivialRepresentation<State>();
+			if( s.isTerminal() ) {
+				return new IndexRepresentation<>( 0 );
+			}
+			else {
+				return new IndexRepresentation<>( 1 );
+			}
 		}
 	}
 	

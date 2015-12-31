@@ -10,7 +10,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
@@ -39,10 +38,10 @@ public class RddlSpec
 //	public RDDLState cur_state;
 //	public RDDLFactoredTransition _rddlTransition;
 	public TreeMap<String, UnorderedPair<PVAR_NAME, ArrayList<LCONST>>> _rddlVars;
-	public RDDLFactoredReward _rddlReward;
-	public final Random _rand;
-	public RDDLFactoredStateSpace _rddlStateSpace;
-	public RDDLFactoredActionSpace _rddlActionSpace;
+//	public RDDLFactoredReward _rddlReward;
+//	public final Random _rand;
+//	public RDDLFactoredStateSpace _rddlStateSpace;
+//	public RDDLFactoredActionSpace _rddlActionSpace;
 	public final String _simName;
 	public final int _numAgents;
 	
@@ -73,7 +72,7 @@ public class RddlSpec
 			final String name ){
 		_numAgents = numAgents;
 		_simName = name;
-		_rand = new Random(rand_seed);
+//		_rand = new Random(rand_seed);
 		
 		final RDDL _rddltemp = new RDDL();
 

@@ -26,6 +26,10 @@ public class UniformPriorityRefinementOrder<S extends State, A extends VirtualCo
 		{
 			return new UniformPriorityRefinementOrder<S, A>( parameters, model, root );
 		}
+		
+		@Override
+		public String toString()
+		{ return "priority.uniform"; }
 	}
 	
 	// -----------------------------------------------------------------------

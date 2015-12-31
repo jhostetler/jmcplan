@@ -12,9 +12,6 @@ import edu.oregonstate.eecs.mcplan.LoggerManager;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.abstraction.IndexRepresentation;
-import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.Split;
-import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.SplitChoice;
-import edu.oregonstate.eecs.mcplan.search.fsss.SubtreeRefinementOrder.SplitChooser;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**

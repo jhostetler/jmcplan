@@ -32,24 +32,21 @@ public class RelevantIrrelevant
 {
 	public static class Parameters
 	{
-		public final RandomGenerator rng;
 		public final int T;
 		
 		public final int nr;
 		public final int ni;
 
-		public Parameters( final RandomGenerator rng, final int T, final int nr, final int ni )
+		public Parameters( final int T, final int nr, final int ni )
 		{
-			this.rng = rng;
 			this.T = T;
 			this.nr = nr;
 			this.ni = ni;
 		}
 		
-		public Parameters( final RandomGenerator rng, final KeyValueStore config )
+		public Parameters( final KeyValueStore config )
 		{
-			this( rng,
-				  config.getInt( "relevant_irrelevant.T" ),
+			this( config.getInt( "relevant_irrelevant.T" ),
 				  config.getInt( "relevant_irrelevant.nr" ),
 				  config.getInt( "relevant_irrelevant.ni" ) );
 		}
@@ -76,6 +73,10 @@ public class RelevantIrrelevant
 			this.r = that.r;
 			this.i = that.i;
 		}
+		
+		@Override
+		public void close()
+		{ }
 		
 		@Override
 		public boolean isTerminal()
@@ -113,11 +114,11 @@ public class RelevantIrrelevant
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			s.t += 1;
-			s.r = s.params.rng.nextInt( s.params.nr );
-			s.i = s.params.rng.nextInt( s.params.ni );
+			s.r = rng.nextInt( s.params.nr );
+			s.i = rng.nextInt( s.params.ni );
 		}
 
 		@Override
@@ -191,21 +192,29 @@ public class RelevantIrrelevant
 	public static class FsssModel extends edu.oregonstate.eecs.mcplan.search.fsss.FsssModel<State, Action>
 	{
 		private final Parameters params;
+		private final RandomGenerator rng;
 		
 		private final PrimitiveRepresenter base_repr = new PrimitiveRepresenter();
 		private final ActionSetRepresenter action_repr = new ActionSetRepresenter();
 		
 		private int sample_count = 0;
 		
-		public FsssModel( final Parameters params )
+		public FsssModel( final RandomGenerator rng, final Parameters params )
 		{
+			this.rng = rng;
 			this.params = params;
+		}
+		
+		@Override
+		public FsssModel create( final RandomGenerator rng )
+		{
+			return new FsssModel( rng, this.params );
 		}
 		
 		@Override
 		public RandomGenerator rng()
 		{
-			return params.rng;
+			return rng;
 		}
 		
 		@Override
@@ -248,8 +257,8 @@ public class RelevantIrrelevant
 		public State initialState()
 		{
 			final State s0 = new State( params );
-			s0.r = params.rng.nextInt( params.nr );
-			s0.i = params.rng.nextInt( params.ni );
+			s0.r = rng.nextInt( params.nr );
+			s0.i = rng.nextInt( params.ni );
 			return s0;
 		}
 
@@ -267,7 +276,7 @@ public class RelevantIrrelevant
 			sample_count += 1;
 			
 			final State copy = new State( s );
-			a.create().doAction( copy );
+			a.create().doAction( rng, copy );
 			
 			return copy;
 		}
@@ -312,7 +321,7 @@ public class RelevantIrrelevant
 		@Override
 		public FactoredRepresentation<State> encode( final State s )
 		{
-			final double[] phi = new double[attributes.size()];
+			final float[] phi = new float[attributes.size()];
 			int idx = 0;
 			phi[idx++] = s.t;
 			phi[idx++] = s.r;
@@ -351,9 +360,9 @@ public class RelevantIrrelevant
 		final int nr = 3;
 		final int ni = 3;
 		
-		final Parameters params = new Parameters( rng, T, nr, ni );
+		final Parameters params = new Parameters( T, nr, ni );
 		final Actions actions = new Actions( params );
-		final FsssModel model = new FsssModel( params );
+		final FsssModel model = new FsssModel( rng, params );
 		
 		State s = model.initialState();
 		while( !s.isTerminal() ) {

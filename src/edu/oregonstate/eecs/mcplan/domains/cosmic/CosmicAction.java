@@ -11,17 +11,22 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  * @author jhostetler
  *
  */
-public class CosmicAction implements VirtualConstructor<CosmicAction>
+public abstract class CosmicAction implements VirtualConstructor<CosmicAction>
 {
-	@Override
-	public CosmicAction create()
-	{
-		return new CosmicAction();
-	}
+	/**
+	 * Returned array is owned by caller.
+	 * @param params
+	 * @param t
+	 * @return
+	 */
+	public abstract MWNumericArray toMatlab( final CosmicParameters params, final double t );
 	
-	public MWNumericArray toMatlab()
-	{
-		// FIXME: Add non-default actions
-		return new MWNumericArray();
-	}
+	@Override
+	public abstract int hashCode();
+	
+	@Override
+	public abstract boolean equals( final Object obj );
+	
+	@Override
+	public abstract String toString();
 }

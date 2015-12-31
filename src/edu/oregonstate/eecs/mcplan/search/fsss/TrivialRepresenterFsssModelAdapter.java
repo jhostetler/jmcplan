@@ -35,6 +35,12 @@ public class TrivialRepresenterFsssModelAdapter<S extends State, A extends Virtu
 	}
 	
 	@Override
+	public FsssModel<S, A> create( final RandomGenerator rng )
+	{
+		return new TrivialRepresenterFsssModelAdapter<S, A>( model.create( rng ) );
+	}
+	
+	@Override
 	public double Vmin( final S s )
 	{ return model.Vmin( s ); }
 
