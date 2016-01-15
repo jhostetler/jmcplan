@@ -39,7 +39,25 @@ public final class Shunt
 	@Override
 	public String toString()
 	{
-		return "Shunt[" + id + ", " + factor() + ", " + P() + "]";
+		return "Shunt[" + id + "; factor: " + factor() + "; P: " + P()
+				+ "; current_P: " + current_P() + "; type: " + type() + "]";
+	}
+	
+	public boolean hasLoad()
+	{
+		return near_gen() != 0;
+	}
+	
+	public double load_freq( final CosmicState s )
+	{
+		final int near_gen_id = near_gen();
+		
+		if( near_gen_id != 0 ) {
+			return s.x.omega_pu( s.generator( near_gen_id ) );
+		}
+		else {
+			throw new UnsupportedOperationException( "near_gen == 0" );
+		}
 	}
 	
 	public int id()
@@ -73,9 +91,19 @@ public final class Shunt
 		return mshunt.get().getDouble( new int[] { id, params.sh_col_names.get( "status" ) } );
 	}
 	
+	public int type()
+	{
+		return mshunt.get().getInt( new int[] { id, params.sh_col_names.get( "type" ) } );
+	}
+	
 	public double value()
 	{
 		return mshunt.get().getDouble( new int[] { id, params.sh_col_names.get( "value" ) } );
+	}
+	
+	public int near_gen()
+	{
+		return mshunt.get().getInt( new int[] { id, params.sh_col_names.get( "near_gen" ) } );
 	}
 	
 	public double current_P()

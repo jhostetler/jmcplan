@@ -28,6 +28,10 @@ public class CosmicNothingAction extends CosmicAction
 	{
 		return new MWNumericArray();
 	}
+	
+	@Override
+	public void applyNonCosmicChanges( final CosmicState sprime )
+	{ }
 
 	@Override
 	public int hashCode()
@@ -46,4 +50,5 @@ public class CosmicNothingAction extends CosmicAction
 	{
 		return "Nothing";
 	}
+	
 }

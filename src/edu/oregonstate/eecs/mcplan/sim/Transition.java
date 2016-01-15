@@ -21,4 +21,15 @@ public class Transition<S, A>
 		this.r = r;
 		this.sprime = sprime;
 	}
+	
+	@Override
+	public String toString()
+	{
+		final StringBuilder sb = new StringBuilder();
+		sb.append( "(" ).append( s )
+		  .append( ", " ).append( a )
+		  .append( ", " ).append( r )
+		  .append( ", " ).append( sprime ).append( ")" );
+		return sb.toString();
+	}
 }

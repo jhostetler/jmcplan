@@ -9,13 +9,12 @@ import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.Policy;
-import edu.oregonstate.eecs.mcplan.domains.cosmic.Bus;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.CosmicAction;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.CosmicNothingAction;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.CosmicParameters;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.CosmicState;
-import edu.oregonstate.eecs.mcplan.domains.cosmic.ShedLoadAction;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.Shunt;
+import edu.oregonstate.eecs.mcplan.domains.cosmic.TripShuntAction;
 import gnu.trove.iterator.TIntIterator;
 import gnu.trove.set.TIntSet;
 import gnu.trove.set.hash.TIntHashSet;
@@ -28,14 +27,10 @@ public class HystereticLoadShedding extends Policy<CosmicState, CosmicAction>
 {
 	public static abstract class Feature
 	{
-		public abstract double forBus( final Bus b );
-		@Override
-		public abstract String toString();
-	}
-	
-	public static abstract class ShuntSelector
-	{
-		public abstract Shunt shunt( final CosmicState s, final Bus b );
+		public abstract double[] forState( final CosmicState s );
+		
+		public abstract Shunt shunt( final CosmicState s, final int fault_idx );
+		
 		@Override
 		public abstract String toString();
 	}
@@ -45,7 +40,6 @@ public class HystereticLoadShedding extends Policy<CosmicState, CosmicAction>
 	private final RandomGenerator rng;
 	
 	private final Feature feature;
-	private final ShuntSelector select;
 	private final double fault_threshold;
 	private final double clear_threshold;
 	private final double delay;
@@ -57,13 +51,12 @@ public class HystereticLoadShedding extends Policy<CosmicState, CosmicAction>
 	private final TIntSet tripped = new TIntHashSet();
 	private CosmicState s = null;
 	
-	public HystereticLoadShedding( final RandomGenerator rng, final Feature feature, final ShuntSelector select,
+	public HystereticLoadShedding( final RandomGenerator rng, final Feature feature,
 								   final CosmicParameters params,
 								   final double fault_threshold, final double clear_threshold, final double delay )
 	{
 		this.rng = rng;
 		this.feature = feature;
-		this.select = select;
 		this.fault_threshold = fault_threshold;
 		this.clear_threshold = clear_threshold;
 		this.delay = delay;
@@ -93,27 +86,14 @@ public class HystereticLoadShedding extends Policy<CosmicState, CosmicAction>
 	{
 		this.s = s;
 		tripped.clear();
-		for( final Bus b : s.buses() ) {
-			final double f = feature.forBus( b );
-//			final double Vmag = b.Vmag();
-			final int id = b.id();
-			final int idx = id - 1;
+		final double[] f = feature.forState( s );
+		for( int idx = 0; idx < f.length; ++idx ) {
 			if( fault[idx] ) { // Under-voltage condition ongoing
-				if( f < clear_threshold ) {
+				if( f[idx] < clear_threshold ) {
 					time[idx] = s.t;
 					if( time[idx] - tref[idx] > delay ) {
-						System.out.println( "" + this + ": Tripped bus " + id );
-						tripped.add( id );
-						
-//						// Bus tripped. See if it has a load connected.
-//						final TIntList shunt_ids = s.params.bus_to_shunts.get( id );
-//						if( !shunt_ids.isEmpty() ) {
-//							final TIntIterator sh_itr = shunt_ids.iterator();
-//							while( sh_itr.hasNext() ) {
-//
-//							}
-//							tripped.add( id );
-//						}
+//						System.out.println( "" + this + ": Fault index " + idx );
+						tripped.add( idx );
 					}
 				}
 				else {
@@ -121,7 +101,7 @@ public class HystereticLoadShedding extends Policy<CosmicState, CosmicAction>
 					time[idx] = tref[idx] = 0;
 				}
 			}
-			else if( f < fault_threshold ) { // Trigger under-voltage condition
+			else if( f[idx] < fault_threshold ) { // Trigger under-voltage condition
 				fault[idx] = true;
 				time[idx] = tref[idx] = s.t;
 			}
@@ -137,34 +117,15 @@ public class HystereticLoadShedding extends Policy<CosmicState, CosmicAction>
 			for( int i = 0; i < r; ++i ) {
 				itr.next();
 			}
-			final int bi = itr.next();
-			final Bus b = s.bus( bi );
+			final int fault_idx = itr.next();
 			
-			final Shunt sh = select.shunt( s, b );
+			final Shunt sh = feature.shunt( s, fault_idx );
 			if( sh != null ) {
-				return new ShedLoadAction( sh.id() );
+				return new TripShuntAction( sh.id() );
 			}
 			else {
-				tripped.remove( bi );
+				tripped.remove( fault_idx );
 			}
-			
-//			final CosmicState.DistanceBusPair[] db = s.nearestBusesByRowElectricalDistance( s.params, bi );
-//			for( int i = 0; i < db.length; ++i ) {
-//				final CosmicState.DistanceBusPair p = db[i];
-//				if( p.bus == bi ) {
-//					continue;
-//				}
-//				final TIntIterator sh_itr = s.params.bus_to_shunts.get( bi ).iterator();
-//				while( sh_itr.hasNext() ) {
-//					final int sh_id = sh_itr.next();
-//					final Shunt sh = s.shunt( sh_id );
-//					if( sh.factor() > 0 ) {
-//						fault[bi] = false;
-//						tripped.remove( bi );
-//						return new ShedLoadAction( sh_id );
-//					}
-//				}
-//			}
 		}
 		
 		return new CosmicNothingAction();
@@ -207,9 +168,8 @@ public class HystereticLoadShedding extends Policy<CosmicState, CosmicAction>
 	public String toString()
 	{
 		final StringBuilder sb = new StringBuilder();
-		sb.append( "LS_H[" ).append( feature ).append( "; " ).append( select )
-		  .append( "; " ).append( fault_threshold ).append( "; " ).append( clear_threshold )
-		  .append( "; " ).append( delay ).append( "]" );
+		sb.append( "LS_H[" ).append( feature ).append( "; " ).append( fault_threshold )
+		  .append( "; " ).append( clear_threshold ).append( "; " ).append( delay ).append( "]" );
 		return sb.toString();
 	}
 }

@@ -839,6 +839,12 @@ public final class Fn
 	// range
 	// -----------------------------------------------------------------------
 	
+	/**
+	 * Returns an array of consecutive integers {start, ..., end - 1}
+	 * @param start
+	 * @param end
+	 * @return
+	 */
 	public static int[] range( final int start, final int end )
 	{
 		assert( end >= start );

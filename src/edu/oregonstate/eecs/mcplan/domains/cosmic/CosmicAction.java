@@ -21,6 +21,13 @@ public abstract class CosmicAction implements VirtualConstructor<CosmicAction>
 	 */
 	public abstract MWNumericArray toMatlab( final CosmicParameters params, final double t );
 	
+	/**
+	 * Apply changes to the state due to this action that are not modeled by
+	 * the Cosmic system.
+	 * @param sprime The CosmicState obtained by applying take_action
+	 */
+	public abstract void applyNonCosmicChanges( CosmicState sprime );
+	
 	@Override
 	public abstract int hashCode();
 	

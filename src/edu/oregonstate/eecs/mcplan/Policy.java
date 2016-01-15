@@ -41,10 +41,13 @@ public abstract class Policy<S, A>
 	 * function of the entire transition (s, a, s') -> r. Thus the r given
 	 * to actionResult() is the reward "in" s'.
 	 * 
+	 * @deprecated This should be part of a separate "policy learner" interface.
+	 * 
 	 * @param sprime
 	 * @param r
 	 * @param s
 	 */
+	@Deprecated
 	public abstract void actionResult( final S sprime, final double[] r );
 	
 	public abstract String getName();

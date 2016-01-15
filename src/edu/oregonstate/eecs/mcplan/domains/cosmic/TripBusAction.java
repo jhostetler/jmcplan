@@ -35,9 +35,13 @@ public class TripBusAction extends CosmicAction
 		a.set( params.ev_time, t );
 		a.set( params.ev_type, params.ev_trip_bus );
 		a.set( params.ev_bus_loc, bus );
-		System.out.println( "TripBusAction -> " + a );
+//		System.out.println( "TripBusAction -> " + a );
 		return a;
 	}
+	
+	@Override
+	public void applyNonCosmicChanges( final CosmicState sprime )
+	{ }
 
 	@Override
 	public int hashCode()

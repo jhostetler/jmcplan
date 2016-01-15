@@ -10,6 +10,8 @@ import com.mathworks.toolbox.javabuilder.MWNumericArray;
 import com.mathworks.toolbox.javabuilder.MWStructArray;
 
 import edu.oregonstate.eecs.mcplan.State;
+import gnu.trove.list.TIntList;
+import gnu.trove.list.array.TIntArrayList;
 
 /**
  * Represents a Cosmic state.
@@ -48,12 +50,36 @@ public class CosmicState implements State
 		}
 	}
 	
+	public final class X
+	{
+		public MWNumericArray asNumericArray()
+		{
+			return mx;
+		}
+		
+		public double omega_pu( final Generator g )
+		{
+			final MWStructArray subindex = (MWStructArray) params.index.getField( "x", 1 );
+			final int idx = ((MWNumericArray) subindex.getField( "omega_pu", 1 )).getInt();
+			return mx.getDouble( idx );
+		}
+	}
+	
 	public final CosmicParameters params;
 	public final MWStructArray ps;
 	public final double t;
-	public final MWNumericArray x;
-	public final MWNumericArray y;
+	public final MWNumericArray mx;
+	public final MWNumericArray my;
 	public final MWNumericArray event;
+	
+	public final X x = new X();
+	
+	// Non-Cosmic State ------------------------------------------------------
+	
+	private int error = 0;
+	/*internal*/ final TIntList islands = new TIntArrayList();
+	
+	// -----------------------------------------------------------------------
 	
 	/**
 	 * CosmicState owns all Matlab objects passed to this constructor.
@@ -69,17 +95,38 @@ public class CosmicState implements State
 		this.params = params;
 		this.ps = ps;
 		this.t = t;
-		this.x = x;
-		this.y = y;
+		this.mx = x;
+		this.my = y;
 		this.event = event;
+	}
+	
+	public CosmicState createSuccessor( final CosmicParameters params,
+										final CosmicAction a,
+										final MWStructArray ps, final double t,
+										final MWNumericArray x, final MWNumericArray y, final MWNumericArray event )
+	{
+		final CosmicState sprime = new CosmicState( params, ps, t, x, y, event );
+		copyNonCosmicStateInto( sprime );
+		a.applyNonCosmicChanges( sprime );
+		return sprime;
+	}
+	
+	private void copyNonCosmicStateInto( final CosmicState sprime )
+	{
+		sprime.error = this.error;
+		
+		assert( sprime.islands.isEmpty() );
+		sprime.islands.addAll( this.islands );
 	}
 	
 	public CosmicState copy()
 	{
 		try {
-			return new CosmicState( params, (MWStructArray) ps.clone(), t,
-									(MWNumericArray) x.clone(), (MWNumericArray) y.clone(),
+			final CosmicState sprime = new CosmicState( params, (MWStructArray) ps.clone(), t,
+									(MWNumericArray) mx.clone(), (MWNumericArray) my.clone(),
 									(MWNumericArray) event.clone() );
+			copyNonCosmicStateInto( sprime );
+			return sprime;
 		}
 		catch( final CloneNotSupportedException ex ) {
 			throw new RuntimeException( ex );
@@ -90,15 +137,30 @@ public class CosmicState implements State
 	public void close()
 	{
 		ps.dispose();
-		x.dispose();
-		y.dispose();
+		mx.dispose();
+		my.dispose();
 		event.dispose();
 	}
 	
 	@Override
 	public boolean isTerminal()
 	{
-		return t >= params.T;
+		return error != CosmicError.None.code || t >= params.T;
+	}
+	
+	public void setError( final CosmicError err )
+	{
+		error |= err.code;
+	}
+	
+	public boolean testError()
+	{
+		return error != CosmicError.None.code;
+	}
+	
+	public boolean testError( final CosmicError err )
+	{
+		return (error | err.code) != 0;
 	}
 	
 	/**
@@ -122,6 +184,37 @@ public class CosmicState implements State
 		}
 		Arrays.sort( result );
 		return result;
+	}
+	
+	// -----------------------------------------------------------------------
+	
+	public Branch branch( final int id )
+	{
+		return new Branch( id, params, (MWNumericArray) ps.getField( "branch", 1 ) );
+	}
+	
+	public Iterable<Branch> branches()
+	{
+		return new Iterable<Branch>() {
+			@Override
+			public Iterator<Branch> iterator()
+			{
+				return new Iterator<Branch>() {
+					int i = 1;
+					@Override
+					public boolean hasNext()
+					{ return i <= params.Nbranch; }
+
+					@Override
+					public Branch next()
+					{ return branch( i++ ); }
+
+					@Override
+					public void remove()
+					{ throw new UnsupportedOperationException(); }
+				};
+			}
+		};
 	}
 	
 	/**
@@ -158,6 +251,11 @@ public class CosmicState implements State
 		};
 	}
 	
+	public Generator generator( final int id )
+	{
+		return new Generator( id, params, (MWNumericArray) ps.getField( "gen", 1 ) );
+	}
+	
 	/**
 	 * Returns a Shunt instance for the given shunt id.
 	 * @param id
@@ -192,15 +290,32 @@ public class CosmicState implements State
 		};
 	}
 	
+	// -----------------------------------------------------------------------
+	
 	@Override
 	public String toString()
 	{
 		final StringBuilder sb = new StringBuilder();
-		sb.append( "ps:\n" ).append( ps ).append( "\n" );
-		sb.append( "t: " ).append( t ).append( "\n" );
-		sb.append( "x:\n" ).append( x ).append( "\n" );
-		sb.append( "y:\n" ).append( y ).append( "\n" );
-		sb.append( "event:\n" ).append( event ).append( "\n" );
+//		sb.append( "ps:\n" ).append( ps ).append( "\n" );
+//		sb.append( "t: " ).append( t ).append( "\n" );
+//		sb.append( "mx:\n" ).append( mx ).append( "\n" );
+//		sb.append( "my:\n" ).append( my ).append( "\n" );
+//		sb.append( "event:\n" ).append( event ).append( "\n" );
+		
+		sb.append( "***** Buses:" ).append( "\n" );
+		for( final Bus bus : buses() ) {
+			sb.append( "\t" ).append( bus ).append( "\n" );
+		}
+		
+		sb.append( "***** Branches:" ).append( "\n" );
+		for( final Branch branch : branches() ) {
+			sb.append( "\t" ).append( branch ).append( "\n" );
+		}
+		
+		sb.append( "***** Shunts:" ).append( "\n" );
+		for( final Shunt shunt : shunts() ) {
+			sb.append( "\t" ).append( shunt ).append( "\n" );
+		}
 		return sb.toString();
 	}
 	

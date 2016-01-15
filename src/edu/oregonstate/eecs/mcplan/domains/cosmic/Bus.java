@@ -3,8 +3,6 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.cosmic;
 
-import java.lang.ref.WeakReference;
-
 import com.mathworks.toolbox.javabuilder.MWNumericArray;
 
 /**
@@ -19,29 +17,31 @@ import com.mathworks.toolbox.javabuilder.MWNumericArray;
  * gets disposed when the corresponding CosmicState is disposed. So the
  * WeakReference is potentially unnecessary overhead.
  */
-public class Bus
+public final class Bus extends CosmicFacade
 {
-	private final int id;
-	private final CosmicParameters params;
-	private final WeakReference<MWNumericArray> mbus;
-	
 	public Bus( final int id, final CosmicParameters params, final MWNumericArray mbus )
 	{
-		this.id = id;
-		this.params = params;
-		this.mbus = new WeakReference<>( mbus );
-		
-		assert( id == mbus.getInt( new int[] { id, params.bu_col_names.get( "id" ) } ) );
+		super( id, params.bu_col_names, mbus );
 	}
 	
-	public int id()
+	@Override
+	public String toString()
 	{
-//		return mbus.get().getInt( new int[] { id, params.bu_col_names.get( "id" ) } );
-		return id;
+		final StringBuilder sb = new StringBuilder();
+		sb.append( "Bus[" ).append( "id: " ).append( id() )
+		  .append( "; zone: " ).append( zone() )
+		  .append( "; Vmag: " ).append( Vmag() )
+		  .append( "]" );
+		return sb.toString();
 	}
 	
 	public double Vmag()
 	{
-		return mbus.get().getInt( new int[] { id, params.bu_col_names.get( "Vmag" ) } );
+		return getDouble( "Vmag" );
+	}
+	
+	public int zone()
+	{
+		return getInt( "zone" );
 	}
 }

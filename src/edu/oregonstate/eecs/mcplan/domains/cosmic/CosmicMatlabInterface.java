@@ -43,45 +43,56 @@ public final class CosmicMatlabInterface implements AutoCloseable
 		}
 	}
 	
-	public Case init_case9()
+	private Case unpack( final Object[] cosmic0, final int T )
+	{
+		int t_idx = -1;
+		int idx = 0;
+		final MWStructArray C = 	(MWStructArray) 	cosmic0[idx++];
+		final MWStructArray ps = 	(MWStructArray) 	cosmic0[idx++];
+		final MWStructArray index =	(MWStructArray)		cosmic0[idx++];
+		opt = 						(MWStructArray)		cosmic0[idx++];
+		t_idx = idx;
+		final int t = 				((MWNumericArray) 	cosmic0[idx++]).getInt();
+		final MWNumericArray x = 	(MWNumericArray) 	cosmic0[idx++];
+		final MWNumericArray y = 	(MWNumericArray) 	cosmic0[idx++];
+		final MWNumericArray event = (MWNumericArray)	cosmic0[idx++];
+		
+		params = new CosmicParameters( this, C, ps, index, T );
+		
+		final CosmicState s0 = new CosmicState( params, ps, t, x, y, event );
+		
+		((Disposable) cosmic0[t_idx]).dispose();
+		
+		return new Case( params, s0 );
+	}
+	
+	public Case init_case9( final int T )
 	{
 		assert( current_case == null );
 		current_case = "case9";
 		
-		Object[] cosmic0 = null;
 		try {
-			// [ C, ps, opt, t, x, y, event ] = init_case9();
-			cosmic0 = m.init_case9( 7 );
-			
-			final MWStructArray C = (MWStructArray) cosmic0[0];
-			
-			final MWStructArray ps = (MWStructArray) cosmic0[1];
-			opt = (MWStructArray) cosmic0[2];
-			final int t = ((MWNumericArray) cosmic0[3]).getInt();
-			final MWNumericArray x = (MWNumericArray) cosmic0[4];
-			final MWNumericArray y = (MWNumericArray) cosmic0[5];
-			final MWNumericArray event = (MWNumericArray) cosmic0[6];
-			
-			final int nx = x.getDimensions()[0];
-			final int ny = y.getDimensions()[0];
-			
-			// FIXME: Remove hardcoded time horizon
-			final double T = 30;
-			params = new CosmicParameters( this, C, ps, nx, ny, T );
-			
-			final CosmicState s0 = new CosmicState( params, ps, t, x, y, event );
-			
-			return new Case( params, s0 );
+			// [ C, ps, index, opt, t, x, y, event ] = init_case9();
+			final Object[] cosmic0 = m.init_case9( 8 );
+			return unpack( cosmic0, T );
 		}
 		catch( final MWException ex ) {
 			throw new RuntimeException( ex );
 		}
-		finally {
-			if( cosmic0 != null ) {
-				// We turned 't' into a primitive 'int' earlier, so we no
-				// longer need the Matlab object.
-				((Disposable) cosmic0[3]).dispose();
-			}
+	}
+	
+	public Case init_case39( final int T, final CosmicOptions jopt )
+	{
+		assert( current_case == null );
+		current_case = "case39";
+		
+		try {
+			// [ C, ps, index, opt, t, x, y, event ] = init_case9();
+			final Object[] cosmic0 = m.init_case39( 8, jopt.toMatlab() );
+			return unpack( cosmic0, T );
+		}
+		catch( final MWException ex ) {
+			throw new RuntimeException( ex );
 		}
 	}
 	
@@ -90,7 +101,7 @@ public final class CosmicMatlabInterface implements AutoCloseable
 		Object[] cprime = null;
 		try {
 			// [ ps, t, x, y, event ] = take_action( ps, opt, t, x, y, event, a, delta_t )
-			cprime = m.take_action( 5, s.ps, opt, s.t, s.x, s.y, s.event, a.toMatlab( params, s.t ), delta_t );
+			cprime = m.take_action( 5, s.ps, opt, s.t, s.mx, s.my, s.event, a.toMatlab( params, s.t ), delta_t );
 			
 			final double t = ((MWNumericArray) cprime[1]).getDouble();
 			
@@ -102,7 +113,14 @@ public final class CosmicMatlabInterface implements AutoCloseable
 									(MWNumericArray) cprime[4] );
 		}
 		catch( final MWException ex ) {
-			throw new RuntimeException( ex );
+			if( ex.getMessage().startsWith( "E_" + CosmicError.NotConverged.toString() ) ) {
+				final CosmicState s_terminal = s.copy();
+				s_terminal.setError( CosmicError.NotConverged );
+				return s_terminal;
+			}
+			else {
+				throw new RuntimeException( ex );
+			}
 		}
 		finally {
 			if( cprime != null ) {
