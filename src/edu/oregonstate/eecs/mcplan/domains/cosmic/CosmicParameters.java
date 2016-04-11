@@ -3,6 +3,7 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.cosmic;
 
+import edu.oregonstate.eecs.mcplan.LoggerManager;
 import gnu.trove.iterator.TIntIterator;
 import gnu.trove.list.TIntList;
 import gnu.trove.list.array.TIntArrayList;
@@ -13,6 +14,8 @@ import gnu.trove.set.hash.TIntHashSet;
 
 import java.lang.reflect.Field;
 import java.util.LinkedHashMap;
+
+import ch.qos.logback.classic.Logger;
 
 import com.mathworks.toolbox.javabuilder.MWCellArray;
 import com.mathworks.toolbox.javabuilder.MWNumericArray;
@@ -57,6 +60,11 @@ public final class CosmicParameters implements AutoCloseable
 	public final int ev_shed_load;
 	public final int ev_shunt_loc;
 	public final int ev_trip_shunt;
+	public final int ev_change_by;
+	public final int ev_quantity;
+	
+	public static final int ev_change_by_amount		= 0;
+	public static final int ev_change_by_percent	= 1;
 	
 	private final TIntObjectMap<TIntList> bus_to_shunts = new TIntObjectHashMap<>();
 	
@@ -65,6 +73,9 @@ public final class CosmicParameters implements AutoCloseable
 	 * Map from zone ID to IDs of buses in that zone.
 	 */
 	private final TIntObjectMap<TIntList> zone_to_buses = new TIntObjectHashMap<>();
+	
+	private final TIntObjectMap<TIntList> zone_to_shunts = new TIntObjectHashMap<>();
+	
 	/**
 	 * Maps a zone ID to the IDs of the branches that need to be cut in order
 	 * to isolate that zone from the rest of the grid.
@@ -87,6 +98,8 @@ public final class CosmicParameters implements AutoCloseable
 		this.index = index;
 		this.T = T;
 		
+		final Logger log = LoggerManager.getLogger( "log.domain" );
+		
 		final MWStructArray ev = (MWStructArray) C.getField( "ev", 1 );
 		ev_cols = ((MWNumericArray) ev.getField( "cols", 1 )).getInt();
 		ev_time = ((MWNumericArray) ev.getField( "time", 1 )).getInt();
@@ -98,6 +111,8 @@ public final class CosmicParameters implements AutoCloseable
 		ev_shed_load = ((MWNumericArray) ev.getField( "shed_load", 1 )).getInt();
 		ev_shunt_loc = ((MWNumericArray) ev.getField( "shunt_loc", 1 )).getInt();
 		ev_trip_shunt = ((MWNumericArray) ev.getField( "trip_shunt", 1 )).getInt();
+		ev_change_by = ((MWNumericArray) ev.getField( "change_by", 1 )).getInt();
+		ev_quantity = ((MWNumericArray) ev.getField( "quantity", 1 )).getInt();
 		
 		fillColumnNames( bu_col_names, "bu" );
 		fillColumnNames( br_col_names, "br" );
@@ -110,8 +125,6 @@ public final class CosmicParameters implements AutoCloseable
 		
 		Nbus = ps.getField( "bus", 1 ).getDimensions()[0];
 		if( ps.getField( "bus", 1 ).getDimensions()[1] != bu_col_names.size() ) {
-			System.out.println( ps.getField( "bus", 1 ).getDimensions()[1] );
-			System.out.println( bu_col_names.size() );
 			throw new IllegalArgumentException( "ps.bus dimension != col_names" );
 		}
 		
@@ -121,8 +134,12 @@ public final class CosmicParameters implements AutoCloseable
 		}
 		
 		Ngenerator = ps.getField( "gen", 1 ).getDimensions()[0];
-		if( ps.getField( "gen", 1 ).getDimensions()[1] != ge_col_names.size() ) {
+		if( ps.getField( "gen", 1 ).getDimensions()[1] < ge_col_names.size() ) {
 			throw new IllegalArgumentException( "ps.gen dimension != col_names" );
+		}
+		else if( ps.getField( "gen", 1 ).getDimensions()[1] > ge_col_names.size() ) {
+			log.warn( "ps.gen dimension {} > col_names.size() {}",
+					  ps.getField( "gen", 1 ).getDimensions()[1], ge_col_names.size() );
 		}
 		
 		Nmachine = ps.getField( "mac", 1 ).getDimensions()[0];
@@ -172,6 +189,23 @@ public final class CosmicParameters implements AutoCloseable
 		}
 		Nzones = zone_to_buses.size();
 		
+		// Initialize zone_to_shunts map
+		for( final int zone : zone_to_buses.keys() ) {
+			final TIntList zone_shunts = new TIntArrayList();
+			
+			final TIntList buses = zone_to_buses.get( zone );
+			final TIntIterator bus_itr = buses.iterator();
+			while( bus_itr.hasNext() ) {
+				final TIntList bus_shunts = bus_to_shunts.get( bus_itr.next() );
+				final TIntIterator sh_itr = bus_shunts.iterator();
+				while( sh_itr.hasNext() ) {
+					zone_shunts.add( sh_itr.next() );
+				}
+			}
+			
+			zone_to_shunts.put( zone, zone_shunts );
+		}
+		
 		// Initialize zone_cutsets map
 		for( int mi = 1; mi <= Nzones; ++mi ) {
 			zone_cutsets.put( mi, new TIntHashSet() );
@@ -188,6 +222,13 @@ public final class CosmicParameters implements AutoCloseable
 				zone_cutsets.get( to_zone ).add( br.id() );
 			}
 		}
+		
+		if( log.isInfoEnabled() ) {
+			for( int mi = 1; mi <= Nzones; ++mi ) {
+				final TIntSet cutset = zone_cutsets.get( mi );
+				log.info( "Zone " + mi + ": cutset " + cutset );
+			}
+		}
 	}
 	
 	private void fillColumnNames( final LinkedHashMap<String, Integer> names, final String category )
@@ -202,6 +243,11 @@ public final class CosmicParameters implements AutoCloseable
 	public TIntIterator shuntsForBus( final int bus_id )
 	{
 		return bus_to_shunts.get( bus_id ).iterator();
+	}
+	
+	public TIntList shuntsForZone( final int zone )
+	{
+		return zone_to_shunts.get( zone );
 	}
 	
 	public TIntSet zoneCutset( final int zone_id )

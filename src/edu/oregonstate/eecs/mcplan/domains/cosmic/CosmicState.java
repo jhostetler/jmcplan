@@ -3,9 +3,18 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.cosmic;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
 
+import com.google.gson.Gson;
+import com.google.gson.TypeAdapter;
+import com.google.gson.TypeAdapterFactory;
+import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
+import com.mathworks.toolbox.javabuilder.MWCharArray;
+import com.mathworks.toolbox.javabuilder.MWLogicalArray;
 import com.mathworks.toolbox.javabuilder.MWNumericArray;
 import com.mathworks.toolbox.javabuilder.MWStructArray;
 
@@ -20,6 +29,73 @@ import gnu.trove.list.array.TIntArrayList;
  */
 public class CosmicState implements State
 {
+	public static class GsonSerializer implements TypeAdapterFactory
+	{
+		@SuppressWarnings( "unchecked" )
+		@Override
+		public <T> TypeAdapter<T> create( final Gson gson, final TypeToken<T> token )
+		{
+			if( token.getRawType() != CosmicState.class ) {
+				return null;
+			}
+			
+			final TypeAdapter<?> mw = gson.getAdapter( TypeToken.get( MWNumericArray.class ) );
+			return (TypeAdapter<T>) new GsonTypeAdapter( (TypeAdapter<MWNumericArray>) mw );
+		}
+	}
+
+	public static class GsonTypeAdapter extends TypeAdapter<CosmicState>
+	{
+		private final TypeAdapter<MWNumericArray> mw;
+		
+		public GsonTypeAdapter( final TypeAdapter<MWNumericArray> mw )
+		{
+			this.mw = mw;
+		}
+		
+		@Override
+		public CosmicState read( final JsonReader reader ) throws IOException
+		{
+			throw new UnsupportedOperationException();
+		}
+		
+		@Override
+		public void write( final JsonWriter writer, final CosmicState s )
+				throws IOException
+		{
+			writer.beginObject();
+			
+			writer.name( "t" ).value( s.t );
+			
+			writer.name( "ps" ).beginObject();
+			writer.name( "casename" ).value( ((MWCharArray) s.ps.getField( "casename", 1 )).toString() );
+			writer.name( "blackout" ).value( ((MWLogicalArray) s.ps.getField( "blackout", 1 )).getBoolean( 1 ) );
+			final String[] psfields = new String[] {
+				"baseMVA",
+				"bus", "branch", "gen", "mac", "shunt", "exc", "gov",
+				"t_delay", "t_prev_check", "dist2threshold", "state_a"
+			};
+			for( final String field : psfields ) {
+				writer.name( field );
+				mw.write( writer, (MWNumericArray) s.ps.getField( field, 1 ) );
+			}
+			writer.endObject();
+			
+			writer.name( "x" );
+			mw.write( writer, s.mx );
+			
+			writer.name( "y" );
+			mw.write( writer, s.my );
+			
+			writer.name( "event" );
+			mw.write( writer, s.event );
+			
+			writer.endObject();
+		}
+	}
+	
+	// -----------------------------------------------------------------------
+	
 	public static final class DistanceBusPair implements Comparable<DistanceBusPair>
 	{
 		public final double d;
@@ -76,7 +152,7 @@ public class CosmicState implements State
 	
 	// Non-Cosmic State ------------------------------------------------------
 	
-	private int error = 0;
+	private int error = CosmicError.None.code;
 	/*internal*/ final TIntList islands = new TIntArrayList();
 	
 	// -----------------------------------------------------------------------
@@ -160,7 +236,7 @@ public class CosmicState implements State
 	
 	public boolean testError( final CosmicError err )
 	{
-		return (error | err.code) != 0;
+		return (error & err.code) != 0;
 	}
 	
 	/**
@@ -296,8 +372,10 @@ public class CosmicState implements State
 	public String toString()
 	{
 		final StringBuilder sb = new StringBuilder();
+		sb.append( "[CosmicState]\n" );
+		
 //		sb.append( "ps:\n" ).append( ps ).append( "\n" );
-//		sb.append( "t: " ).append( t ).append( "\n" );
+		sb.append( "t: " ).append( t ).append( "\n" );
 //		sb.append( "mx:\n" ).append( mx ).append( "\n" );
 //		sb.append( "my:\n" ).append( my ).append( "\n" );
 //		sb.append( "event:\n" ).append( event ).append( "\n" );

@@ -5,6 +5,8 @@ package edu.oregonstate.eecs.mcplan.domains.cosmic;
 
 import java.util.Arrays;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.mathworks.toolbox.javabuilder.MWClassID;
 import com.mathworks.toolbox.javabuilder.MWComplexity;
 import com.mathworks.toolbox.javabuilder.MWNumericArray;
@@ -65,6 +67,6 @@ public class TripBranchSetAction extends CosmicAction
 	@Override
 	public String toString()
 	{
-		return "TripBranchSet[" + Arrays.toString( branch ) + "]";
+		return "TripBranchSet(" + StringUtils.join( branch, ';' ) + ")";
 	}
 }

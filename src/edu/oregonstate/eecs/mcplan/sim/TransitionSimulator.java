@@ -3,12 +3,11 @@
  */
 package edu.oregonstate.eecs.mcplan.sim;
 
-import java.util.ArrayList;
-
 import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.State;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * @author jhostetler
@@ -16,28 +15,28 @@ import edu.oregonstate.eecs.mcplan.State;
  */
 public abstract class TransitionSimulator<S extends State, A> extends TrajectorySimulator<S, A>
 {
-	public abstract Transition<S, A> sampleTransition( final RandomGenerator rng, final S s, final A a );
+	public abstract StateNode<S, A> initialState( final RandomGenerator rng, final S s );
+	
+	public abstract ActionNode<S, A> sampleTransition( final RandomGenerator rng, final S s, final A a );
 	
 	@Override
-	public final Trajectory<S, A> sampleTrajectory( final RandomGenerator rng, final S s,
-													final Policy<S, A> pi, final int depth_limit )
+	public final void sampleTrajectory( final RandomGenerator rng, final S s,
+										final Policy<S, A> pi, final int depth_limit )
 	{
-		final ArrayList<Transition<S, A>> ts = new ArrayList<>();
-		S st = s;
+		final StateNode<S, A> sn0 = initialState( rng, s );
+		StateNode<S, A> sn = sn0;
 		int t = 0;
-		while( !st.isTerminal() ) {
-			pi.setState( st, t ); // FIXME: This is a temporary hack for the Cosmic demo.
-								  // What is the right way to do nonstationary policies?
+		pi.reset();
+		while( !sn.s.isTerminal() ) {
+			pi.setState( sn.s, t );
 			final A a = pi.getAction();
-			final Transition<S, A> tr = sampleTransition( rng, st, a );
-			ts.add( tr );
-			st = tr.sprime;
+			final ActionNode<S, A> tr = sampleTransition( rng, sn.s, a );
+			sn = Fn.head( tr.succ() );
 			
 			t += 1;
 			if( t == depth_limit ) {
 				break;
 			}
 		}
-		return new Trajectory<>( s, ts );
 	}
 }

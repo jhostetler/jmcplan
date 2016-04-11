@@ -3,8 +3,6 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.cosmic;
 
-import java.lang.ref.WeakReference;
-
 import org.apache.commons.math3.complex.Complex;
 
 import com.mathworks.toolbox.javabuilder.MWNumericArray;
@@ -21,25 +19,17 @@ import com.mathworks.toolbox.javabuilder.MWNumericArray;
  * gets disposed when the corresponding CosmicState is disposed. So the
  * WeakReference is potentially unnecessary overhead.
  */
-public final class Shunt
+public final class Shunt extends CosmicFacade
 {
-	private final int id;
-	private final CosmicParameters params;
-	private final WeakReference<MWNumericArray> mshunt;
-	
 	public Shunt( final int id, final CosmicParameters params, final MWNumericArray mshunt )
 	{
-		this.id = id;
-		this.params = params;
-		this.mshunt = new WeakReference<>( mshunt );
-		
-		assert( id == mshunt.getInt( new int[] { id, params.sh_col_names.get( "id" ) } ) );
+		super( id, params.sh_col_names, mshunt );
 	}
 	
 	@Override
 	public String toString()
 	{
-		return "Shunt[" + id + "; factor: " + factor() + "; P: " + P()
+		return "Shunt[" + id() + "; factor: " + factor() + "; P: " + P()
 				+ "; current_P: " + current_P() + "; type: " + type() + "]";
 	}
 	
@@ -60,25 +50,19 @@ public final class Shunt
 		}
 	}
 	
-	public int id()
-	{
-//		return mshunt.get().getInt( new int[] { id, params.sh_col_names.get( "id" ) } );
-		return id;
-	}
-	
 	public int bus()
 	{
-		return mshunt.get().getInt( new int[] { id, params.sh_col_names.get( "bus" ) } );
+		return getInt( "bus" );
 	}
 	
 	public double P()
 	{
-		return mshunt.get().getDouble( new int[] { id, params.sh_col_names.get( "P" ) } );
+		return getDouble( "P" );
 	}
 	
 	public double Q()
 	{
-		return mshunt.get().getDouble( new int[] { id, params.sh_col_names.get( "Q" ) } );
+		return getDouble( "Q" );
 	}
 	
 	public double factor()
@@ -88,32 +72,32 @@ public final class Shunt
 	
 	public double status()
 	{
-		return mshunt.get().getDouble( new int[] { id, params.sh_col_names.get( "status" ) } );
+		return getDouble( "status" );
 	}
 	
 	public int type()
 	{
-		return mshunt.get().getInt( new int[] { id, params.sh_col_names.get( "type" ) } );
+		return getInt( "type" );
 	}
 	
 	public double value()
 	{
-		return mshunt.get().getDouble( new int[] { id, params.sh_col_names.get( "value" ) } );
+		return getDouble( "value" );
 	}
 	
 	public int near_gen()
 	{
-		return mshunt.get().getInt( new int[] { id, params.sh_col_names.get( "near_gen" ) } );
+		return getInt( "near_gen" );
 	}
 	
 	public double current_P()
 	{
-		return mshunt.get().getDouble( new int[] { id, params.sh_col_names.get( "current_P" ) } );
+		return getDouble( "current_P" );
 	}
 	
 	public double current_Q()
 	{
-		return mshunt.get().getDouble( new int[] { id, params.sh_col_names.get( "current_Q" ) } );
+		return getDouble( "current_Q" );
 	}
 	
 	/**

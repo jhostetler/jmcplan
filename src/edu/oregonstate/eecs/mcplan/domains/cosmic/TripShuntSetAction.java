@@ -15,32 +15,32 @@ import com.mathworks.toolbox.javabuilder.MWNumericArray;
  * @author jhostetler
  *
  */
-public class TripBusSetAction extends CosmicAction
+public class TripShuntSetAction extends CosmicAction
 {
-	private final int[] bus;
+	public final int[] shunts;
 	
-	public TripBusSetAction( final int[] bus )
+	public TripShuntSetAction( final int... shunts )
 	{
-		this.bus = bus;
+		this.shunts = shunts;
 	}
 	
 	@Override
 	public CosmicAction create()
 	{
-		return new TripBusSetAction( bus );
+		return new TripShuntSetAction( shunts );
 	}
 
 	@Override
 	public MWNumericArray toMatlab( final CosmicParameters params, final double t )
 	{
 		final MWNumericArray a = MWNumericArray.newInstance(
-			new int[] { bus.length, params.ev_cols }, MWClassID.DOUBLE, MWComplexity.REAL );
-		for( int i = 0; i < bus.length; ++i ) {
+			new int[] { shunts.length, params.ev_cols }, MWClassID.DOUBLE, MWComplexity.REAL );
+		for( int i = 0; i < shunts.length; ++i ) {
 			a.set( new int[] { i+1, params.ev_time }, t );
-			a.set( new int[] { i+1, params.ev_type }, params.ev_trip_bus );
-			a.set( new int[] { i+1, params.ev_bus_loc }, bus[i] );
+			a.set( new int[] { i+1, params.ev_type }, params.ev_trip_shunt );
+			a.set( new int[] { i+1, params.ev_shunt_loc }, shunts[i] );
 		}
-//		System.out.println( "TripBusSetAction -> " + a );
+//		System.out.println( "TripShuntAction -> " + a );
 		return a;
 	}
 	
@@ -51,22 +51,23 @@ public class TripBusSetAction extends CosmicAction
 	@Override
 	public int hashCode()
 	{
-		return getClass().hashCode() ^ Arrays.hashCode( bus );
+		return getClass().hashCode() ^ Arrays.hashCode( shunts );
 	}
 	
 	@Override
 	public boolean equals( final Object obj )
 	{
-		if( !(obj instanceof TripBusSetAction) ) {
+		if( !(obj instanceof TripShuntSetAction) ) {
 			return false;
 		}
-		final TripBusSetAction that = (TripBusSetAction) obj;
-		return Arrays.equals( bus, that.bus );
+		final TripShuntSetAction that = (TripShuntSetAction) obj;
+		return Arrays.equals( shunts, that.shunts );
 	}
 	
 	@Override
 	public String toString()
 	{
-		return "TripBusSet(" + StringUtils.join( bus, ';' ) + ")";
+		return "TripShuntSet(" + StringUtils.join( shunts, ';' ) + ")";
 	}
+
 }

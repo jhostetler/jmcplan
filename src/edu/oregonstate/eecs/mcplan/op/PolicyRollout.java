@@ -11,6 +11,7 @@ import edu.oregonstate.eecs.mcplan.ActionSet;
 import edu.oregonstate.eecs.mcplan.ActionSpace;
 import edu.oregonstate.eecs.mcplan.ConsPolicy;
 import edu.oregonstate.eecs.mcplan.Policy;
+import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.bandit.FiniteBandit;
 import edu.oregonstate.eecs.mcplan.sim.TrajectorySimulator;
@@ -23,7 +24,7 @@ import edu.oregonstate.eecs.mcplan.sim.TrajectorySimulator;
  * <code>\Actions \times \Pi</code>
  * of policies that play a fixed action first, and then follow a fixed policy.
  */
-public class PolicyRollout<S, A extends VirtualConstructor<A>> extends PolicySwitching<S, A>
+public class PolicyRollout<S extends State, A extends VirtualConstructor<A>> extends PolicySwitching<S, A>
 {
 	private final ActionSpace<S, A> action_space;
 	

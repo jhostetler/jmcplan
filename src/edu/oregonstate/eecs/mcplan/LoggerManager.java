@@ -20,6 +20,11 @@ import ch.qos.logback.core.ConsoleAppender;
  */
 public class LoggerManager
 {
+	static {
+		// Erase default configuration
+		((LoggerContext) LoggerFactory.getILoggerFactory()).reset();
+	}
+	
 	private static final Map<String, Logger> loggers = new HashMap<String, Logger>();
 	
 	public static Logger getLogger( final String name )
@@ -30,8 +35,6 @@ public class LoggerManager
 			
 //			%d{HH:mm:ss.SSS} %-4relative %-5level %logger{35} - %msg%n
 			final LoggerContext loggerContext = logger.getLoggerContext();
-		    // we are not interested in auto-configuration
-		    loggerContext.reset();
 		
 		    final PatternLayoutEncoder encoder = new PatternLayoutEncoder();
 		    encoder.setContext(loggerContext);
@@ -45,7 +48,6 @@ public class LoggerManager
 		    appender.start();
 		
 		    logger.addAppender(appender);
-
 
 			loggers.put( name, logger );
 		}

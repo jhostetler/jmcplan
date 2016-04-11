@@ -96,31 +96,70 @@ public final class CosmicMatlabInterface implements AutoCloseable
 		}
 	}
 	
+	public Case init_poland( final int T, final CosmicOptions jopt )
+	{
+		assert( current_case == null );
+		current_case = "poland";
+		
+		try {
+			// [ C, ps, index, opt, t, x, y, event ] = init_case9();
+			final Object[] cosmic0 = m.init_case2383( 8, jopt.toMatlab() );
+			return unpack( cosmic0, T );
+		}
+		catch( final MWException ex ) {
+			throw new RuntimeException( ex );
+		}
+	}
+	
+	public void show_memory()
+	{
+		try {
+			m.show_memory( new Object[] { } );
+		}
+		catch( final MWException ex ) {
+			throw new RuntimeException( ex );
+		}
+	}
+	
+	/**
+	 * Execute action 'a' in state 's', simulate 'delta_t' time, and return
+	 * the resulting state. The input state is not modified.
+	 * @param s
+	 * @param a
+	 * @param delta_t
+	 * @return
+	 */
 	public CosmicState take_action( final CosmicState s, final CosmicAction a, final double delta_t )
 	{
 		Object[] cprime = null;
-		try {
+		try( final CosmicState scopy = s.copy() ) {
+			
 			// [ ps, t, x, y, event ] = take_action( ps, opt, t, x, y, event, a, delta_t )
-			cprime = m.take_action( 5, s.ps, opt, s.t, s.mx, s.my, s.event, a.toMatlab( params, s.t ), delta_t );
+//			cprime = m.take_action( 5, s.ps, opt, s.t, s.mx, s.my, s.event, a.toMatlab( params, s.t ), delta_t );
+			cprime = m.take_action( 5, scopy.ps, opt, scopy.t, scopy.mx, scopy.my,
+									scopy.event, a.toMatlab( params, scopy.t ), delta_t );
 			
+			final MWStructArray ps_prime = (MWStructArray) cprime[0];
 			final double t = ((MWNumericArray) cprime[1]).getDouble();
+			final MWNumericArray x_prime = (MWNumericArray) cprime[2];
+			final MWNumericArray y_prime = (MWNumericArray) cprime[3];
+			final MWNumericArray event_prime = (MWNumericArray) cprime[4];
 			
-			return new CosmicState( params,
-									(MWStructArray) cprime[0],
-									t,
-									(MWNumericArray) cprime[2],
-									(MWNumericArray) cprime[3],
-									(MWNumericArray) cprime[4] );
+			// This is designed to verify that 'sprime' really has its own
+			// copy of all of the Cosmic data structures, by seeing if changes
+			// to ps_prime affect s.ps
+			final int sentinel = 99999;
+			final int old_id = ((MWNumericArray) ps_prime.getField( "bus", 1 )).getInt( new int[] { 1, 1 } );
+			ps_prime.getField( "bus", 1 ).set( new int[] { 1, 1 }, sentinel );
+			assert( ((MWNumericArray) s.ps.getField( "bus", 1 )).getInt( new int[] { 1, 1 } ) != sentinel );
+			ps_prime.getField( "bus", 1 ).set( new int[] { 1, 1 }, old_id );
+			
+			final CosmicState sprime = new CosmicState(
+				params, ps_prime, t, x_prime, y_prime, event_prime );
+			return sprime;
 		}
 		catch( final MWException ex ) {
-			if( ex.getMessage().startsWith( "E_" + CosmicError.NotConverged.toString() ) ) {
-				final CosmicState s_terminal = s.copy();
-				s_terminal.setError( CosmicError.NotConverged );
-				return s_terminal;
-			}
-			else {
-				throw new RuntimeException( ex );
-			}
+			throw new RuntimeException( ex );
 		}
 		finally {
 			if( cprime != null ) {

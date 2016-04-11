@@ -9,6 +9,7 @@ import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.AnytimePolicy;
 import edu.oregonstate.eecs.mcplan.Policy;
+import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.bandit.FiniteBandit;
 import edu.oregonstate.eecs.mcplan.bandit.PolicyRolloutEvaluator;
@@ -18,7 +19,7 @@ import edu.oregonstate.eecs.mcplan.sim.TrajectorySimulator;
  * @author jhostetler
  *
  */
-public class PolicySwitching<S, A extends VirtualConstructor<A>> extends AnytimePolicy<S, A>
+public class PolicySwitching<S extends State, A extends VirtualConstructor<A>> extends AnytimePolicy<S, A>
 {
 	private final RandomGenerator rng;
 	protected final TrajectorySimulator<S, A> sim;
@@ -52,9 +53,17 @@ public class PolicySwitching<S, A extends VirtualConstructor<A>> extends Anytime
 	@Override
 	public final boolean improvePolicy()
 	{
-		bandit.sampleArm( rng );
-		pistar = bandit.bestArm();
-		return true;
+		// FIXME: Configurable convergence threshold? This is a bit of a hack
+		// to allow us to stop early in deterministic settings when using a
+		// budget.
+		if( bandit.convergenceTest( 0, 1 ) ) {
+			return false;
+		}
+		else {
+			bandit.sampleArm( rng );
+			pistar = bandit.bestArm();
+			return true;
+		}
 	}
 
 	@Override
@@ -75,6 +84,7 @@ public class PolicySwitching<S, A extends VirtualConstructor<A>> extends Anytime
 	@Override
 	public final A getAction()
 	{
+		pistar.reset();
 		pistar.setState( s, t );
 		return pistar.getAction();
 	}

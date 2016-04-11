@@ -7,6 +7,7 @@ import java.util.ArrayList;
 
 import org.apache.commons.math3.random.RandomGenerator;
 
+import edu.oregonstate.eecs.mcplan.LoggerManager;
 import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
 
 /**
@@ -15,11 +16,14 @@ import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
  */
 public class CyclicFiniteBandit<T> extends FiniteBandit<T>
 {
+	private final ch.qos.logback.classic.Logger LogAgent = LoggerManager.getLogger( "log.agent" );
+	
 	private final ArrayList<MeanVarianceAccumulator> r;
 	private double rstar = -Double.MAX_VALUE;
 	private T tstar = null;
 	
 	private int next = 0;
+	private boolean all = false;
 	
 	public CyclicFiniteBandit()
 	{
@@ -47,9 +51,6 @@ public class CyclicFiniteBandit<T> extends FiniteBandit<T>
 	public void sampleArm( final RandomGenerator rng )
 	{
 		final int i = next++;
-		if( next >= arms.size() ) {
-			next = 0;
-		}
 		
 		MeanVarianceAccumulator ri = r.get( i );
 		if( ri == null ) {
@@ -57,14 +58,20 @@ public class CyclicFiniteBandit<T> extends FiniteBandit<T>
 			r.set( i, ri );
 		}
 		final T t = arms.get( i );
+		LogAgent.debug( "CyclicFiniteBandit: evaluate " + t );
 		final double rsample = eval.evaluate( rng, t );
-		System.out.println( "CyclicFiniteBandit: arm " + t + " => " + rsample );
+		LogAgent.info( "CyclicFiniteBandit: arm {} => {}", t, rsample );
 		ri.add( rsample );
 		if( ri.mean() > rstar ) {
-			System.out.println( "Lead change: " + tstar + " => " + t );
-			System.out.println( "\tr: " + rstar + " => " + ri.mean() );
+			LogAgent.info( "Lead change: {} => {}", tstar, t );
+			LogAgent.info( "\tr: {} => {}", rstar, ri.mean() );
 			rstar = ri.mean();
 			tstar = t;
+		}
+		
+		if( next >= arms.size() ) {
+			next = 0;
+			all = true;
 		}
 	}
 
@@ -72,5 +79,11 @@ public class CyclicFiniteBandit<T> extends FiniteBandit<T>
 	public T bestArm()
 	{
 		return tstar;
+	}
+
+	@Override
+	public boolean convergenceTest( final double epsilon, final double delta )
+	{
+		return all;
 	}
 }

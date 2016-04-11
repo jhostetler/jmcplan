@@ -458,6 +458,24 @@ public final class Fn
 		return new LazyMapDoubleSlice<T>( f, xs );
 	}
 	
+	public static double[] mapParseDouble( final String[] ss )
+	{
+		final double[] is = new double[ss.length];
+		for( int i = 0; i < ss.length; ++i ) {
+			is[i] = Double.parseDouble( ss[i] );
+		}
+		return is;
+	}
+	
+	public static int[] mapParseInt( final String[] ss )
+	{
+		final int[] is = new int[ss.length];
+		for( int i = 0; i < ss.length; ++i ) {
+			is[i] = Integer.parseInt( ss[i] );
+		}
+		return is;
+	}
+	
 	// -----------------------------------------------------------------------
 	// fold
 	// -----------------------------------------------------------------------
@@ -543,6 +561,69 @@ public final class Fn
 	public static <A, B, T> Generator<T> zipWith( final Function2<T, A, B> f, final Generator<A> as, final Generator<B> bs )
 	{
 		return new LazyZipSlice<A, B, T>( f, as, bs );
+	}
+	
+	// -----------------------------------------------------------------------
+	// concat
+	// -----------------------------------------------------------------------
+	
+	private static final class ConcatIterator<T> extends Generator<T>
+	{
+		private final Iterable<T>[] iterables;
+		private int i = 0;
+		private Iterator<T> itr = null;
+		private T next = null;
+		
+		@SafeVarargs
+		public ConcatIterator( final Iterable<T>... iterables )
+		{
+			this.iterables = iterables;
+			setNext();
+		}
+		
+		@Override
+		public boolean hasNext()
+		{
+			return next != null;
+		}
+
+		@Override
+		public T next()
+		{
+			final T result = next;
+			setNext();
+			return result;
+		}
+		
+		private void setNext()
+		{
+			if( i >= iterables.length ) {
+				next = null;
+				itr = null;
+				return;
+			}
+			else if( itr == null ) {
+				itr = iterables[i].iterator();
+			}
+			
+			while( !itr.hasNext() && i < iterables.length ) {
+				i += 1;
+				itr = iterables[i].iterator();
+			}
+			next = (i < iterables.length ? itr.next() : null);
+		}
+	}
+	
+	@SafeVarargs
+	public static <T> Iterable<T> concat( final Iterable<T>... iterables )
+	{
+		return new Iterable<T>() {
+			@Override
+			public Iterator<T> iterator()
+			{
+				return new ConcatIterator<>( iterables );
+			}
+		};
 	}
 	
 	// -----------------------------------------------------------------------
@@ -1113,6 +1194,18 @@ public final class Fn
 			}
 		}
 		return choice;
+	}
+	
+	// -----------------------------------------------------------------------
+	// head / tail
+	// -----------------------------------------------------------------------
+	
+	public static <T> T head( final Iterable<T> ts )
+	{
+		for( final T t : ts ) {
+			return t;
+		}
+		return null;
 	}
 	
 	// -----------------------------------------------------------------------

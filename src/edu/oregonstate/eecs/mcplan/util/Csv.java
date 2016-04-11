@@ -24,7 +24,7 @@ import org.apache.commons.math3.linear.RealVector;
  */
 public class Csv
 {
-	public static class Writer
+	public static class Writer implements AutoCloseable
 	{
 		public final PrintStream out;
 		private boolean comma_ = false;
@@ -34,6 +34,7 @@ public class Csv
 			this.out = out;
 		}
 		
+		@Override
 		public void close()
 		{
 			out.close();

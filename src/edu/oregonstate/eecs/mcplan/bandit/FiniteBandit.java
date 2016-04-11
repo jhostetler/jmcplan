@@ -43,4 +43,9 @@ public abstract class FiniteBandit<T>
 	public abstract void sampleArm( final RandomGenerator rng );
 	
 	public abstract T bestArm();
+	
+	public boolean convergenceTest( final double epsilon, final double delta )
+	{
+		return false;
+	}
 }

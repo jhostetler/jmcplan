@@ -8,11 +8,15 @@ package edu.oregonstate.eecs.mcplan;
  * @param <S>
  * @param <A>
  */
-public final class ConsPolicy<S, A extends VirtualConstructor<A>> extends Policy<S, A>
+public final class ConsPolicy<S, A extends VirtualConstructor<A>> extends AnytimePolicy<S, A>
 {
 	private final A a0;
 	private final Policy<S, A> pi;
-	private boolean s0 = true;
+	/**
+	 * 0: reset and no state set; 1: reset and first state set, will return
+	 * a0 for the action; 2: following pi.
+	 */
+	private int nonstationary_step = 0;
 	
 	public ConsPolicy( final A a0, final Policy<S, A> pi )
 	{
@@ -21,23 +25,27 @@ public final class ConsPolicy<S, A extends VirtualConstructor<A>> extends Policy
 	}
 	
 	@Override
+	public void reset()
+	{
+		nonstationary_step = 0;
+		pi.reset();
+	}
+	
+	@Override
 	public void setState( final S s, final long t )
 	{
-		// FIXME: We are planning to remove the 't' parameter. This is a
-		// *temporary* hack.
-		if( t == 0 ) {
-			s0 = true;
-		}
-		else {
-			s0 = false;
+		if( nonstationary_step > 0 ) {
 			pi.setState( s, t );
+		}
+		if( nonstationary_step < 2 ) {
+			nonstationary_step += 1;
 		}
 	}
 
 	@Override
 	public A getAction()
 	{
-		if( s0 ) {
+		if( nonstationary_step == 1 ) {
 			return a0.create();
 		}
 		else {
@@ -65,5 +73,11 @@ public final class ConsPolicy<S, A extends VirtualConstructor<A>> extends Policy
 	public String toString()
 	{
 		return "ConsPolicy(" + a0 + "; " + pi + ")";
+	}
+
+	@Override
+	public boolean improvePolicy()
+	{
+		return false;
 	}
 }

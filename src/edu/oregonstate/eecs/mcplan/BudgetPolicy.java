@@ -30,9 +30,7 @@ public class BudgetPolicy<S, A> extends Policy<S, A>
 	@Override
 	public A getAction()
 	{
-		while( !budget.isExceeded() ) {
-			pi.improvePolicy();
-		}
+		while( !budget.isExceeded() && pi.improvePolicy() );
 		return pi.getAction();
 	}
 

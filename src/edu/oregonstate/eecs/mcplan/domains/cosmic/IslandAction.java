@@ -71,7 +71,7 @@ public final class IslandAction extends CosmicAction
 	@Override
 	public String toString()
 	{
-		return "Island[" + zone + "]";
+		return "Island(" + zone + ")";
 	}
 
 }
