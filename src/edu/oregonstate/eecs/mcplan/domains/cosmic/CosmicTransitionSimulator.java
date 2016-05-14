@@ -38,7 +38,21 @@ public class CosmicTransitionSimulator extends TransitionSimulator<CosmicState, 
 			final RandomGenerator rng, final CosmicState s, final CosmicAction a )
 	{
 		final double ar = reward( s, a );
-		final CosmicState sprime = params.cosmic.take_action( s, a, params.delta_t );
+		final CosmicState sprime;
+		switch( params.getCosmicVersion() ) {
+		case take_action:
+			sprime = params.cosmic.take_action( s, a, params.delta_t );
+			break;
+		case take_action_iter:
+			sprime = params.cosmic.take_action_iter( s, a, params.delta_t );
+			break;
+		case take_action2:
+			sprime = params.cosmic.take_action2( s, a, params.delta_t );
+			break;
+		default:
+			throw new AssertionError();
+		}
+		
 		final double sr = reward( sprime );
 //		System.out.println( "\tr = " + r );
 		final ActionNode<CosmicState, CosmicAction> tr = new ActionNode<>( a, ar );

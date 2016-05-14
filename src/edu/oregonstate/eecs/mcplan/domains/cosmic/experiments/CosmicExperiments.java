@@ -92,6 +92,8 @@ public class CosmicExperiments
 		
 		public final boolean cosmic_verbose;
 		
+		public final CosmicParameters.Version version;
+		
 		public Configuration( final String root_directory, final String experiment_name, final KeyValueStore config )
 		{
 			config_ = config;
@@ -115,6 +117,23 @@ public class CosmicExperiments
 			}
 			
 			cosmic_verbose = config_.getBoolean( "cosmic.verbose" );
+			
+			{
+				final String s = config_.get( "cosmic.version" );
+				switch( s ) {
+				case "v1":
+					version = CosmicParameters.Version.take_action;
+					break;
+				case "v1_iter":
+					version = CosmicParameters.Version.take_action_iter;
+					break;
+				case "v2":
+					version = CosmicParameters.Version.take_action2;
+					break;
+				default:
+					throw new IllegalArgumentException( "cosmic.version" );
+				}
+			}
 		}
 
 		@Override
@@ -247,14 +266,20 @@ public class CosmicExperiments
 				.simgrid_method( CosmicOptions.SimgridMethod.valueOf( get( "cosmic.simgrid_method" ) ) )
 				.finish();
 			final String name = get( "domain" );
+			final CosmicMatlabInterface.Case c;
 			switch( name ) {
 			case "ieee39":
-				return cosmic.init_case39( T, jopt );
+				c = cosmic.init_case39( T, jopt );
+				break;
 			case "poland":
-				return cosmic.init_poland( T, jopt );
+				c = cosmic.init_poland( T, jopt );
+				break;
 			default:
 				throw new IllegalArgumentException( "domain" );
 			}
+			// FIXME: This is temporary
+			c.params.setCosmicVersion( version );
+			return c;
 		}
 
 		public FiniteBandit<Policy<CosmicState, CosmicAction>> createBandit()
@@ -667,6 +692,8 @@ public class CosmicExperiments
 					else {
 						fault_action = new CosmicNothingAction();
 					}
+					// Note: 'Tstable - 1' because we want the agent to start
+					// acting at t = Tstable.
 					final Policy<CosmicState, CosmicAction> fault = new FaultPolicy( fault_action, config.Tstable - 1 );
 					
 					// Top-level control policy

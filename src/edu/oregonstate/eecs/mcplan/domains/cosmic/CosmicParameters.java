@@ -82,6 +82,21 @@ public final class CosmicParameters implements AutoCloseable
 	 */
 	private final TIntObjectMap<TIntSet> zone_cutsets = new TIntObjectHashMap<>();
 	
+	public static enum Version
+	{
+		take_action,
+		take_action_iter,
+		take_action2
+	}
+	
+	private Version version = Version.take_action2;
+	
+	public Version getCosmicVersion()
+	{ return version; }
+	
+	public void setCosmicVersion( final Version version )
+	{ this.version = version; }
+	
 	/**
 	 * @param cosmic
 	 * @param C Owned by CosmicParameters

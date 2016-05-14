@@ -64,32 +64,36 @@ public class CosmicState implements State
 				throws IOException
 		{
 			writer.beginObject();
-			
-			writer.name( "t" ).value( s.t );
-			
-			writer.name( "ps" ).beginObject();
-			writer.name( "casename" ).value( ((MWCharArray) s.ps.getField( "casename", 1 )).toString() );
-			writer.name( "blackout" ).value( ((MWLogicalArray) s.ps.getField( "blackout", 1 )).getBoolean( 1 ) );
-			final String[] psfields = new String[] {
-				"baseMVA",
-				"bus", "branch", "gen", "mac", "shunt", "exc", "gov",
-				"t_delay", "t_prev_check", "dist2threshold", "state_a"
-			};
-			for( final String field : psfields ) {
-				writer.name( field );
-				mw.write( writer, (MWNumericArray) s.ps.getField( field, 1 ) );
+			{
+				writer.name( "t" ).value( s.t );
+				
+				writer.name( "ps" ).beginObject();
+				{
+					writer.name( "casename" ).value( ((MWCharArray) s.ps.getField( "casename", 1 )).toString() );
+					writer.name( "blackout" ).value( ((MWLogicalArray) s.ps.getField( "blackout", 1 )).getBoolean( 1 ) );
+					final String[] psfields = new String[] {
+						"baseMVA",
+						"bus", "branch", "gen", "mac", "shunt", "exc", "gov",
+						"t_delay", "t_prev_check", "dist2threshold", "state_a",
+						"x", "y"
+					};
+					for( final String field : psfields ) {
+						writer.name( field );
+						mw.write( writer, (MWNumericArray) s.ps.getField( field, 1 ) );
+					}
+					
+				}
+				writer.endObject();
+				
+	//			writer.name( "x" );
+	//			mw.write( writer, s.mx );
+	//
+	//			writer.name( "y" );
+	//			mw.write( writer, s.my );
+	//
+	//			writer.name( "event" );
+	//			mw.write( writer, s.event );
 			}
-			writer.endObject();
-			
-			writer.name( "x" );
-			mw.write( writer, s.mx );
-			
-			writer.name( "y" );
-			mw.write( writer, s.my );
-			
-			writer.name( "event" );
-			mw.write( writer, s.event );
-			
 			writer.endObject();
 		}
 	}
@@ -165,6 +169,23 @@ public class CosmicState implements State
 	 * @param y
 	 * @param event
 	 */
+	public CosmicState( final CosmicParameters params, final MWStructArray ps, final double t )
+	{
+		// FIXME: We are retaining the 'event' field so that we can switch
+		// between take_action() and take_action2(). Eventually we should
+		// remove it.
+		this( params, ps, t, (MWNumericArray) ps.getField( "x", 1 ),
+		      (MWNumericArray) ps.getField( "y", 1 ), new MWNumericArray() );
+	}
+	
+	/**
+	 * CosmicState owns all Matlab objects passed to this constructor.
+	 * @param ps
+	 * @param t
+	 * @param x
+	 * @param y
+	 * @param event
+	 */
 	public CosmicState( final CosmicParameters params, final MWStructArray ps, final double t,
 						final MWNumericArray x, final MWNumericArray y, final MWNumericArray event )
 	{
@@ -215,7 +236,9 @@ public class CosmicState implements State
 		ps.dispose();
 		mx.dispose();
 		my.dispose();
-		event.dispose();
+		if( event != null ) {
+			event.dispose();
+		}
 	}
 	
 	@Override

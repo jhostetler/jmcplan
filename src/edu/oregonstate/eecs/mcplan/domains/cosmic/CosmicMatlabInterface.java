@@ -53,13 +53,13 @@ public final class CosmicMatlabInterface implements AutoCloseable
 		opt = 						(MWStructArray)		cosmic0[idx++];
 		t_idx = idx;
 		final int t = 				((MWNumericArray) 	cosmic0[idx++]).getInt();
-		final MWNumericArray x = 	(MWNumericArray) 	cosmic0[idx++];
-		final MWNumericArray y = 	(MWNumericArray) 	cosmic0[idx++];
+//		final MWNumericArray x = 	(MWNumericArray) 	cosmic0[idx++];
+//		final MWNumericArray y = 	(MWNumericArray) 	cosmic0[idx++];
 		final MWNumericArray event = (MWNumericArray)	cosmic0[idx++];
 		
 		params = new CosmicParameters( this, C, ps, index, T );
 		
-		final CosmicState s0 = new CosmicState( params, ps, t, x, y, event );
+		final CosmicState s0 = new CosmicState( params, ps, t );
 		
 		((Disposable) cosmic0[t_idx]).dispose();
 		
@@ -87,8 +87,8 @@ public final class CosmicMatlabInterface implements AutoCloseable
 		current_case = "case39";
 		
 		try {
-			// [ C, ps, index, opt, t, x, y, event ] = init_case9();
-			final Object[] cosmic0 = m.init_case39( 8, jopt.toMatlab() );
+			// [ C, ps, index, opt, t, event ] = init_case9();
+			final Object[] cosmic0 = m.init_case39( 6, jopt.toMatlab() );
 			return unpack( cosmic0, T );
 		}
 		catch( final MWException ex ) {
@@ -102,8 +102,8 @@ public final class CosmicMatlabInterface implements AutoCloseable
 		current_case = "poland";
 		
 		try {
-			// [ C, ps, index, opt, t, x, y, event ] = init_case9();
-			final Object[] cosmic0 = m.init_case2383( 8, jopt.toMatlab() );
+			// [ C, ps, index, opt, t, event ] = init_case2383();
+			final Object[] cosmic0 = m.init_case2383( 6, jopt.toMatlab() );
 			return unpack( cosmic0, T );
 		}
 		catch( final MWException ex ) {
@@ -123,12 +123,97 @@ public final class CosmicMatlabInterface implements AutoCloseable
 	
 	/**
 	 * Execute action 'a' in state 's', simulate 'delta_t' time, and return
-	 * the resulting state. The input state is not modified.
+	 * the resulting state. The input state is not modified. This is the new
+	 * version.
 	 * @param s
 	 * @param a
 	 * @param delta_t
 	 * @return
 	 */
+	public CosmicState take_action2( final CosmicState s, final CosmicAction a, final double delta_t )
+	{
+		Object[] cprime = null;
+		try( final CosmicState scopy = s.copy() ) {
+			
+			// [ ps, t, x, y, event ] = take_action( ps, opt, t, x, y, event, a, delta_t )
+//			cprime = m.take_action( 5, s.ps, opt, s.t, s.mx, s.my, s.event, a.toMatlab( params, s.t ), delta_t );
+			cprime = m.take_action2( 1, scopy.ps, opt, scopy.t, a.toMatlab( params, scopy.t ), delta_t );
+			
+			final MWStructArray ps_prime = (MWStructArray) cprime[0];
+			
+			// This is designed to verify that 'sprime' really has its own
+			// copy of all of the Cosmic data structures, by seeing if changes
+			// to ps_prime affect s.ps
+			final int sentinel = 99999;
+			final int old_id = ((MWNumericArray) ps_prime.getField( "bus", 1 )).getInt( new int[] { 1, 1 } );
+			ps_prime.getField( "bus", 1 ).set( new int[] { 1, 1 }, sentinel );
+			assert( ((MWNumericArray) s.ps.getField( "bus", 1 )).getInt( new int[] { 1, 1 } ) != sentinel );
+			ps_prime.getField( "bus", 1 ).set( new int[] { 1, 1 }, old_id );
+			
+			final CosmicState sprime = new CosmicState(	params, ps_prime, scopy.t + delta_t );
+			return sprime;
+		}
+		catch( final MWException ex ) {
+			throw new RuntimeException( ex );
+		}
+//		finally {
+//			if( cprime != null ) {
+//				// We turned 't' into a primitive 'int' earlier.
+//				((Disposable) cprime[1]).dispose();
+//			}
+//		}
+	}
+	
+	/**
+	 * Execute action 'a' in state 's', simulate 'delta_t' time, and return
+	 * the resulting state. The input state is not modified. This is the new
+	 * version.
+	 * @param s
+	 * @param a
+	 * @param delta_t
+	 * @return
+	 */
+	public CosmicState take_action_iter( final CosmicState s, final CosmicAction a, final double delta_t )
+	{
+		Object[] cprime = null;
+		try( final CosmicState scopy = s.copy() ) {
+			
+			// [ ps ] = take_action( ps, opt, t, a, delta_t )
+			cprime = m.take_action_iter( 1, scopy.ps, opt, scopy.t, a.toMatlab( params, scopy.t ), delta_t );
+			
+			final MWStructArray ps_prime = (MWStructArray) cprime[0];
+			
+			// This is designed to verify that 'sprime' really has its own
+			// copy of all of the Cosmic data structures, by seeing if changes
+			// to ps_prime affect s.ps
+			final int sentinel = 99999;
+			final int old_id = ((MWNumericArray) ps_prime.getField( "bus", 1 )).getInt( new int[] { 1, 1 } );
+			ps_prime.getField( "bus", 1 ).set( new int[] { 1, 1 }, sentinel );
+			assert( ((MWNumericArray) s.ps.getField( "bus", 1 )).getInt( new int[] { 1, 1 } ) != sentinel );
+			ps_prime.getField( "bus", 1 ).set( new int[] { 1, 1 }, old_id );
+			
+			final CosmicState sprime = new CosmicState(	params, ps_prime, scopy.t + delta_t );
+			return sprime;
+		}
+		catch( final MWException ex ) {
+			throw new RuntimeException( ex );
+		}
+//		finally {
+//			if( cprime != null ) {
+//				// We turned 't' into a primitive 'int' earlier.
+//				((Disposable) cprime[1]).dispose();
+//			}
+//		}
+	}
+	
+	/**
+	 * @deprecated Use take_action2()
+	 * @param s
+	 * @param a
+	 * @param delta_t
+	 * @return
+	 */
+	@Deprecated
 	public CosmicState take_action( final CosmicState s, final CosmicAction a, final double delta_t )
 	{
 		Object[] cprime = null;
