@@ -24,11 +24,7 @@ public class MapKeyValueStore implements KeyValueStore
 	@Override
 	public String get( final String key )
 	{
-		final String value = m_.get( key );
-		if( value == null ) {
-			throw new IllegalArgumentException( "No mapping for '" + key + "'" );
-		}
-		return value;
+		return m_.get( key );
 	}
 	
 	@Override
