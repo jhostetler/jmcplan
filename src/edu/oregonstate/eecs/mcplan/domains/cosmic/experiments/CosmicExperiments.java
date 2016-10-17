@@ -75,7 +75,7 @@ import edu.oregonstate.eecs.mcplan.util.KeyValueStore;
  */
 public class CosmicExperiments
 {
-	public static final class Configuration implements KeyValueStore
+	public static final class Configuration extends KeyValueStore
 	{
 		private final KeyValueStore config_;
 		
@@ -149,18 +149,6 @@ public class CosmicExperiments
 		@Override
 		public String get( final String key )
 		{ return config_.get( key ); }
-
-		@Override
-		public int getInt( final String key )
-		{ return config_.getInt( key ); }
-
-		@Override
-		public double getDouble( final String key )
-		{ return config_.getDouble( key ); }
-		
-		@Override
-		public boolean getBoolean( final String key )
-		{ return config_.getBoolean( key ); }
 
 		@Override
 		public Iterable<String> keys()

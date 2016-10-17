@@ -112,7 +112,7 @@ import gnu.trove.map.hash.TObjectIntHashMap;
  */
 public class FsssJairExperiments
 {
-	public static class Configuration implements KeyValueStore
+	public static class Configuration extends KeyValueStore
 	{
 		private final KeyValueStore config_;
 		
@@ -203,20 +203,22 @@ public class FsssJairExperiments
 		{ return config_.get( key ); }
 
 		@Override
-		public int getInt( final String key )
-		{ return config_.getInt( key ); }
-
-		@Override
-		public double getDouble( final String key )
-		{ return config_.getDouble( key ); }
-		
-		@Override
-		public boolean getBoolean( final String key )
-		{ return config_.getBoolean( key ); }
-
-		@Override
 		public Iterable<String> keys()
 		{ return config_.keys(); }
+		
+		@Override
+		public String defaultValue( final String key )
+		{
+			if( "log.history".equals( key ) ) {
+				return "false";
+			}
+			else if( "log.history.pretty".equals( key ) ) {
+				return "false";
+			}
+			else {
+				throw new UnsupportedOperationException( "No default for '" + key + "'" );
+			}
+		}
 	}
 	
 	// -----------------------------------------------------------------------
@@ -501,9 +503,15 @@ public class FsssJairExperiments
 				final Episode<S, A> episode	= new Episode<S, A>( sim, new JointPolicy<S, A>( pi ), T );
 				final RewardAccumulator<S, A> racc = new RewardAccumulator<S, A>( sim.nagents(), config.discount );
 				episode.addListener( racc );
-				final HistoryRecorder<S, JsonRepresenter<S>, A> hacc
-					= new HistoryRecorder<>( new JsonRepresenter<S>( gson ) );
-				episode.addListener( hacc );
+				
+				final HistoryRecorder<S, JsonRepresenter<S>, A> hacc;
+				if( config.getBoolean( "log.history" ) ) {
+					hacc = new HistoryRecorder<>( new JsonRepresenter<S>( gson ) );
+					episode.addListener( hacc );
+				}
+				else {
+					hacc = null;
+				}
 				
 				if( config.getBoolean( "log.execution" ) ) {
 					final LoggingEpisodeListener<S, A> epi_log = new LoggingEpisodeListener<S, A>();
@@ -526,15 +534,15 @@ public class FsssJairExperiments
 				
 				if( config.getBoolean( "log.history" ) ) {
 					writeEpisodeHistory( history_out, i, hacc );
+					for( final JointAction<A> j : hacc.actions ) {
+						action_histogram.adjustOrPutValue( j.get( 0 ), 1, 1 );
+					}
 				}
 				
 				// Episode statistics
 				ret.add( racc.v()[0] );
 				steps.add( racc.steps() );
 				steps_minmax.add( racc.steps() );
-				for( final JointAction<A> j : hacc.actions ) {
-					action_histogram.adjustOrPutValue( j.get( 0 ), 1, 1 );
-				}
 				if( config.getBoolean( "log.execution" ) ) {
 					System.out.println( "episode" + i + ".ret: " + racc.v()[0] );
 					System.out.println( "episode" + i + ".steps: " + racc.steps() );
@@ -569,15 +577,17 @@ public class FsssJairExperiments
 		System.out.println( "Steps (var): " + steps.variance() );
 		System.out.println( "Steps (min/max): " + steps_minmax.min() + " -- " + steps_minmax.max() );
 		
-		System.out.println( "Action histogram:" );
-		final TObjectIntIterator<A> ahist_itr = action_histogram.iterator();
-		int total_actions = 0;
-		while( ahist_itr.hasNext() ) {
-			ahist_itr.advance();
-			System.out.println( "" + ahist_itr.key() + ": " + ahist_itr.value() );
-			total_actions += ahist_itr.value();
+		if( config.getBoolean( "log.history" ) ) {
+			System.out.println( "Action histogram:" );
+			final TObjectIntIterator<A> ahist_itr = action_histogram.iterator();
+			int total_actions = 0;
+			while( ahist_itr.hasNext() ) {
+				ahist_itr.advance();
+				System.out.println( "" + ahist_itr.key() + ": " + ahist_itr.value() );
+				total_actions += ahist_itr.value();
+			}
+			System.out.println( "total_actions: " + total_actions );
 		}
-		System.out.println( "total_actions: " + total_actions );
 		
 		// This must happen *after* the statistics object has been populated
 		final Csv.Writer data_out = createDataWriter( config, algorithm, iter );
