@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import edu.oregonstate.eecs.mcplan.ActionSet;
 import edu.oregonstate.eecs.mcplan.ActionSpace;
 import edu.oregonstate.eecs.mcplan.domains.yahtzee2.Hand;
 import edu.oregonstate.eecs.mcplan.domains.yahtzee2.KeepAction;
@@ -46,13 +47,7 @@ public class YahtzeeSubtaskActionSpace extends ActionSpace<YahtzeeDiceState, Yah
 		}
 	}
 	
-	private YahtzeeDiceState s = null;
-	
-	@Override
-	public void setState( final YahtzeeDiceState s )
-	{
-		this.s = s;
-	}
+	private final YahtzeeDiceState s = null;
 
 	@Override
 	public int cardinality()
@@ -90,13 +85,6 @@ public class YahtzeeSubtaskActionSpace extends ActionSpace<YahtzeeDiceState, Yah
 			throw ex;
 		}
 	}
-
-	@Override
-	public Generator<YahtzeeAction> generator()
-	{
-		assert( s != null );
-		return new G( s );
-	}
 	
 	private static final class G extends Generator<YahtzeeAction>
 	{
@@ -131,16 +119,21 @@ public class YahtzeeSubtaskActionSpace extends ActionSpace<YahtzeeDiceState, Yah
 		}
 	}
 	
+	@Override
+	public ActionSet<YahtzeeDiceState, YahtzeeAction> getActionSet(
+			final YahtzeeDiceState s )
+	{
+		return ActionSet.constant( Fn.in(new G( s )) );
+	}
+	
 	public static void main( final String[] argv )
 	{
 		final YahtzeeDiceState s = new YahtzeeDiceState( new Hand( new int[] { 0, 2, 2, 0, 0, 1 } ), 1 );
 		final YahtzeeSubtaskActionSpace A = new YahtzeeSubtaskActionSpace();
 		
-		A.setState( s );
-		final Generator<YahtzeeAction> g = A.generator();
 		int c = 0;
-		while( g.hasNext() ) {
-			System.out.println( (c++) + " : " + g.next() );
+		for( final YahtzeeAction a : A.getActionSet( s ) ) {
+			System.out.println( (c++) + " : " + a );
 		}
 	}
 

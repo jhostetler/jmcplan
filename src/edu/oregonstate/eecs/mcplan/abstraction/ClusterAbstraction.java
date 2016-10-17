@@ -77,8 +77,8 @@ public class ClusterAbstraction<T> extends FactoredRepresentation<T>
 	}
 
 	@Override
-	public double[] phi()
+	public float[] phi()
 	{
-		return new double[] { cluster_ };
+		return new float[] { cluster_ };
 	}
 }

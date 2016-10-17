@@ -5,6 +5,8 @@ package edu.oregonstate.eecs.mcplan.domains.yahtzee2;
 
 import java.util.Arrays;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.util.Csv;
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
@@ -46,13 +48,13 @@ public class KeepAction extends YahtzeeAction
 	}
 
 	@Override
-	public void doAction( final YahtzeeState s )
+	public void doAction( final RandomGenerator rng, final YahtzeeState s )
 	{
 		assert( old_hand_ == null );
 		assert( s.rerolls > 0 );
 		old_hand_ = s.hand();
 		
-		final int[] r = s.roll( Hand.Ndice - Nkeepers );
+		final int[] r = s.roll( rng, Hand.Ndice - Nkeepers );
 		Fn.vplus_inplace( r, keepers );
 		final Hand h = new Hand( r );
 		s.setHand( h, s.rerolls - 1 );

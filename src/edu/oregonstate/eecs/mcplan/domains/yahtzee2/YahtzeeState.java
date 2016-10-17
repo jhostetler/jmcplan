@@ -27,17 +27,13 @@ public class YahtzeeState implements State
 	public int upper_bonus = 0;
 	public int rerolls = 0;
 	
-	private final RandomGenerator rng_;
-	
 	public YahtzeeState( final RandomGenerator rng )
 	{
-		rng_ = rng;
-		
 		// We roll an initial hand, so that rolling dice can be the last step
 		// of KeepAction and ScoreAction, and thus we don't need a 'RollDice'
 		// action, which would be the only action available whenever it is
 		// legal.
-		setHand( new Hand( roll( Hand.Ndice ) ), Hand.Nrerolls );
+		setHand( new Hand( roll( rng, Hand.Ndice ) ), Hand.Nrerolls );
 	}
 	
 	public YahtzeeState( final YahtzeeState that )
@@ -51,8 +47,6 @@ public class YahtzeeState implements State
 		this.yahtzee_bonus = that.yahtzee_bonus;
 		this.upper_bonus = that.upper_bonus;
 		this.rerolls = that.rerolls;
-		
-		rng_ = that.rng_;
 	}
 	
 	public int score()
@@ -60,13 +54,13 @@ public class YahtzeeState implements State
 		return total + yahtzee_bonus + upper_bonus;
 	}
 	
-	public int[] roll( final int n )
+	public int[] roll( final RandomGenerator rng, final int n )
 	{
 //		assert( n > 0 );
 		assert( n <= Hand.Ndice );
 		final int[] r = new int[Hand.Nfaces];
 		for( int i = 0; i < n; ++i ) {
-			final int d = rng_.nextInt( Hand.Nfaces );
+			final int d = rng.nextInt( Hand.Nfaces );
 			r[d] += 1;
 		}
 		return r;
@@ -173,4 +167,8 @@ public class YahtzeeState implements State
 		sb.append( "Hand: " ).append( Arrays.toString( hand().dice ) ).append( "\n" );
 		return sb.toString();
 	}
+
+	@Override
+	public void close()
+	{ }
 }

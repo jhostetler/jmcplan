@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.yahtzee2;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 
@@ -29,7 +31,7 @@ public class CategoryAction extends YahtzeeAction
 	}
 
 	@Override
-	public void doAction( final YahtzeeState s )
+	public void doAction( final RandomGenerator rng, final YahtzeeState s )
 	{
 		if( s.rerolls > 0 ) { //&& !category.isSatisfiedBy( s.hand() ) ) {
 			impl_ = improveCategory( s );

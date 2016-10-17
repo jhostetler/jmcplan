@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.yahtzee2;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 
 /**
  * Scores in the open box with the minimum max score.
@@ -32,7 +34,7 @@ public class ScoreMinMaxAction extends YahtzeeAction
 	}
 
 	@Override
-	public void doAction( final YahtzeeState s )
+	public void doAction( final RandomGenerator rng, final YahtzeeState s )
 	{
 		assert( old_hand_ == null );
 		
@@ -56,7 +58,7 @@ public class ScoreMinMaxAction extends YahtzeeAction
 		assert( !s.filled[category.ordinal()] );
 		s.addScore( category, score_, yahtzee_bonus_ );
 		
-		final int[] r = s.roll( Hand.Ndice );
+		final int[] r = s.roll( rng, Hand.Ndice );
 		s.setHand( new Hand( r ), Hand.Nrerolls );
 	}
 

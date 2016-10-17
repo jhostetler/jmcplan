@@ -46,4 +46,8 @@ public class YahtzeeDiceState implements State
 	{
 		return "{rerolls: " + rerolls + ", hand: " + hand + "}";
 	}
+
+	@Override
+	public void close()
+	{ }
 }

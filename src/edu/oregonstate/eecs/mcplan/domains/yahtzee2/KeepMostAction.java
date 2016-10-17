@@ -5,6 +5,8 @@ package edu.oregonstate.eecs.mcplan.domains.yahtzee2;
 
 import java.util.Arrays;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 /**
  * @author jhostetler
  *
@@ -28,7 +30,7 @@ public class KeepMostAction extends YahtzeeAction
 	}
 
 	@Override
-	public void doAction( final YahtzeeState s )
+	public void doAction( final RandomGenerator rng, final YahtzeeState s )
 	{
 		assert( old_hand_ == null );
 		assert( s.rerolls > 0 );
@@ -46,7 +48,7 @@ public class KeepMostAction extends YahtzeeAction
 		}
 		final int[] r;
 		if( most_n < Hand.Ndice ) {
-			r = s.roll( Hand.Ndice - most_n );
+			r = s.roll( rng, Hand.Ndice - most_n );
 			r[most_i] += most_n;
 		}
 		else {

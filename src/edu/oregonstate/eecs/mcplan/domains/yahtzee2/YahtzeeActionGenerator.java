@@ -35,7 +35,7 @@ public class YahtzeeActionGenerator extends ActionGenerator<YahtzeeState, Yahtze
 	}
 
 	@Override
-	public void setState( final YahtzeeState s, final long t, final int[] turn )
+	public void setState( final YahtzeeState s, final long t )
 	{
 		s_ = s;
 		t_ = t;

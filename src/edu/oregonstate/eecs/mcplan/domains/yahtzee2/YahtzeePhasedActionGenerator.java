@@ -27,7 +27,7 @@ public class YahtzeePhasedActionGenerator extends ActionGenerator<YahtzeeState, 
 	}
 
 	@Override
-	public void setState( final YahtzeeState s, final long t, final int[] turn )
+	public void setState( final YahtzeeState s, final long t )
 	{
 		rerolls = s.rerolls > 0;
 		h = s.hand();

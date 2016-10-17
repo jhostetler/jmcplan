@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.yahtzee2;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
@@ -32,7 +34,7 @@ public class KeepStraightAction extends YahtzeeAction
 	}
 
 	@Override
-	public void doAction( final YahtzeeState s )
+	public void doAction( final RandomGenerator rng, final YahtzeeState s )
 	{
 		assert( old_hand_ == null );
 		assert( s.rerolls > 0 );
@@ -58,7 +60,7 @@ public class KeepStraightAction extends YahtzeeAction
 		}
 		
 		if( n < Hand.Ndice ) {
-			final int[] r = s.roll( Hand.Ndice - n );
+			final int[] r = s.roll( rng, Hand.Ndice - n );
 			Fn.vplus_inplace( keepers, r );
 		}
 		final Hand h = new Hand( keepers );

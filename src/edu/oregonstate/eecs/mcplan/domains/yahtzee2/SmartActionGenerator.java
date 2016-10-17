@@ -29,7 +29,7 @@ public class SmartActionGenerator extends ActionGenerator<YahtzeeState, YahtzeeA
 	}
 
 	@Override
-	public void setState( final YahtzeeState s, final long t, final int[] turn )
+	public void setState( final YahtzeeState s, final long t )
 	{
 		s_ = s;
 		t_ = t;

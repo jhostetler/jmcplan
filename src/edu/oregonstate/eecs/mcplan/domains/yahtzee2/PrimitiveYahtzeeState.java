@@ -13,14 +13,14 @@ import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
  */
 public class PrimitiveYahtzeeState extends FactoredRepresentation<YahtzeeState>
 {
-	private final double[] phi_;
+	private final float[] phi_;
 	
 	public PrimitiveYahtzeeState( final YahtzeeState s )
 	{
 		// Need: Hand, rerolls available, filled + score for each category,
 		// Yahtzee & Upper bonuses
 		final int Ncats = YahtzeeScores.values().length;
-		phi_ = new double[Hand.Nfaces + 1 + (2 * Ncats) + 2];
+		phi_ = new float[Hand.Nfaces + 1 + (2 * Ncats) + 2];
 		int idx = 0;
 		final Hand h = s.hand();
 		for( int i = 0; i < Hand.Nfaces; ++i ) {
@@ -38,13 +38,13 @@ public class PrimitiveYahtzeeState extends FactoredRepresentation<YahtzeeState>
 		assert( idx == phi_.length );
 	}
 	
-	private PrimitiveYahtzeeState( final double[] phi )
+	private PrimitiveYahtzeeState( final float[] phi )
 	{
 		phi_ = phi;
 	}
 	
 	@Override
-	public double[] phi()
+	public float[] phi()
 	{
 		return phi_;
 	}

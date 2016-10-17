@@ -6,6 +6,8 @@ package edu.oregonstate.eecs.mcplan.domains.yahtzee2;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 import gnu.trove.stack.TIntStack;
@@ -17,6 +19,7 @@ import gnu.trove.stack.array.TIntArrayStack;
  */
 public class YahtzeeSimulator implements UndoSimulator<YahtzeeState, YahtzeeAction>
 {
+	private final RandomGenerator rng_;
 	private final YahtzeeState s_;
 	
 	private final int Horizon_ = YahtzeeScores.values().length;
@@ -26,8 +29,9 @@ public class YahtzeeSimulator implements UndoSimulator<YahtzeeState, YahtzeeActi
 	
 	private final TIntStack scores_ = new TIntArrayStack();
 	
-	public YahtzeeSimulator( final YahtzeeState s )
+	public YahtzeeSimulator( final RandomGenerator rng, final YahtzeeState s )
 	{
+		rng_ = rng;
 		s_ = s;
 		scores_.push( s_.score() );
 	}
@@ -43,7 +47,7 @@ public class YahtzeeSimulator implements UndoSimulator<YahtzeeState, YahtzeeActi
 	{
 		assert( a.nagents == 1 );
 		scores_.push( s_.score() );
-		a.get( 0 ).doAction( s_ );
+		a.get( 0 ).doAction( rng_, s_ );
 		action_history_.push( a );
 	}
 

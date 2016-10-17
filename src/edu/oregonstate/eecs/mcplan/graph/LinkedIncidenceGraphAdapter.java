@@ -3,7 +3,7 @@
  */
 package edu.oregonstate.eecs.mcplan.graph;
 
-import java.util.ListIterator;
+import edu.oregonstate.eecs.mcplan.util.Generator;
 
 /**
  * @author jhostetler
@@ -27,7 +27,7 @@ public abstract class LinkedIncidenceGraphAdapter<V, E> implements IncidenceGrap
 	}
 
 	@Override
-	public ListIterator<E> outEdges( final V v )
+	public Generator<E> outEdges( final V v )
 	{
 		// TODO Auto-generated method stub
 		return null;

@@ -32,7 +32,7 @@ public class YahtzeeClient
 		System.out.println( "Hand: " + Arrays.toString( s.hand().dice ) );
 		
 		final YahtzeeActionGenerator action_gen = new YahtzeeActionGenerator();
-		action_gen.setState( s, 0L, new int[] { 0 } );
+		action_gen.setState( s, 0L );
 		while( action_gen.hasNext() ) {
 			System.out.println( action_gen.next() );
 		}
@@ -45,7 +45,8 @@ public class YahtzeeClient
 	public static void main( final String[] args ) throws IOException
 	{
 		final RandomGenerator rng = new MersenneTwister( 42 );
-		final YahtzeeSimulator sim = new YahtzeeSimulator( rng );
+		final YahtzeeState s0 = new YahtzeeState( rng );
+		final YahtzeeSimulator sim = new YahtzeeSimulator( rng, s0 );
 		
 		final BufferedReader reader = new BufferedReader( new InputStreamReader( System.in ) );
 		while( !sim.state().isTerminal() ) {

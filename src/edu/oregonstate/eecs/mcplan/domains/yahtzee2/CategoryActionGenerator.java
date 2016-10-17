@@ -21,7 +21,7 @@ public class CategoryActionGenerator extends ActionGenerator<YahtzeeState, Yahtz
 	}
 
 	@Override
-	public void setState( final YahtzeeState s, final long t, final int[] turn )
+	public void setState( final YahtzeeState s, final long t )
 	{
 		s_ = s;
 		i = 0;

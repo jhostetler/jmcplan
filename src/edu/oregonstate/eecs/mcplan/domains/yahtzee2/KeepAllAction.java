@@ -5,6 +5,8 @@ package edu.oregonstate.eecs.mcplan.domains.yahtzee2;
 
 import java.util.Arrays;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 
 /**
  * Keep all dice of a specified value.
@@ -39,7 +41,7 @@ public class KeepAllAction extends YahtzeeAction
 	}
 
 	@Override
-	public void doAction( final YahtzeeState s )
+	public void doAction( final RandomGenerator rng, final YahtzeeState s )
 	{
 		assert( old_hand_ == null );
 		assert( s.rerolls > 0 );
@@ -48,7 +50,7 @@ public class KeepAllAction extends YahtzeeAction
 		final int n = old_hand_.dice[k - 1];
 		final int[] r;
 		if( n < Hand.Ndice ) {
-			r = s.roll( Hand.Ndice - n );
+			r = s.roll( rng, Hand.Ndice - n );
 			r[k - 1] += n;
 		}
 		else {
