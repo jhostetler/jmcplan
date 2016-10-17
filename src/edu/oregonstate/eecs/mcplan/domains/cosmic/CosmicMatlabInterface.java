@@ -12,16 +12,24 @@ import com.mathworks.toolbox.javabuilder.MWStructArray;
  */
 public final class CosmicMatlabInterface implements AutoCloseable
 {
-	public static final class Case
+	public static final class Problem
 	{
 		public final CosmicParameters params;
 		public final CosmicState s0;
 		
-		public Case( final CosmicParameters params, final CosmicState s0 )
+		public Problem( final CosmicParameters params, final CosmicState s0 )
 		{
 			this.params = params;
 			this.s0 = s0;
 		}
+	}
+	
+	public static enum Case
+	{
+		ieee9,
+		ieee39,
+		rts96,
+		poland
 	}
 	
 	// -----------------------------------------------------------------------
@@ -43,7 +51,7 @@ public final class CosmicMatlabInterface implements AutoCloseable
 		}
 	}
 	
-	private Case unpack( final Object[] cosmic0, final int T )
+	private Problem unpack( final Case cosmic_case, final Object[] cosmic0, final int T )
 	{
 		int t_idx = -1;
 		int idx = 0;
@@ -57,16 +65,16 @@ public final class CosmicMatlabInterface implements AutoCloseable
 //		final MWNumericArray y = 	(MWNumericArray) 	cosmic0[idx++];
 		final MWNumericArray event = (MWNumericArray)	cosmic0[idx++];
 		
-		params = new CosmicParameters( this, C, ps, index, T );
+		params = new CosmicParameters( this, cosmic_case, C, ps, index, T );
 		
 		final CosmicState s0 = new CosmicState( params, ps, t );
 		
 		((Disposable) cosmic0[t_idx]).dispose();
 		
-		return new Case( params, s0 );
+		return new Problem( params, s0 );
 	}
 	
-	public Case init_case9( final int T )
+	public Problem init_case9( final int T )
 	{
 		assert( current_case == null );
 		current_case = "case9";
@@ -74,14 +82,14 @@ public final class CosmicMatlabInterface implements AutoCloseable
 		try {
 			// [ C, ps, index, opt, t, x, y, event ] = init_case9();
 			final Object[] cosmic0 = m.init_case9( 8 );
-			return unpack( cosmic0, T );
+			return unpack( Case.ieee9, cosmic0, T );
 		}
 		catch( final MWException ex ) {
 			throw new RuntimeException( ex );
 		}
 	}
 	
-	public Case init_case39( final int T, final CosmicOptions jopt )
+	public Problem init_case39( final int T, final CosmicOptions jopt )
 	{
 		assert( current_case == null );
 		current_case = "case39";
@@ -89,14 +97,28 @@ public final class CosmicMatlabInterface implements AutoCloseable
 		try {
 			// [ C, ps, index, opt, t, event ] = init_case9();
 			final Object[] cosmic0 = m.init_case39( 6, jopt.toMatlab() );
-			return unpack( cosmic0, T );
+			return unpack( Case.ieee39, cosmic0, T );
 		}
 		catch( final MWException ex ) {
 			throw new RuntimeException( ex );
 		}
 	}
 	
-	public Case init_poland( final int T, final CosmicOptions jopt )
+	public Problem init_rts96( final int T, final CosmicOptions jopt )
+	{
+		assert( current_case == null );
+		current_case = "rts96";
+		
+		try {
+			final Object[] cosmic0 = m.init_rts96( 6, jopt.toMatlab() );
+			return unpack( Case.rts96, cosmic0, T );
+		}
+		catch( final MWException ex ) {
+			throw new RuntimeException( ex );
+		}
+	}
+	
+	public Problem init_poland( final int T, final CosmicOptions jopt )
 	{
 		assert( current_case == null );
 		current_case = "poland";
@@ -104,7 +126,7 @@ public final class CosmicMatlabInterface implements AutoCloseable
 		try {
 			// [ C, ps, index, opt, t, event ] = init_case2383();
 			final Object[] cosmic0 = m.init_case2383( 6, jopt.toMatlab() );
-			return unpack( cosmic0, T );
+			return unpack( Case.poland, cosmic0, T );
 		}
 		catch( final MWException ex ) {
 			throw new RuntimeException( ex );
@@ -137,7 +159,14 @@ public final class CosmicMatlabInterface implements AutoCloseable
 			
 			// [ ps, t, x, y, event ] = take_action( ps, opt, t, x, y, event, a, delta_t )
 //			cprime = m.take_action( 5, s.ps, opt, s.t, s.mx, s.my, s.event, a.toMatlab( params, s.t ), delta_t );
-			cprime = m.take_action2( 1, scopy.ps, opt, scopy.t, a.toMatlab( params, scopy.t ), delta_t );
+			MWNumericArray ma = null;
+			try {
+				ma = a.toMatlab( params, scopy.t );
+				cprime = m.take_action2( 1, scopy.ps, opt, scopy.t, ma, delta_t );
+			}
+			finally {
+				ma.dispose();
+			}
 			
 			final MWStructArray ps_prime = (MWStructArray) cprime[0];
 			
@@ -145,10 +174,14 @@ public final class CosmicMatlabInterface implements AutoCloseable
 			// copy of all of the Cosmic data structures, by seeing if changes
 			// to ps_prime affect s.ps
 			final int sentinel = 99999;
-			final int old_id = ((MWNumericArray) ps_prime.getField( "bus", 1 )).getInt( new int[] { 1, 1 } );
-			ps_prime.getField( "bus", 1 ).set( new int[] { 1, 1 }, sentinel );
-			assert( ((MWNumericArray) s.ps.getField( "bus", 1 )).getInt( new int[] { 1, 1 } ) != sentinel );
-			ps_prime.getField( "bus", 1 ).set( new int[] { 1, 1 }, old_id );
+			final int old_id = M.field_getInt( ps_prime, "bus", 1, new int[] { 1, 1 } );
+//			final int old_id = ((MWNumericArray) ps_prime.getField( "bus", 1 )).getInt( new int[] { 1, 1 } );
+			M.field_set( ps_prime, "bus", 1, new int[] { 1, 1 }, sentinel );
+//			ps_prime.getField( "bus", 1 ).set( new int[] { 1, 1 }, sentinel );
+			assert( M.field_getInt( s.ps, "bus", 1, new int[] { 1, 1 } ) != sentinel );
+//			assert( ((MWNumericArray) s.ps.getField( "bus", 1 )).getInt( new int[] { 1, 1 } ) != sentinel );
+			M.field_set( ps_prime, "bus", 1, new int[] { 1, 1 }, old_id );
+//			ps_prime.getField( "bus", 1 ).set( new int[] { 1, 1 }, old_id );
 			
 			final CosmicState sprime = new CosmicState(	params, ps_prime, scopy.t + delta_t );
 			return sprime;

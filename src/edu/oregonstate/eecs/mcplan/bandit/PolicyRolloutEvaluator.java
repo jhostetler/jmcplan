@@ -7,6 +7,8 @@ import java.util.ArrayList;
 
 import org.apache.commons.math3.random.RandomGenerator;
 
+import com.google.common.collect.Iterables;
+
 import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.sim.ActionNode;
@@ -47,11 +49,14 @@ public class PolicyRolloutEvaluator<S extends State, A> implements StochasticEva
 		public void onTransitionSample( final ActionNode<S, A> trans )
 		{
 			r += trans.r;
-			for( final StateNode<S, A> succ : trans.succ() ) {
-				r += succ.r;
-				states.add( succ.s );
-				break;
-			}
+			final StateNode<S, A> succ = Iterables.getOnlyElement( trans.successors() );
+			r += succ.r;
+			states.add( succ.s );
+//			for( final StateNode<S, A> succ : trans.successors() ) {
+//				r += succ.r;
+//				states.add( succ.s );
+//				break;
+//			}
 		}
 	}
 	

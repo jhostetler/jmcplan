@@ -6,6 +6,7 @@ package edu.oregonstate.eecs.mcplan.domains.cosmic;
 import java.util.Map;
 
 import com.mathworks.toolbox.javabuilder.MWNumericArray;
+import com.mathworks.toolbox.javabuilder.MWStructArray;
 
 /**
  * @author jhostetler
@@ -13,40 +14,73 @@ import com.mathworks.toolbox.javabuilder.MWNumericArray;
  */
 public class CosmicFacade
 {
-	private final int id;
+	private final MWStructArray ps;
+	private final String field;
+	private final int mi;
 	private final Map<String, Integer> columns;
-//	protected final WeakReference<MWNumericArray> m;
-	protected final MWNumericArray m;
+//	protected final MWNumericArray m;
 	
-	protected CosmicFacade( final int id, final Map<String, Integer> columns, final MWNumericArray m )
+	/**
+	 * Does *not* own 'ps'.
+	 * @param field
+	 * @param mi Matlab index (row in 'ps' structure)
+	 * @param columns
+	 * @param ps Not owned
+	 */
+	protected CosmicFacade( final String field, final int mi, final Map<String, Integer> columns, final MWStructArray ps )
 	{
-		this.id = id;
+		this.ps = ps;
+		this.field = field;
+		this.mi = mi;
 		this.columns = columns;
-//		this.m = new WeakReference<>( m );
-		this.m = m;
-		
-		assert( id == m.getInt( new int[] { id, columns.get( "id" ) } ) );
+//		assert( id == getInt( "id" ) );
 	}
 	
 	protected double getDouble( final String name )
 	{
-//		return m.get().getDouble( index( name ) );
-		return m.getDouble( index( name ) );
+		MWNumericArray m = null;
+		try {
+			m = (MWNumericArray) ps.getField( field, 1 );
+			return m.getDouble( index( name ) );
+		}
+		finally {
+			m.dispose();
+		}
 	}
 	
 	protected int getInt( final String name )
 	{
-//		return m.get().getInt( index( name ) );
-		return m.getInt( index( name ) );
+		MWNumericArray m = null;
+		try {
+			m = (MWNumericArray) ps.getField( field, 1 );
+			return m.getInt( index( name ) );
+		}
+		finally {
+			m.dispose();
+		}
 	}
+	
+//	protected double getDouble( final String name )
+//	{
+////		return m.get().getDouble( index( name ) );
+////		return m.getDouble( index( name ) );
+//		return (double) o[columns.get( name )];
+//	}
+
+//	protected int getInt( final String name )
+//	{
+////		return m.get().getInt( index( name ) );
+////		return m.getInt( index( name ) );
+//		return (int) o[columns.get( name )];
+//	}
 	
 	protected final int[] index( final String name )
 	{
-		return new int[] { id, columns.get( name ) };
+		return new int[] { mi, columns.get( name ) };
 	}
 	
 	public final int id()
 	{
-		return id;
+		return getInt( "id" );
 	}
 }

@@ -70,10 +70,10 @@ public abstract class ActionSpace<S, A> implements Representer<S, Representation
 			int i = 0;
 			final Iterator<ActionSpace<S, A>> itr = ass.iterator();
 			while( itr.hasNext() ) {
-				sb.append( itr.next() );
 				if( i++ > 0 ) {
 					sb.append( "; " );
 				}
+				sb.append( itr.next() );
 			}
 			sb.append( "]" );
 			return sb.toString();

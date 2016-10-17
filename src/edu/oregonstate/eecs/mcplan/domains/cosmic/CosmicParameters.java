@@ -7,8 +7,11 @@ import edu.oregonstate.eecs.mcplan.LoggerManager;
 import gnu.trove.iterator.TIntIterator;
 import gnu.trove.list.TIntList;
 import gnu.trove.list.array.TIntArrayList;
+import gnu.trove.map.TIntIntMap;
 import gnu.trove.map.TIntObjectMap;
+import gnu.trove.map.hash.TIntIntHashMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
+import gnu.trove.procedure.TIntProcedure;
 import gnu.trove.set.TIntSet;
 import gnu.trove.set.hash.TIntHashSet;
 
@@ -66,6 +69,7 @@ public final class CosmicParameters implements AutoCloseable
 	public static final int ev_change_by_amount		= 0;
 	public static final int ev_change_by_percent	= 1;
 	
+	public final TIntIntMap bus_matlab_index = new TIntIntHashMap();
 	private final TIntObjectMap<TIntList> bus_to_shunts = new TIntObjectHashMap<>();
 	
 	public final int Nzones;
@@ -104,7 +108,7 @@ public final class CosmicParameters implements AutoCloseable
 	 * @param nx
 	 * @param ny
 	 */
-	public CosmicParameters( final CosmicMatlabInterface cosmic,
+	public CosmicParameters( final CosmicMatlabInterface cosmic, final CosmicMatlabInterface.Case cosmic_case,
 							 final MWStructArray C, final MWStructArray ps, final MWStructArray index,
 							 final double T )
 	{
@@ -115,19 +119,37 @@ public final class CosmicParameters implements AutoCloseable
 		
 		final Logger log = LoggerManager.getLogger( "log.domain" );
 		
-		final MWStructArray ev = (MWStructArray) C.getField( "ev", 1 );
-		ev_cols = ((MWNumericArray) ev.getField( "cols", 1 )).getInt();
-		ev_time = ((MWNumericArray) ev.getField( "time", 1 )).getInt();
-		ev_type = ((MWNumericArray) ev.getField( "type", 1 )).getInt();
-		ev_trip_branch = ((MWNumericArray) ev.getField( "trip_branch", 1 )).getInt();
-		ev_branch_loc = ((MWNumericArray) ev.getField( "branch_loc", 1 )).getInt();
-		ev_trip_bus = ((MWNumericArray) ev.getField( "trip_bus", 1 )).getInt();
-		ev_bus_loc = ((MWNumericArray) ev.getField( "bus_loc", 1 )).getInt();
-		ev_shed_load = ((MWNumericArray) ev.getField( "shed_load", 1 )).getInt();
-		ev_shunt_loc = ((MWNumericArray) ev.getField( "shunt_loc", 1 )).getInt();
-		ev_trip_shunt = ((MWNumericArray) ev.getField( "trip_shunt", 1 )).getInt();
-		ev_change_by = ((MWNumericArray) ev.getField( "change_by", 1 )).getInt();
-		ev_quantity = ((MWNumericArray) ev.getField( "quantity", 1 )).getInt();
+		MWStructArray ev = null;
+		try {
+			ev = (MWStructArray) C.getField( "ev", 1 );
+			ev_cols = (int) ((double[][]) ev.get( "cols", 1 ))[0][0];
+//			ev_cols = ((MWNumericArray) ev.getField( "cols", 1 )).getInt();
+			ev_time = (int) ((double[][]) ev.get( "time", 1 ))[0][0];
+//			ev_time = ((MWNumericArray) ev.getField( "time", 1 )).getInt();
+			ev_type = (int) ((double[][]) ev.get( "type", 1 ))[0][0];
+//			ev_type = ((MWNumericArray) ev.getField( "type", 1 )).getInt();
+			ev_trip_branch = (int) ((double[][]) ev.get( "trip_branch", 1 ))[0][0];
+//			ev_trip_branch = ((MWNumericArray) ev.getField( "trip_branch", 1 )).getInt();
+			ev_branch_loc = (int) ((double[][]) ev.get( "branch_loc", 1 ))[0][0];
+//			ev_branch_loc = ((MWNumericArray) ev.getField( "branch_loc", 1 )).getInt();
+			ev_trip_bus = (int) ((double[][]) ev.get( "trip_bus", 1 ))[0][0];
+//			ev_trip_bus = ((MWNumericArray) ev.getField( "trip_bus", 1 )).getInt();
+			ev_bus_loc = (int) ((double[][]) ev.get( "bus_loc", 1 ))[0][0];
+//			ev_bus_loc = ((MWNumericArray) ev.getField( "bus_loc", 1 )).getInt();
+			ev_shed_load = (int) ((double[][]) ev.get( "shed_load", 1 ))[0][0];
+//			ev_shed_load = ((MWNumericArray) ev.getField( "shed_load", 1 )).getInt();
+			ev_shunt_loc = (int) ((double[][]) ev.get( "shunt_loc", 1 ))[0][0];
+//			ev_shunt_loc = ((MWNumericArray) ev.getField( "shunt_loc", 1 )).getInt();
+			ev_trip_shunt = (int) ((double[][]) ev.get( "trip_shunt", 1 ))[0][0];
+//			ev_trip_shunt = ((MWNumericArray) ev.getField( "trip_shunt", 1 )).getInt();
+			ev_change_by = (int) ((double[][]) ev.get( "change_by", 1 ))[0][0];
+//			ev_change_by = ((MWNumericArray) ev.getField( "change_by", 1 )).getInt();
+			ev_quantity = (int) ((double[][]) ev.get( "quantity", 1 ))[0][0];
+//			ev_quantity = ((MWNumericArray) ev.getField( "quantity", 1 )).getInt();
+		}
+		finally {
+			ev.dispose();
+		}
 		
 		fillColumnNames( bu_col_names, "bu" );
 		fillColumnNames( br_col_names, "br" );
@@ -138,18 +160,24 @@ public final class CosmicParameters implements AutoCloseable
 		fillColumnNames( sh_col_names, "sh" );
 		fillColumnNames( ev_col_names, "ev" );
 		
-		Nbus = ps.getField( "bus", 1 ).getDimensions()[0];
-		if( ps.getField( "bus", 1 ).getDimensions()[1] != bu_col_names.size() ) {
+		Nbus = M.field_getDimensions( ps, "bus", 1 )[0];
+//		Nbus = ps.getField( "bus", 1 ).getDimensions()[0];
+		if( M.field_getDimensions( ps, "bus", 1 )[1] != bu_col_names.size() ) {
+//		if( ps.getField( "bus", 1 ).getDimensions()[1] != bu_col_names.size() ) {
 			throw new IllegalArgumentException( "ps.bus dimension != col_names" );
 		}
 		
-		Nbranch = ps.getField( "branch", 1 ).getDimensions()[0];
-		if( ps.getField( "branch", 1 ).getDimensions()[1] != br_col_names.size() ) {
+		Nbranch = M.field_getDimensions( ps, "branch", 1 )[0];
+//		Nbranch = ps.getField( "branch", 1 ).getDimensions()[0];
+		if( M.field_getDimensions( ps, "branch", 1 )[1] != br_col_names.size() ) {
+//		if( ps.getField( "branch", 1 ).getDimensions()[1] != br_col_names.size() ) {
 			throw new IllegalArgumentException( "ps.branch dimension != col_names" );
 		}
 		
-		Ngenerator = ps.getField( "gen", 1 ).getDimensions()[0];
-		if( ps.getField( "gen", 1 ).getDimensions()[1] < ge_col_names.size() ) {
+		Ngenerator = M.field_getDimensions( ps, "gen", 1 )[0];
+//		Ngenerator = ps.getField( "gen", 1 ).getDimensions()[0];
+		if( M.field_getDimensions( ps, "gen", 1 )[1] < ge_col_names.size() ) {
+//		if( ps.getField( "gen", 1 ).getDimensions()[1] < ge_col_names.size() ) {
 			throw new IllegalArgumentException( "ps.gen dimension != col_names" );
 		}
 		else if( ps.getField( "gen", 1 ).getDimensions()[1] > ge_col_names.size() ) {
@@ -157,43 +185,82 @@ public final class CosmicParameters implements AutoCloseable
 					  ps.getField( "gen", 1 ).getDimensions()[1], ge_col_names.size() );
 		}
 		
-		Nmachine = ps.getField( "mac", 1 ).getDimensions()[0];
-		if( ps.getField( "mac", 1 ).getDimensions()[1] != ma_col_names.size() ) {
+		Nmachine = M.field_getDimensions( ps, "mac", 1 )[0];
+//		Nmachine = ps.getField( "mac", 1 ).getDimensions()[0];
+		if( M.field_getDimensions( ps, "mac", 1 )[1] != ma_col_names.size() ) {
+//		if( ps.getField( "mac", 1 ).getDimensions()[1] != ma_col_names.size() ) {
 			throw new IllegalArgumentException( "ps.mac dimension != col_names" );
 		}
 		
-		Nexciter = ps.getField( "exc", 1 ).getDimensions()[0];
-		if( ps.getField( "exc", 1 ).getDimensions()[1] != ex_col_names.size() ) {
+		Nexciter = M.field_getDimensions( ps, "exc", 1 )[0];
+//		Nexciter = ps.getField( "exc", 1 ).getDimensions()[0];
+		if( M.field_getDimensions( ps, "exc", 1 )[1] != ex_col_names.size() ) {
+//		if( ps.getField( "exc", 1 ).getDimensions()[1] != ex_col_names.size() ) {
 			throw new IllegalArgumentException( "ps.exc dimension != col_names" );
 		}
 		
-		Ngovernor = ps.getField( "gov", 1 ).getDimensions()[0];
-		if( ps.getField( "gov", 1 ).getDimensions()[1] != go_col_names.size() ) {
+		Ngovernor = M.field_getDimensions( ps, "gov", 1 )[0];
+//		Ngovernor = ps.getField( "gov", 1 ).getDimensions()[0];
+		if( M.field_getDimensions( ps, "gov", 1 )[1] != go_col_names.size() ) {
+//		if( ps.getField( "gov", 1 ).getDimensions()[1] != go_col_names.size() ) {
 			throw new IllegalArgumentException( "ps.gov dimension != col_names" );
 		}
 		
-		Nshunt = ps.getField( "shunt", 1 ).getDimensions()[0];
+		Nshunt = M.field_getDimensions( ps, "shunt", 1 )[0];
+//		Nshunt = ps.getField( "shunt", 1 ).getDimensions()[0];
+		
+//		if( M.field_getDimensions( ps, "bus", 1 )[1] != bu_col_names.size() ) {
 		// FIXME: This error check is desirable, but the current Cosmic
 		// code violates it and will need to be fixed first.
 //		if( ps.getField( "shunt", 1 ).getDimensions()[1] != sh_col_names.size() ) {
 //			throw new IllegalArgumentException( "ps.shunt dimension != col_names" );
 //		}
 		
-		// Initialize bus_to_shunts map
-		for( int mi = 1; mi <= Nbus; ++mi ) {
-			bus_to_shunts.put( mi, new TIntArrayList() );
+		// Initialize bus id to array index map
+		MWNumericArray mbuses = null;
+		try {
+			mbuses = (MWNumericArray) ps.getField( "bus", 1 );
+			for( int mi = 1; mi <= Nbus; ++mi ) {
+				final int bus_id = mbuses.getInt( new int[] { mi, bu_col_names.get( "id" ) } );
+				bus_matlab_index.put( bus_id, mi );
+			}
 		}
-		final MWNumericArray mshunts = (MWNumericArray) ps.getField( "shunt", 1 );
-		for( int mi = 1; mi <= Nshunt; ++mi ) {
-			final int shunt_id	= mshunts.getInt( new int[] { mi, sh_col_names.get( "id" ) } );
-			final int bus_id	= mshunts.getInt( new int[] { mi, sh_col_names.get( "bus" ) } );
-			bus_to_shunts.get( bus_id ).add( shunt_id );
+		finally {
+			mbuses.dispose();
 		}
 		
+		// Initialize bus_to_shunts map
+		bus_matlab_index.forEachKey( new TIntProcedure() {
+			@Override
+			public boolean execute( final int id )
+			{
+				bus_to_shunts.put( id, new TIntArrayList() );
+				return true;
+			}
+		} );
+		MWNumericArray mshunts = null;
+		try {
+			mshunts = (MWNumericArray) ps.getField( "shunt", 1 );
+			for( int mi = 1; mi <= Nshunt; ++mi ) {
+				final int shunt_id	= mshunts.getInt( new int[] { mi, sh_col_names.get( "id" ) } );
+				final int bus_id	= mshunts.getInt( new int[] { mi, sh_col_names.get( "bus" ) } );
+				bus_to_shunts.get( bus_id ).add( shunt_id );
+			}
+		}
+		finally {
+			mshunts.dispose();
+		}
+		
+		// FIXME: The code below here must come *after* the calls to fillColumnNames()
+		// above. This is because Bus, etc. depend on fields of CosmicParameters.
+		// Thus we are calling code that depends on CosmicParameters being initialized
+		// *during execution of CosmicParameters's constructor*, which is bad!
+		
 		// Initialize zone_to_buses map
-		final MWNumericArray mbuses = (MWNumericArray) ps.getField( "bus", 1 );
-		for( int mi = 1; mi <= Nbus; ++mi ) {
-			final Bus bus = new Bus( mi, this, mbuses );
+//		for( int mi = 1; mi <= Nbus; ++mi ) {
+		for( final int id : bus_matlab_index.keys() ) {
+//			final Bus bus = new Bus( mi, this, ps );
+			final Bus bus = new Bus( id, this, ps );
 			final int zone = bus.zone();
 			TIntList zone_buses = zone_to_buses.get( zone );
 			if( zone_buses == null ) {
@@ -222,16 +289,23 @@ public final class CosmicParameters implements AutoCloseable
 		}
 		
 		// Initialize zone_cutsets map
-		for( int mi = 1; mi <= Nzones; ++mi ) {
-			zone_cutsets.put( mi, new TIntHashSet() );
-		}
-		final MWNumericArray mbranches = (MWNumericArray) ps.getField( "branch", 1 );
+		zone_to_buses.forEachKey( new TIntProcedure() {
+			@Override
+			public boolean execute( final int id )
+			{
+				zone_cutsets.put( id, new TIntHashSet() );
+				return true;
+			}
+		} );
+//		for( int mi = 1; mi <= Nzones; ++mi ) {
+//			zone_cutsets.put( mi, new TIntHashSet() );
+//		}
 		for( int mi = 1; mi <= Nbranch; ++mi ) {
-			final Branch br = new Branch( mi, this, mbranches );
+			final Branch br = new Branch( mi, this, ps );
 			final int from = br.from();
 			final int to = br.to();
-			final int from_zone = new Bus( from, this, mbuses ).zone();
-			final int to_zone = new Bus( to, this, mbuses ).zone();
+			final int from_zone = new Bus( from, this, ps ).zone();
+			final int to_zone = new Bus( to, this, ps ).zone();
 			if( from_zone != to_zone ) {
 				zone_cutsets.get( from_zone ).add( br.id() );
 				zone_cutsets.get( to_zone ).add( br.id() );
@@ -248,10 +322,18 @@ public final class CosmicParameters implements AutoCloseable
 	
 	private void fillColumnNames( final LinkedHashMap<String, Integer> names, final String category )
 	{
-		final MWStructArray cat = (MWStructArray) C.getField( category, 1 );
-		final MWCellArray col_names = (MWCellArray) cat.getField( "col_names", 1 );
-		for( int i = 1; i <= col_names.numberOfElements(); ++i ) {
-			names.put( new String( (char[]) col_names.getCell( i ).getData() ), i );
+		MWStructArray cat = null;
+		MWCellArray col_names = null;
+		try {
+			cat = (MWStructArray) C.getField( category, 1 );
+			col_names = (MWCellArray) cat.getField( "col_names", 1 );
+			for( int i = 1; i <= col_names.numberOfElements(); ++i ) {
+				names.put( new String( (char[]) col_names.getCell( i ).getData() ), i );
+			}
+		}
+		finally {
+			cat.dispose();
+			col_names.dispose();
 		}
 	}
 	

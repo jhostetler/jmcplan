@@ -3,7 +3,7 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.cosmic;
 
-import com.mathworks.toolbox.javabuilder.MWNumericArray;
+import com.mathworks.toolbox.javabuilder.MWStructArray;
 
 /**
  * This is a wrapper class to give names to the "bus" fields.
@@ -19,9 +19,10 @@ import com.mathworks.toolbox.javabuilder.MWNumericArray;
  */
 public final class Bus extends CosmicFacade
 {
-	public Bus( final int id, final CosmicParameters params, final MWNumericArray mbus )
+	public Bus( final int id, final CosmicParameters params, final MWStructArray ps )
 	{
-		super( id, params.bu_col_names, mbus );
+//		super( "bus", id, params.bu_col_names, ps );
+		super( "bus", params.bus_matlab_index.get( id ), params.bu_col_names, ps );
 	}
 	
 	@Override

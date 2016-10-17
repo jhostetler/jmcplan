@@ -5,7 +5,7 @@ package edu.oregonstate.eecs.mcplan.domains.cosmic;
 
 import org.apache.commons.math3.complex.Complex;
 
-import com.mathworks.toolbox.javabuilder.MWNumericArray;
+import com.mathworks.toolbox.javabuilder.MWStructArray;
 
 /**
  * This is a wrapper class to give names to the "shunt" fields.
@@ -21,9 +21,9 @@ import com.mathworks.toolbox.javabuilder.MWNumericArray;
  */
 public final class Shunt extends CosmicFacade
 {
-	public Shunt( final int id, final CosmicParameters params, final MWNumericArray mshunt )
+	public Shunt( final int id, final CosmicParameters params, final MWStructArray ps )
 	{
-		super( id, params.sh_col_names, mshunt );
+		super( "shunt", id, params.sh_col_names, ps );
 	}
 	
 	@Override

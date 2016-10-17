@@ -350,7 +350,7 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 		return successors.get( a );
 	}
 	
-	public void expand( final Iterable<A> actions, final int width, final Budget budget )
+	public void expand( final Iterable<? extends A> actions, final int width, final Budget budget )
 	{
 		createActionNodes( actions );
 		sample( width, budget );
@@ -390,7 +390,7 @@ public final class FsssAbstractStateNode<S extends State, A extends VirtualConst
 		}
 	}
 	
-	public void createActionNodes( final Iterable<A> actions )
+	public void createActionNodes( final Iterable<? extends A> actions )
 	{
 		for( final A a : actions ) {
 			final FsssAbstractActionNode<S, A> an = new FsssAbstractActionNode<S, A>(

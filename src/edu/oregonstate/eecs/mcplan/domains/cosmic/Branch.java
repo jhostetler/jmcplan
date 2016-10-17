@@ -3,7 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.cosmic;
 
-import com.mathworks.toolbox.javabuilder.MWNumericArray;
+import com.mathworks.toolbox.javabuilder.MWStructArray;
+
 
 /**
  * @author jhostetler
@@ -11,9 +12,9 @@ import com.mathworks.toolbox.javabuilder.MWNumericArray;
  */
 public final class Branch extends CosmicFacade
 {
-	public Branch( final int id, final CosmicParameters params, final MWNumericArray mbranch )
+	public Branch( final int id, final CosmicParameters params, final MWStructArray ps )
 	{
-		super( id, params.br_col_names, mbranch );
+		super( "branch", id, params.br_col_names, ps );
 	}
 	
 	@Override

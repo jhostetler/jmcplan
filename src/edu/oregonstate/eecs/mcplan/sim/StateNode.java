@@ -2,13 +2,15 @@ package edu.oregonstate.eecs.mcplan.sim;
 
 import java.util.ArrayList;
 
+import com.google.common.collect.Iterables;
 
 
-public final class StateNode<S, A>
+
+public class StateNode<S, A>
 {
 	public final S s;
 	public final double r;
-	private final ArrayList<ActionNode<S, A>> succ = new ArrayList<>();
+	protected final ArrayList<ActionNode<S, A>> successors = new ArrayList<>();
 	
 	public StateNode( final S s, final double r )
 	{
@@ -16,18 +18,18 @@ public final class StateNode<S, A>
 		this.r = r;
 	}
 	
-	public Iterable<ActionNode<S, A>> succ()
+	public Iterable<ActionNode<S, A>> successors()
 	{
-		return succ;
+		return Iterables.unmodifiableIterable( successors );
 	}
 	
 	public void addSuccessor( final ActionNode<S, A> an )
 	{
-		succ.add( an );
+		successors.add( an );
 	}
 	
 	public boolean isTerminal()
 	{
-		return succ.isEmpty();
+		return successors.isEmpty();
 	}
 }

@@ -31,8 +31,8 @@ public final class Trajectory
 	
 	public static <S, A> StateNode<S, A> nextState( final StateNode<S, A> sn )
 	{
-		for( final ActionNode<S, A> an : sn.succ() ) {
-			for( final StateNode<S, A> snprime : an.succ() ) {
+		for( final ActionNode<S, A> an : sn.successors() ) {
+			for( final StateNode<S, A> snprime : an.successors() ) {
 				return snprime;
 			}
 		}

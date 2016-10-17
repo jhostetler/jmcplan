@@ -28,9 +28,9 @@ public class TrajectoryTraversal<S, A> extends StateActionGraphTraversal<S, A>
 		StateNode<S, A> s = s0;
 		fireStateNode( s );
 		while( !s.isTerminal() ) {
-			final ActionNode<S, A> a = Fn.head( s.succ() );
+			final ActionNode<S, A> a = Fn.head( s.successors() );
 			fireActionNode( a );
-			s = Fn.head( a.succ() );
+			s = Fn.head( a.successors() );
 			fireStateNode( s );
 		}
 	}

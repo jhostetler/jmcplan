@@ -5,6 +5,8 @@ package edu.oregonstate.eecs.mcplan.sim;
 
 import java.util.ArrayList;
 
+import com.google.common.collect.Iterables;
+
 /**
  * @author jhostetler
  *
@@ -13,7 +15,7 @@ public class ActionNode<S, A>
 {
 	public final A a;
 	public final double r;
-	private final ArrayList<StateNode<S, A>> succ = new ArrayList<>();
+	protected final ArrayList<StateNode<S, A>> successors = new ArrayList<>();
 	
 	public ActionNode( final A a, final double r )
 	{
@@ -21,13 +23,13 @@ public class ActionNode<S, A>
 		this.r = r;
 	}
 	
-	public Iterable<StateNode<S, A>> succ()
+	public Iterable<StateNode<S, A>> successors()
 	{
-		return succ;
+		return Iterables.unmodifiableIterable( successors );
 	}
 	
 	public void addSuccessor( final StateNode<S, A> sn )
 	{
-		succ.add( sn );
+		successors.add( sn );
 	}
 }

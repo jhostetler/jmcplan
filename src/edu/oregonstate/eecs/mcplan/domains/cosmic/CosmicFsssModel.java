@@ -13,9 +13,10 @@ import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.search.fsss.FsssModel;
 
 /**
+ * @deprecated
  * @author jhostetler
- *
  */
+@Deprecated
 public class CosmicFsssModel extends FsssModel<CosmicState, CosmicAction>
 {
 	private final RandomGenerator rng;
@@ -73,7 +74,7 @@ public class CosmicFsssModel extends FsssModel<CosmicState, CosmicAction>
 	@Override
 	public double Vmax( final CosmicState s, final CosmicAction a )
 	{
-		return 0;
+		return reward(s, a) + Rmax * Math.max( 0, params.T - s.t - 1 );
 	}
 
 	@Override

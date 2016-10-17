@@ -22,6 +22,7 @@ import org.apache.commons.math3.random.RandomGenerator;
 
 import ch.qos.logback.classic.Level;
 
+import com.google.common.collect.Iterables;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonPrimitive;
@@ -94,6 +95,13 @@ public class CosmicExperiments
 		
 		public final CosmicParameters.Version version;
 		
+		public enum HistoryLoggingMode
+		{
+			none, small, full
+		}
+		
+		public final HistoryLoggingMode log_history;
+		
 		public Configuration( final String root_directory, final String experiment_name, final KeyValueStore config )
 		{
 			config_ = config;
@@ -134,6 +142,8 @@ public class CosmicExperiments
 					throw new IllegalArgumentException( "cosmic.version" );
 				}
 			}
+			
+			log_history = HistoryLoggingMode.valueOf( get( "log.history" ) );
 		}
 
 		@Override
@@ -258,7 +268,7 @@ public class CosmicExperiments
 			return Pi;
 		}
 		
-		public CosmicMatlabInterface.Case createCase( final CosmicMatlabInterface cosmic )
+		public CosmicMatlabInterface.Problem createCase( final CosmicMatlabInterface cosmic )
 		{
 			final CosmicOptions jopt = new CosmicOptions.Builder()
 				.verbose( cosmic_verbose )
@@ -266,10 +276,13 @@ public class CosmicExperiments
 				.simgrid_method( CosmicOptions.SimgridMethod.valueOf( get( "cosmic.simgrid_method" ) ) )
 				.finish();
 			final String name = get( "domain" );
-			final CosmicMatlabInterface.Case c;
+			final CosmicMatlabInterface.Problem c;
 			switch( name ) {
 			case "ieee39":
 				c = cosmic.init_case39( T, jopt );
+				break;
+			case "rts96":
+				c = cosmic.init_rts96( T, jopt );
 				break;
 			case "poland":
 				c = cosmic.init_poland( T, jopt );
@@ -491,24 +504,29 @@ public class CosmicExperiments
 		
 	}
 	
-	private static class DataOutput implements AutoCloseable, SimulationListener<CosmicState, CosmicAction>
+	/**
+	 * This class is responsible for extracting necessary information from the
+	 * "real world" trajectory and freeing the CosmicState objects.
+	 */
+	private static class WorldTrajectoryConsumer implements AutoCloseable, SimulationListener<CosmicState, CosmicAction>
 	{
 		private final Configuration config;
+		private final CosmicParameters params;
 		private final Csv.Writer csv;
 		
-		private final boolean log_history;
 		private final Gson gson;
 		private PrintWriter history_out = null;
 		private JsonWriter history_writer = null;
 		
 		private StateNode<CosmicState, CosmicAction> sprev = null;
 		
-		public DataOutput( final Configuration config, final CosmicParameters params ) throws FileNotFoundException
+		public WorldTrajectoryConsumer( final Configuration config, final CosmicParameters params ) throws FileNotFoundException
 		{
 			this.config = config;
+			this.params = params;
 			this.csv = new Csv.Writer( new PrintStream( new File( config.data_directory, "rewards.csv" ) ) );
-			this.log_history = config.getBoolean( "log.history" );
-			this.gson = log_history ? config.createGson( params ) : null;
+			this.gson = config.log_history != Configuration.HistoryLoggingMode.none
+						? config.createGson( params ) : null;
 			
 			// Initialize output files
 			csv.cell( "Tstable" ).cell( "Tepisode" ).cell( "fault" );
@@ -524,7 +542,7 @@ public class CosmicExperiments
 		
 		public void beginEpisode( final TrajectorySimulator<CosmicState, CosmicAction> world, final int episode ) throws IOException
 		{
-			if( log_history ) {
+			if( config.log_history != Configuration.HistoryLoggingMode.none  ) {
 				history_out = config.createHistoryPrintStream( episode );
 				history_writer = new JsonWriter( history_out );
 				history_writer.beginArray();
@@ -537,13 +555,17 @@ public class CosmicExperiments
 		
 		public void endEpisode() throws IOException
 		{
-			if( log_history ) {
+			if( config.log_history != Configuration.HistoryLoggingMode.none  ) {
 				history_writer.endArray();
 				history_out.close();
 				history_out = null;
 			}
 			
 			csv.newline();
+			
+			if( sprev != null ) {
+				sprev.s.close();
+			}
 		}
 		
 		@Override
@@ -562,7 +584,7 @@ public class CosmicExperiments
 			csv.cell( s0.r );
 			sprev = s0;
 			
-			if( log_history ) {
+			if( config.log_history != Configuration.HistoryLoggingMode.none  ) {
 				gson.toJson( sprev.s, sprev.s.getClass(), history_writer );
 				gson.toJson( new JsonPrimitive( sprev.r ), history_writer );
 			}
@@ -573,22 +595,25 @@ public class CosmicExperiments
 		{
 			csv.cell( trans.a );
 			double r = trans.r;
-			final StateNode<CosmicState, CosmicAction> succ = Fn.head( trans.succ() );
+			final StateNode<CosmicState, CosmicAction> succ = Iterables.getOnlyElement( trans.successors() );
 			r += succ.r;
 			csv.cell( r );
 			
-			if( log_history ) {
-				if( !(trans.a instanceof CosmicNothingAction) ) {
+			if( config.log_history != Configuration.HistoryLoggingMode.none  ) {
+				if( config.log_history == Configuration.HistoryLoggingMode.full
+					|| (config.log_history == Configuration.HistoryLoggingMode.small
+						&& (sprev.s.t % config.getInt( "epoch" )) == 0) ) {
+//						&& !(trans.a instanceof CosmicNothingAction)) ) {
 					if( sprev.s.t > 0 ) {
 						// We always log the initial state, so make sure we
 						// don't duplicate it.
 						gson.toJson( sprev.s, sprev.s.getClass(), history_writer );
 						gson.toJson( new JsonPrimitive( sprev.r ), history_writer );
 					}
-					
-					gson.toJson( trans.a, trans.a.getClass(), history_writer );
-					gson.toJson( new JsonPrimitive( trans.r ), history_writer );
 				}
+				
+				gson.toJson( trans.a, trans.a.getClass(), history_writer );
+				gson.toJson( new JsonPrimitive( trans.r ), history_writer );
 				
 				if( succ.s.t == config.T ) {
 					// Always log the final state. We know it's not a length-0
@@ -645,19 +670,19 @@ public class CosmicExperiments
 			System.out.println( "[Matlab is alive]" );
 			
 			// Initialize Cosmic
-			final CosmicMatlabInterface.Case cosmic_case = config.createCase( cosmic );
+			final CosmicMatlabInterface.Problem cosmic_case = config.createCase( cosmic );
 			final CosmicParameters params = cosmic_case.params;
 			LogDomain.info( "params: {}", cosmic_case.params );
 			LogDomain.info( "s0: {}", cosmic_case.s0 );
 			LogDomain.info( "s0.ps: {}", cosmic_case.s0.ps );
 			
-			try( final DataOutput data_out = new DataOutput( config, params ) ) {
+			try( final WorldTrajectoryConsumer data_out = new WorldTrajectoryConsumer( config, params ) ) {
 				
 				for( int episode = 0; episode < config.getInt( "Nepisodes" ); ++episode ) {
-					final CosmicState s = cosmic_case.s0;
+					final CosmicState s = cosmic_case.s0.copy();
 					
 					// Simulator
-					final RandomGenerator rng = new MersenneTwister( config.getInt( "seed.world" ) );
+					final RandomGenerator world_rng = new MersenneTwister( config.getInt( "seed.world" ) );
 					final CosmicTransitionSimulator world = new CosmicTransitionSimulator( params );
 					world.addSimulationListener( new SimulationListener<CosmicState, CosmicAction>() {
 		
@@ -674,15 +699,17 @@ public class CosmicExperiments
 						{
 							LogWorld.info( "world: a  : {}", trans.a );
 							LogWorld.info( "world: a.r: {}", trans.r );
-							final StateNode<CosmicState, CosmicAction> sprime = Fn.head( trans.succ() );
+							final StateNode<CosmicState, CosmicAction> sprime = Fn.head( trans.successors() );
 							LogWorld.debug( "world: s  : {}", sprime.s );
 							LogWorld.info( "world: s.r: {}", sprime.r );
+							// Note: show_memory() will cause a crash on the cluster!
 //							cosmic.show_memory();
 						}
 					} );
 					
 					// Agent
-					final Policy<CosmicState, CosmicAction> agent = config.createAgent( rng, params );
+					final RandomGenerator agent_rng = new MersenneTwister( config.getInt( "seed.agent" ) );
+					final Policy<CosmicState, CosmicAction> agent = config.createAgent( agent_rng, params );
 					
 					// Fault scenario
 					final CosmicAction fault_action;
@@ -705,7 +732,7 @@ public class CosmicExperiments
 					
 					// Do episode
 					data_out.beginEpisode( world, episode );
-					world.sampleTrajectory( rng, s, pi, config.T );
+					world.sampleTrajectory( world_rng, s, pi, config.T );
 					data_out.endEpisode();
 				} // for each episode
 			} // RAII for data_out

@@ -19,6 +19,7 @@ import com.mathworks.toolbox.javabuilder.MWNumericArray;
 import com.mathworks.toolbox.javabuilder.MWStructArray;
 
 import edu.oregonstate.eecs.mcplan.State;
+import gnu.trove.iterator.TIntIntIterator;
 import gnu.trove.list.TIntList;
 import gnu.trove.list.array.TIntArrayList;
 
@@ -69,8 +70,19 @@ public class CosmicState implements State
 				
 				writer.name( "ps" ).beginObject();
 				{
-					writer.name( "casename" ).value( ((MWCharArray) s.ps.getField( "casename", 1 )).toString() );
-					writer.name( "blackout" ).value( ((MWLogicalArray) s.ps.getField( "blackout", 1 )).getBoolean( 1 ) );
+					MWCharArray casename = null;
+					MWLogicalArray blackout = null;
+					try {
+						casename = (MWCharArray) s.ps.getField( "casename", 1 );
+						writer.name( "casename" ).value( casename.toString() );
+						blackout = (MWLogicalArray) s.ps.getField( "blackout", 1 );
+						writer.name( "blackout" ).value( blackout.getBoolean( 1 ) );
+					}
+					finally {
+						casename.dispose();
+						blackout.dispose();
+					}
+					
 					final String[] psfields = new String[] {
 						"baseMVA",
 						"bus", "branch", "gen", "mac", "shunt", "exc", "gov",
@@ -79,9 +91,15 @@ public class CosmicState implements State
 					};
 					for( final String field : psfields ) {
 						writer.name( field );
-						mw.write( writer, (MWNumericArray) s.ps.getField( field, 1 ) );
+						MWNumericArray f = null;
+						try {
+							f = (MWNumericArray) s.ps.getField( field, 1 );
+							mw.write( writer, f );
+						}
+						finally {
+							f.dispose();
+						}
 					}
-					
 				}
 				writer.endObject();
 				
@@ -139,9 +157,17 @@ public class CosmicState implements State
 		
 		public double omega_pu( final Generator g )
 		{
-			final MWStructArray subindex = (MWStructArray) params.index.getField( "x", 1 );
-			final int idx = ((MWNumericArray) subindex.getField( "omega_pu", 1 )).getInt();
-			return mx.getDouble( idx );
+			MWStructArray subindex = null;
+			try {
+				subindex = (MWStructArray) params.index.getField( "x", 1 );
+				final int idx = (int) subindex.get( "omega_pu", 1 );
+				return mx.getDouble( idx );
+			}
+			finally {
+				subindex.dispose();
+			}
+//			final int idx = ((MWNumericArray) subindex.getField( "omega_pu", 1 )).getInt();
+//			return mx.getDouble( idx );
 		}
 	}
 	
@@ -273,23 +299,29 @@ public class CosmicState implements State
 	 */
 	public DistanceBusPair[] nearestBusesByRowElectricalDistance( final CosmicParameters params, final int bus )
 	{
-		final MWNumericArray E = (MWNumericArray) ps.getField( "Ebus", 1 );
-		final int[] idx = new int[] { bus, 1 };
-		final DistanceBusPair[] result = new DistanceBusPair[params.Nbus];
-		for( int i = 0; i < params.Nbus; ++i ) {
-			idx[1] = i + 1;
-			final double d = E.getDouble( idx );
-			result[i] = new DistanceBusPair( d, i + 1 );
+		MWNumericArray E = null;
+		try {
+			E = (MWNumericArray) ps.getField( "Ebus", 1 );
+			final int[] idx = new int[] { bus, 1 };
+			final DistanceBusPair[] result = new DistanceBusPair[params.Nbus];
+			for( int i = 0; i < params.Nbus; ++i ) {
+				idx[1] = i + 1;
+				final double d = E.getDouble( idx );
+				result[i] = new DistanceBusPair( d, i + 1 );
+			}
+			Arrays.sort( result );
+			return result;
 		}
-		Arrays.sort( result );
-		return result;
+		finally {
+			E.dispose();
+		}
 	}
 	
 	// -----------------------------------------------------------------------
 	
 	public Branch branch( final int id )
 	{
-		return new Branch( id, params, (MWNumericArray) ps.getField( "branch", 1 ) );
+		return new Branch( id, params, ps );
 	}
 	
 	public Iterable<Branch> branches()
@@ -323,7 +355,7 @@ public class CosmicState implements State
 	 */
 	public Bus bus( final int id )
 	{
-		return new Bus( id, params, (MWNumericArray) ps.getField( "bus", 1 ) );
+		return new Bus( id, params, ps );
 	}
 	
 	public Iterable<Bus> buses()
@@ -333,14 +365,15 @@ public class CosmicState implements State
 			public Iterator<Bus> iterator()
 			{
 				return new Iterator<Bus>() {
-					int i = 1;
+					TIntIntIterator itr = params.bus_matlab_index.iterator();
+					
 					@Override
 					public boolean hasNext()
-					{ return i <= params.Nbus; }
+					{ return itr.hasNext(); }
 
 					@Override
 					public Bus next()
-					{ return bus( i++ ); }
+					{ itr.advance(); return bus( itr.key() ); }
 
 					@Override
 					public void remove()
@@ -352,7 +385,7 @@ public class CosmicState implements State
 	
 	public Generator generator( final int id )
 	{
-		return new Generator( id, params, (MWNumericArray) ps.getField( "gen", 1 ) );
+		return new Generator( id, params, ps );
 	}
 	
 	/**
@@ -362,7 +395,7 @@ public class CosmicState implements State
 	 */
 	public Shunt shunt( final int id )
 	{
-		return new Shunt( id, params, (MWNumericArray) ps.getField( "shunt", 1 ) );
+		return new Shunt( id, params, ps );
 	}
 	
 	public Iterable<Shunt> shunts()

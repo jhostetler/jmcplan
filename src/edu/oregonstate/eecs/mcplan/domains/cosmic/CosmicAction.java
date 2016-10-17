@@ -67,7 +67,14 @@ public abstract class CosmicAction implements VirtualConstructor<CosmicAction>
 			writer.beginObject();
 			writer.name( "a" ).value( a.toString() );
 			writer.name( "m" );
-			mw.write( writer, a.toMatlab( params, t_default ) );
+			MWNumericArray m = null;
+			try {
+				m = a.toMatlab( params, t_default );
+				mw.write( writer, m );
+			}
+			finally {
+				m.dispose();
+			}
 			writer.endObject();
 		}
 		

@@ -31,7 +31,7 @@ public abstract class TransitionSimulator<S extends State, A> extends Trajectory
 			pi.setState( sn.s, t );
 			final A a = pi.getAction();
 			final ActionNode<S, A> tr = sampleTransition( rng, sn.s, a );
-			sn = Fn.head( tr.succ() );
+			sn = Fn.head( tr.successors() );
 			
 			t += 1;
 			if( t == depth_limit ) {
