@@ -4,7 +4,6 @@
 package edu.oregonstate.eecs.mcplan.domains.planetwars;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Iterator;
 
 import org.jgrapht.alg.FloydWarshallShortestPaths;
@@ -22,40 +21,6 @@ import gnu.trove.list.TDoubleList;
  */
 public class PwState implements State
 {
-	private static class PwShipArrivalTimeComparator implements Comparator<PwShip>
-	{
-		@Override
-		public int compare( final PwShip a, final PwShip b )
-		{
-			return a.arrival_time - b.arrival_time;
-		}
-	}
-	
-	private static class PwShipDetailedComparator implements Comparator<PwShip>
-	{
-		@Override
-		public int compare( final PwShip a, final PwShip b )
-		{
-			final int ceta = a.arrival_time - b.arrival_time;
-			if( ceta != 0 ) {
-				return ceta;
-			}
-			final int cplayer = a.owner.id - b.owner.id;
-			if( cplayer != 0 ) {
-				return cplayer;
-			}
-			final int csrc = a.src.id - b.src.id;
-			if( csrc != 0 ) {
-				return csrc;
-			}
-			final int cdest = a.dest.id - b.dest.id;
-			// This holds because only one ship can be launched per turn
-			// from a planet, so (ETA, owner, src, dest) identifies the ship.
-			assert( cdest != 0 );
-			return cdest;
-		}
-	}
-	
 	@SuppressWarnings( "serial" )
 	public static class RouteEdge extends DefaultWeightedEdge
 	{
@@ -292,4 +257,8 @@ public class PwState implements State
 	{
 		return t >= game.T || winner() != null;
 	}
+
+	@Override
+	public void close()
+	{ }
 }

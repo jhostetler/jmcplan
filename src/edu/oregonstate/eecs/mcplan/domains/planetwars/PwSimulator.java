@@ -6,6 +6,7 @@ package edu.oregonstate.eecs.mcplan.domains.planetwars;
 import java.util.ArrayDeque;
 
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.Pair;
@@ -97,7 +98,7 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 		}
 
 		@Override
-		public void doAction( final PwState s )
+		public void doAction( final RandomGenerator rng, final PwState s )
 		{
 			assert( !done );
 			planet.setStoredProduction( type, planet.storedProduction( type ) + production );
@@ -153,7 +154,7 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 		}
 
 		@Override
-		public void doAction( final PwState state )
+		public void doAction( final RandomGenerator rng, final PwState s )
 		{
 			assert( !done );
 			planet.incrementPopulation( planet.owner(), type );
@@ -223,7 +224,7 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 		}
 		
 		@Override
-		public void doAction( final PwState s )
+		public void doAction( final RandomGenerator rng, final PwState s )
 		{
 			assert( !done );
 			for( final PwPlanet p : planets ) {
@@ -295,7 +296,7 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 		}
 
 		@Override
-		public void doAction( final PwState s )
+		public void doAction( final RandomGenerator rng, final PwState s )
 		{
 			assert( !done );
 			for( final PwPlayer player : PwPlayer.competitors ) {
@@ -404,7 +405,7 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 		}
 
 		@Override
-		public void doAction( final PwState s )
+		public void doAction( final RandomGenerator rng, final PwState s )
 		{
 			assert( !done );
 			old_owner = planet.owner();
@@ -511,7 +512,7 @@ public class PwSimulator implements UndoSimulator<PwState, PwEvent>
 		}
 
 		@Override
-		public void doAction( final PwState s )
+		public void doAction( final RandomGenerator rng, final PwState s )
 		{
 			assert( old_owner == null );
 			old_owner = planet.owner();

@@ -88,7 +88,7 @@ public class PwGroundRepresenter implements FactoredRepresenter<PwState, Factore
 	@Override
 	public FactoredRepresentation<PwState> encode( final PwState s )
 	{
-		final double[] phi = new double[attributes.size()];
+		final float[] phi = new float[attributes.size()];
 		int idx = 0;
 		
 		phi[idx++] = s.winner() == null ? -1 : s.winner().id; //attributes.add( new Attribute( "winner" ) );

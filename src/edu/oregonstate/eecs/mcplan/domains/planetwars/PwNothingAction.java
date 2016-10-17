@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.planetwars;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 
 /**
  * @author jhostetler
@@ -13,7 +15,7 @@ public class PwNothingAction extends PwEvent
 	private boolean done = false;
 	
 	@Override
-	public void doAction( final PwState s )
+	public void doAction( final RandomGenerator rng, final PwState s )
 	{
 		done = true;
 	}

@@ -4,6 +4,7 @@
 package edu.oregonstate.eecs.mcplan.domains.planetwars;
 
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.math3.random.RandomGenerator;
 
 /**
  * @author jhostetler
@@ -32,7 +33,7 @@ public class PwSetProducingAction extends PwEvent
 	}
 	
 	@Override
-	public void doAction( final PwState s )
+	public void doAction( final RandomGenerator rng, final PwState s )
 	{
 		assert( !done );
 		old_unit = planet.nextProduced();
