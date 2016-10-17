@@ -53,9 +53,13 @@ public class Irrelevance
 		{
 			return s.length() == 2;
 		}
+
+		@Override
+		public void close()
+		{ }
 	}
 	
-	public static abstract class Action implements UndoableAction<State>, VirtualConstructor<Action>
+	public static abstract class Action extends UndoableAction<State> implements VirtualConstructor<Action>
 	{
 		@Override
 		public abstract Action create();
@@ -63,22 +67,16 @@ public class Irrelevance
 	
 	public class LeftAction extends Action
 	{
-		private final RandomGenerator rng_;
 		private boolean done_ = false;
 		private int i_old_ = 0;
-		
-		public LeftAction( final RandomGenerator rng )
-		{
-			rng_ = rng;
-		}
-		
+
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			i_old_ = s.i;
-			final UniformIntegerDistribution u = new UniformIntegerDistribution( rng_, 0, Ns - 1 );
+			final UniformIntegerDistribution u = new UniformIntegerDistribution( rng, 0, Ns - 1 );
 			s.i = u.sample();
-			if( rng_.nextDouble() > slip ) {
+			if( rng.nextDouble() > slip ) {
 				s.s += "L";
 			}
 			else {
@@ -101,7 +99,7 @@ public class Irrelevance
 
 		@Override
 		public LeftAction create()
-		{ return new LeftAction( rng_ ); }
+		{ return new LeftAction(); }
 		
 		@Override
 		public int hashCode()
@@ -120,22 +118,16 @@ public class Irrelevance
 	
 	public class RightAction extends Action
 	{
-		private final RandomGenerator rng_;
 		private boolean done_ = false;
 		private int i_old_ = 0;
 		
-		public RightAction( final RandomGenerator rng )
-		{
-			rng_ = rng;
-		}
-		
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			i_old_ = s.i;
-			final UniformIntegerDistribution u = new UniformIntegerDistribution( rng_, 0, Ns - 1 );
+			final UniformIntegerDistribution u = new UniformIntegerDistribution( rng, 0, Ns - 1 );
 			s.i = u.sample();
-			if( rng_.nextDouble() > slip ) {
+			if( rng.nextDouble() > slip ) {
 				s.s += "R";
 			}
 			else {
@@ -158,7 +150,7 @@ public class Irrelevance
 
 		@Override
 		public RightAction create()
-		{ return new RightAction( rng_ ); }
+		{ return new RightAction(); }
 		
 		@Override
 		public int hashCode()
@@ -247,34 +239,34 @@ public class Irrelevance
 	public static class IdentityRepresentation extends FactoredRepresentation<State>
 	{
 		private final String s_;
-		private final double[] phi_;
+		private final float[] phi_;
 		
 		public IdentityRepresentation( final State s )
 		{
 			s_ = s.toString();
 			
 			final String ss = s.s;
-			phi_ = new double[8];
+			phi_ = new float[8];
 			if( "".equals( ss ) ) {
-				phi_[0] = 1.0;
+				phi_[0] = 1.0f;
 			}
 			else if( "L".equals( ss ) ) {
-				phi_[1] = 1.0;
+				phi_[1] = 1.0f;
 			}
 			else if( "R".equals( ss ) ) {
-				phi_[2] = 1.0;
+				phi_[2] = 1.0f;
 			}
 			else if( "LL".equals( ss ) ) {
-				phi_[3] = 1.0;
+				phi_[3] = 1.0f;
 			}
 			else if( "LR".equals( ss ) ) {
-				phi_[4] = 1.0;
+				phi_[4] = 1.0f;
 			}
 			else if( "RL".equals( ss ) ) {
-				phi_[5] = 1.0;
+				phi_[5] = 1.0f;
 			}
 			else if( "RR".equals( ss ) ) {
-				phi_[6] = 1.0;
+				phi_[6] = 1.0f;
 			}
 			phi_[7] = s.i;
 		}
@@ -325,7 +317,7 @@ public class Irrelevance
 		}
 
 		@Override
-		public double[] phi()
+		public float[] phi()
 		{
 			return phi_;
 		}
@@ -358,14 +350,8 @@ public class Irrelevance
 	
 	public class ActionGen extends ActionGenerator<State, Action>
 	{
-		private final RandomGenerator rng_;
 		private final ArrayList<Action> as_ = new ArrayList<Action>();
 		private ListIterator<Action> itr_ = null;
-		
-		public ActionGen( final RandomGenerator rng )
-		{
-			rng_ = rng;
-		}
 		
 		@Override
 		public boolean hasNext()
@@ -377,14 +363,14 @@ public class Irrelevance
 
 		@Override
 		public ActionGen create()
-		{ return new ActionGen( rng_ ); }
+		{ return new ActionGen(); }
 
 		@Override
-		public void setState( final State s, final long t, final int[] turn )
+		public void setState( final State s, final long t )
 		{
 			as_.clear();
-			as_.add( new LeftAction( rng_ ) );
-			as_.add( new RightAction( rng_ ) );
+			as_.add( new LeftAction() );
+			as_.add( new RightAction() );
 			itr_ = as_.listIterator();
 		}
 

@@ -99,11 +99,15 @@ public class CliffWorld
 		{
 			return "path: " + path + ", location: " + location + ", wind: " + wind + ", slip: " + slip;
 		}
+
+		@Override
+		public void close()
+		{ }
 	}
 	
 	// -----------------------------------------------------------------------
 	
-	public static abstract class Action implements UndoableAction<State>, VirtualConstructor<Action>
+	public static abstract class Action extends UndoableAction<State> implements VirtualConstructor<Action>
 	{
 		public abstract double reward();
 	}
@@ -124,7 +128,7 @@ public class CliffWorld
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			assert( !done );
 			assert( s.path == Path.Start );
@@ -173,7 +177,7 @@ public class CliffWorld
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			assert( !done );
 			assert( s.path == Path.Start );
@@ -225,7 +229,7 @@ public class CliffWorld
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			assert( !done );
 			old_location = s.location;
@@ -274,13 +278,6 @@ public class CliffWorld
 		private int old_location = -1;
 		private int old_slip = 0;
 		
-		private final RandomGenerator rng;
-		
-		public FastAction( final RandomGenerator rng )
-		{
-			this.rng = rng;
-		}
-		
 		@Override
 		public void undoAction( final State s )
 		{
@@ -292,7 +289,7 @@ public class CliffWorld
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			assert( !done );
 			old_location = s.location;
@@ -321,7 +318,7 @@ public class CliffWorld
 
 		@Override
 		public FastAction create()
-		{ return new FastAction( rng ); }
+		{ return new FastAction(); }
 		
 		@Override
 		public boolean equals( final Object obj )
@@ -356,7 +353,7 @@ public class CliffWorld
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			assert( !done );
 			old_slip = s.slip;
@@ -454,7 +451,7 @@ public class CliffWorld
 			}
 			else {
 				if( n == 0 ) {
-					a = new FastAction( rng );
+					a = new FastAction();
 				}
 				else if( n == 1 ) {
 					a = new CautiousAction();
@@ -493,7 +490,7 @@ public class CliffWorld
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			assert( !done );
 			old_wind = s.wind;
@@ -621,11 +618,11 @@ public class CliffWorld
 	
 	public static class PrimitiveRepresentation extends FactoredRepresentation<State>
 	{
-		private final double[] phi;
+		private final float[] phi;
 		
 		public PrimitiveRepresentation( final State s )
 		{
-			phi = new double[4];
+			phi = new float[4];
 			int idx = 0;
 			phi[idx++] = s.path.ordinal();
 			phi[idx++] = s.location;
@@ -633,11 +630,11 @@ public class CliffWorld
 			phi[idx++] = s.slip;
 		}
 		
-		private PrimitiveRepresentation( final double[] phi )
+		private PrimitiveRepresentation( final float[] phi )
 		{ this.phi = phi; }
 		
 		@Override
-		public double[] phi()
+		public float[] phi()
 		{ return phi; }
 
 		@Override
@@ -708,6 +705,8 @@ public class CliffWorld
 	
 	public static class FsssModel extends edu.oregonstate.eecs.mcplan.search.fsss.FsssModel<State, Action>
 	{
+		private final KeyValueStore config;
+		
 		private final double Vmin;
 		private final double Vmax;
 		
@@ -720,6 +719,7 @@ public class CliffWorld
 		
 		public FsssModel( final RandomGenerator rng, final KeyValueStore config )
 		{
+			this.config = config;
 			final int L = config.getInt( "cliffworld.L" );
 			final int W = config.getInt( "cliffworld.W" );
 			final int F = config.getInt( "cliffworld.F" );
@@ -728,11 +728,11 @@ public class CliffWorld
 			Vmax = calculateVmax( s0 );
 		}
 		
-		public FsssModel( final State s )
+		@Override
+		public edu.oregonstate.eecs.mcplan.search.fsss.FsssModel<State, Action> create(
+				final RandomGenerator rng )
 		{
-			s0 = s;
-			Vmin = calculateVmin( s0 );
-			Vmax = calculateVmax( s0 );
+			return new FsssModel( rng, this.config );
 		}
 		
 		private double calculateVmin( final State s )
@@ -752,12 +752,28 @@ public class CliffWorld
 		}
 		
 		@Override
-		public double Vmin()
-		{ return Vmin; }
+		public double Vmin( final State s )
+		{
+			return SteadyAction.reward * (s.L - s.location);
+		}
 
 		@Override
-		public double Vmax()
-		{ return Vmax; }
+		public double Vmax( final State s )
+		{
+			return 0;
+		}
+
+		@Override
+		public double Vmin( final State s, final Action a )
+		{
+			return reward( s, a ) + SteadyAction.reward * (s.L - s.location - 1);
+		}
+
+		@Override
+		public double Vmax( final State s, final Action a )
+		{
+			return reward( s, a );
+		}
 
 		@Override
 		public double discount()
@@ -819,6 +835,31 @@ public class CliffWorld
 		@Override
 		public int sampleCount()
 		{ return sample_count; }
+
+		
+
+		
+
+		@Override
+		public double heuristic( final State s )
+		{
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public RandomGenerator rng()
+		{
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public void resetSampleCount()
+		{
+			// TODO Auto-generated method stub
+			
+		}
 	}
 	
 	// -----------------------------------------------------------------------

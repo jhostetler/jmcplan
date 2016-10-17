@@ -80,12 +80,9 @@ public class SparseValueIterationSolver<S, A extends VirtualConstructor<A>> impl
 		final Generator<S> g = m_.S().generator();
 		while( g.hasNext() ) {
 			final S s = g.next();
-			m_.A().setState( s );
-			final Generator<A> ga = m_.A().generator();
 			double max_q = -Double.MAX_VALUE;
 			A max_a = null;
-			while( ga.hasNext() ) {
-				final A a = ga.next();
+			for( final A a : m_.A().getActionSet( s ) ) {
 				final double q = Q( s, a );
 				if( q > max_q ) {
 					max_q = q;
@@ -127,10 +124,7 @@ public class SparseValueIterationSolver<S, A extends VirtualConstructor<A>> impl
 			assert( s != null );
 			final double r = m_.R( s );
 			double qstar = -Double.MAX_VALUE;
-			m_.A().setState( s );
-			final Generator<A> ga = m_.A().generator();
-			while( ga.hasNext() ) {
-				final A a = ga.next();
+			for( final A a : m_.A().getActionSet( s ) ) {
 //				System.out.println( s.toString() );
 				final Pair<ArrayList<S>, ArrayList<Double>> sparse_p = m_.sparseP( s, a );
 				double q = m_.R( s, a );

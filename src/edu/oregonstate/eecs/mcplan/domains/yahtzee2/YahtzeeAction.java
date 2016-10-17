@@ -10,7 +10,7 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  * @author jhostetler
  *
  */
-public abstract class YahtzeeAction implements UndoableAction<YahtzeeState>, VirtualConstructor<YahtzeeAction>
+public abstract class YahtzeeAction extends UndoableAction<YahtzeeState> implements VirtualConstructor<YahtzeeAction>
 {
 
 }

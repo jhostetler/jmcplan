@@ -148,11 +148,15 @@ public class RallyWorld
 		{
 			return params.rng.nextInt( params.W );
 		}
+
+		@Override
+		public void close()
+		{ }
 	}
 	
 	// -----------------------------------------------------------------------
 	
-	public static abstract class Action implements UndoableAction<State>, VirtualConstructor<Action>
+	public static abstract class Action extends UndoableAction<State> implements VirtualConstructor<Action>
 	{
 		public abstract double reward();
 	}
@@ -168,7 +172,7 @@ public class RallyWorld
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			s.damage = s.damage || s.sampleSlowDamage();
 		}
@@ -209,7 +213,7 @@ public class RallyWorld
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			s.damage = s.damage || s.sampleFastDamage();
 		}
@@ -250,7 +254,7 @@ public class RallyWorld
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			if( s.reckless == 0 ) {
 				// +1 since it will be decremented immediate in PostDynamics
@@ -325,7 +329,7 @@ public class RallyWorld
 		}
 
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			if( s.fault == i && !s.failure ) {
 				s.fault = 0;
@@ -480,6 +484,13 @@ public class RallyWorld
 		}
 		
 		@Override
+		public edu.oregonstate.eecs.mcplan.search.fsss.FsssModel<State, Action> create(
+				final RandomGenerator rng )
+		{
+			return new FsssModel( params );
+		}
+		
+		@Override
 		public RandomGenerator rng()
 		{
 			return params.rng;
@@ -504,6 +515,18 @@ public class RallyWorld
 		@Override
 		public double Vmax( final State s )
 		{ return Vmax; }
+		
+		@Override
+		public double Vmin( final State s, final Action a )
+		{
+			return reward( s, a ) + discount() * Vmin;
+		}
+
+		@Override
+		public double Vmax( final State s, final Action a )
+		{
+			return reward( s, a ) + discount() * Vmax;
+		}
 		
 		@Override
 		public double heuristic( final State s )
@@ -597,7 +620,7 @@ public class RallyWorld
 		@Override
 		public FactoredRepresentation<State> encode( final State s )
 		{
-			final double[] phi = new double[5];
+			final float[] phi = new float[5];
 			int idx = 0;
 			phi[idx++] = s.w;
 			phi[idx++] = s.damage ? 1 : 0;

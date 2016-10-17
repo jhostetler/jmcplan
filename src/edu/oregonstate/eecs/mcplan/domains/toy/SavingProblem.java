@@ -129,7 +129,7 @@ public class SavingProblem
 	
 	// -----------------------------------------------------------------------
 	
-	public static abstract class Action implements UndoableAction<State>, VirtualConstructor<Action>
+	public static abstract class Action extends UndoableAction<State> implements VirtualConstructor<Action>
 	{
 		public abstract double reward( final State s );
 	}

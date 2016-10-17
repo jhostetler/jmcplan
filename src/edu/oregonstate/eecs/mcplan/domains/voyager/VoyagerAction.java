@@ -10,7 +10,7 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  * @author jhostetler
  *
  */
-public abstract class VoyagerAction implements UndoableAction<VoyagerState>, VirtualConstructor<VoyagerAction>
+public abstract class VoyagerAction extends UndoableAction<VoyagerState> implements VirtualConstructor<VoyagerAction>
 {
 
 }

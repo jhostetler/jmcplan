@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import edu.oregonstate.eecs.mcplan.MarkovDecisionProblem;
 import edu.oregonstate.eecs.mcplan.Pair;
 import edu.oregonstate.eecs.mcplan.Policy;
-import edu.oregonstate.eecs.mcplan.util.Generator;
 
 /**
  * @author jhostetler
@@ -38,10 +37,7 @@ public class GreedyPolicy<S, A> extends Policy<S, A>
 	{
 		double qstar = -Double.MAX_VALUE;
 		A astar = null;
-		m_.A().setState( s_ );
-		final Generator<A> ga = m_.A().generator();
-		while( ga.hasNext() ) {
-			final A a = ga.next();
+		for( final A a : m_.A().getActionSet( s_ ) ) {
 //				System.out.println( s.toString() );
 			final Pair<ArrayList<S>, ArrayList<Double>> sparse_p = m_.sparseP( s_, a );
 			double q = m_.R( s_, a );

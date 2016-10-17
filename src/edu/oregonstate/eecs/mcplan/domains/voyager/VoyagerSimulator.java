@@ -56,7 +56,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 		}
 
 		@Override
-		public void doAction( final VoyagerState s )
+		public void doAction( final RandomGenerator rng, final VoyagerState s )
 		{
 //			log.debug( "do {}", toString() );
 			assert( !done_ );
@@ -96,7 +96,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 		}
 
 		@Override
-		public void doAction( final VoyagerState state )
+		public void doAction( final RandomGenerator rng, final VoyagerState s )
 		{
 //			log.debug( "do {}", toString() );
 			assert( !done_ );
@@ -144,7 +144,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 		}
 		
 		@Override
-		public void doAction( final VoyagerState s )
+		public void doAction( final RandomGenerator rng, final VoyagerState s )
 		{
 //			log.debug( "do {}", toString() );
 			assert( !done_ );
@@ -191,7 +191,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 		}
 
 		@Override
-		public void doAction( final VoyagerState s )
+		public void doAction( final RandomGenerator rng, final VoyagerState s )
 		{
 			assert( spaceship_ != null );
 //			log.debug( "do {}", toString() );
@@ -254,7 +254,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 		}
 
 		@Override
-		public void doAction( final VoyagerState s )
+		public void doAction( final RandomGenerator rng, final VoyagerState s )
 		{
 //			log.debug( "do {}", toString() );
 			assert( !done_ );
@@ -291,7 +291,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 		}
 
 		@Override
-		public void doAction( final VoyagerState s )
+		public void doAction( final RandomGenerator rng, final VoyagerState s )
 		{
 			assert( old_owner_ == null );
 			old_owner_ = planet.owner();
@@ -327,7 +327,6 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 	private static class BattleEvent extends VoyagerAction
 	{
 		public final Planet planet;
-		private final RandomGenerator rng_;
 		private final String repr_;
 		
 		private boolean done_ = false;
@@ -337,10 +336,9 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 		private Unit old_production_ = null;
 		private final int[] old_stored_ = new int[Unit.values().length];
 		
-		public BattleEvent( final Planet planet, final RandomGenerator rng )
+		public BattleEvent( final Planet planet )
 		{
 			this.planet = planet;
-			rng_ = rng;
 			repr_ = "BattleEvent(planet = " + planet.id + ")";
 		}
 		
@@ -360,7 +358,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 		}
 
 		@Override
-		public void doAction( final VoyagerState s )
+		public void doAction( final RandomGenerator rng, final VoyagerState s )
 		{
 //			log.debug( "do {}", toString() );
 			assert( !done_ );
@@ -375,8 +373,8 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 			final Pair<Integer, Integer> damage = Voyager.damage( planet );
 			final int dmin = damage.first + planet.carryDamage( Player.Max );
 			final int dmax = damage.second + planet.carryDamage( Player.Min );
-			final Pair<int[], Integer> smin = Voyager.survivors( planet.population( Player.Min ), dmax, rng_ );
-			final Pair<int[], Integer> smax = Voyager.survivors( planet.population( Player.Max ), dmin, rng_ );
+			final Pair<int[], Integer> smin = Voyager.survivors( planet.population( Player.Min ), dmax, rng );
+			final Pair<int[], Integer> smax = Voyager.survivors( planet.population( Player.Max ), dmin, rng );
 			
 			planet.setPopulation( Player.Min, smin.first );
 			planet.setPopulation( Player.Max, smax.first );
@@ -412,7 +410,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 
 		@Override
 		public BattleEvent create()
-		{ return new BattleEvent( planet, rng_ ); }
+		{ return new BattleEvent( planet ); }
 		
 		@Override
 		public String toString()
@@ -551,7 +549,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 		}
 
 		@Override
-		public void doAction( final VoyagerState s )
+		public void doAction( final RandomGenerator rng, final VoyagerState s )
 		{
 //			log.debug( "do {}", toString() );
 			assert( !done_ );
@@ -706,7 +704,7 @@ public final class VoyagerSimulator<A extends UndoableAction<VoyagerState> & Vir
 				final boolean min_present = p.totalPopulation( Player.Min ) > 0;
 				final boolean max_present = p.totalPopulation( Player.Max ) > 0;
 				if( min_present && max_present ) {
-					applyEvent( new BattleEvent( p, rng_ ) );
+					applyEvent( new BattleEvent( p ) );
 				}
 				else if( p.owner() == Player.Neutral ) {
 					if( min_present ) {

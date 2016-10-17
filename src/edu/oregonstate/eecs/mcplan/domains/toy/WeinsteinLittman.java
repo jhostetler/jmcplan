@@ -102,7 +102,7 @@ public class WeinsteinLittman
 	
 	// -----------------------------------------------------------------------
 	
-	public static class Action implements UndoableAction<State>, VirtualConstructor<Action>
+	public static class Action extends UndoableAction<State> implements VirtualConstructor<Action>
 	{
 		public final int i;
 		

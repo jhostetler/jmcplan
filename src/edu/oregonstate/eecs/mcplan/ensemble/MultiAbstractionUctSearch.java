@@ -80,7 +80,7 @@ public class MultiAbstractionUctSearch<S extends State, A extends VirtualConstru
 			search_roots.add( new SimpleMutableActionNode<S, A>( null, sim.nagents(), repr ) );
 		}
 		
-		actions.setState( sim.state(), sim.t(), sim.turn() );
+		actions.setState( sim.state(), sim.t() );
 		final ArrayList<JointAction<A>> as = Fn.takeAll( actions );
 		root_action = new UcbBandit<JointAction<A>>( as, c );
 		for( final JointAction<A> a : as ) {
@@ -260,7 +260,7 @@ public class MultiAbstractionUctSearch<S extends State, A extends VirtualConstru
 		
 		double max_value = -Double.MAX_VALUE;
 		MutableActionNode<S, A> max_an = null;
-		sn.action_gen_.setState( s, t, turn );
+		sn.action_gen_.setState( s, t );
 		while( sn.action_gen_.hasNext() ) {
 			final JointAction<A> a = sn.action_gen_.next();
 			final MutableActionNode<S, A> an = sn.successor( a, sim_.nagents(), repr.create() );
