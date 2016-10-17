@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.tamarisk;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 /**
  * @author jhostetler
  *
@@ -25,7 +27,7 @@ public class NothingAction extends TamariskAction
 	}
 
 	@Override
-	public void doAction( final TamariskState s )
+	public void doAction( final RandomGenerator rng, final TamariskState s )
 	{
 		assert( !done_ );
 		done_ = true;

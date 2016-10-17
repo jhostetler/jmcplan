@@ -44,4 +44,8 @@ public class FroggerState implements State
 		return goal || t >= T;
 	}
 
+	@Override
+	public void close()
+	{ }
+
 }

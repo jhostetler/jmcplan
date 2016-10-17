@@ -5,6 +5,8 @@ package edu.oregonstate.eecs.mcplan.domains.tamarisk;
 
 import java.util.Arrays;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 /**
  * @author jhostetler
  *
@@ -38,7 +40,7 @@ public class EradicateAction extends TamariskAction
 	}
 
 	@Override
-	public void doAction( final TamariskState s )
+	public void doAction( final RandomGenerator rng, final TamariskState s )
 	{
 		assert( old_species_ == null );
 		old_species_ = Arrays.copyOf( s.habitats[reach], s.params.Nhabitats );

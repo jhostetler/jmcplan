@@ -195,7 +195,7 @@ public class FuelWorldMDP extends MarkovDecisionProblem<FuelWorldState, FuelWorl
 			final FuelWorldAction astar = pistar.getAction();
 			System.out.println( "" + s + " -> " + astar );
 			final double[] phi = new double[Nfeatures + 1];
-			Fn.memcpy( phi, new PrimitiveFuelWorldRepresentation( s ).phi(), Nfeatures );
+			Fn.memcpy_as_double( phi, new PrimitiveFuelWorldRepresentation( s ).phi(), Nfeatures );
 			phi[Nfeatures] = mdp.A().index( astar );
 			WekaUtil.addInstance( instances, new DenseInstance( 1.0, phi ) );
 		}

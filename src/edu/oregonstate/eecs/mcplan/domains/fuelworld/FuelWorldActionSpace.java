@@ -4,8 +4,9 @@
 package edu.oregonstate.eecs.mcplan.domains.fuelworld;
 
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
+import edu.oregonstate.eecs.mcplan.ActionSet;
 import edu.oregonstate.eecs.mcplan.ActionSpace;
-import edu.oregonstate.eecs.mcplan.util.Generator;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 import gnu.trove.list.TIntList;
 import gnu.trove.map.TObjectIntMap;
 import gnu.trove.map.hash.TObjectIntHashMap;
@@ -19,7 +20,6 @@ public class FuelWorldActionSpace extends ActionSpace<FuelWorldState, FuelWorldA
 	private final FuelWorldActionGenerator action_gen_ = new FuelWorldActionGenerator();
 	
 	public final FuelWorldState s0;
-	private FuelWorldState s_ = null;
 	
 	private final TObjectIntMap<FuelWorldAction> index_ = new TObjectIntHashMap<FuelWorldAction>();
 	
@@ -35,12 +35,6 @@ public class FuelWorldActionSpace extends ActionSpace<FuelWorldState, FuelWorldA
 			}
 		}
 		index_.put( new RefuelAction(), c++ );
-	}
-	
-	@Override
-	public void setState( final FuelWorldState s )
-	{
-		s_ = s;
 	}
 
 	@Override
@@ -60,18 +54,19 @@ public class FuelWorldActionSpace extends ActionSpace<FuelWorldState, FuelWorldA
 	{
 		return true;
 	}
-
-	@Override
-	public Generator<FuelWorldAction> generator()
-	{
-		final ActionGenerator<FuelWorldState, FuelWorldAction> g = action_gen_.create();
-		g.setState( s_, 0L, new int[] { 0 } );
-		return g;
-	}
 	
 	@Override
 	public int index( final FuelWorldAction a )
 	{
 		return index_.get( a );
+	}
+
+	@Override
+	public ActionSet<FuelWorldState, FuelWorldAction> getActionSet(
+			final FuelWorldState s )
+	{
+		final ActionGenerator<FuelWorldState, FuelWorldAction> g = action_gen_.create();
+		g.setState( s, 0L );
+		return ActionSet.constant( Fn.in(g) );
 	}
 }

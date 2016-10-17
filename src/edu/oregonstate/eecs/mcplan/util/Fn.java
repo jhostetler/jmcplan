@@ -1415,6 +1415,13 @@ public final class Fn
 		return dest;
 	}
 	
+	public static double[] vcopy_as_double( final float[] src )
+	{
+		final double[] r = new double[src.length];
+		memcpy_as_double( r, src, src.length );
+		return r;
+	}
+	
 	public static double[] vcopy_as_double( final int[] src )
 	{
 		final double[] r = new double[src.length];

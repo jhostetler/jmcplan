@@ -17,7 +17,7 @@ public class BlackjackStateToken extends FactoredRepresentation<BlackjackState>
 	private final int hash_code_;
 	private final String repr_;
 	
-	private final double[] phi_;
+	private final float[] phi_;
 
 	public BlackjackStateToken( final BlackjackState s )
 	{
@@ -25,7 +25,7 @@ public class BlackjackStateToken extends FactoredRepresentation<BlackjackState>
 		final HashCodeBuilder h = new HashCodeBuilder();
 		final StringBuilder sb = new StringBuilder();
 		h.append( s.dealerHand() );
-		phi_ = new double[s.nplayers()*52 + 52];
+		phi_ = new float[s.nplayers()*52 + 52];
 		phi_[s.nplayers()*52 + s.dealerHand().get( 0 ).ordinal()] = 1;
 		sb.append( "d:" ).append( s.dealerHand().toString() );
 		for( int i = 0; i < s.nplayers(); ++i ) {
@@ -80,7 +80,7 @@ public class BlackjackStateToken extends FactoredRepresentation<BlackjackState>
 	}
 
 	@Override
-	public double[] phi()
+	public float[] phi()
 	{
 		return phi_;
 	}

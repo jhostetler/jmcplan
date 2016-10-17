@@ -39,7 +39,7 @@ public class FroggerActionGenerator extends ActionGenerator<FroggerState, Frogge
 	}
 
 	@Override
-	public void setState( final FroggerState s, final long t, final int[] turn )
+	public void setState( final FroggerState s, final long t )
 	{
 		// Up, left, stay, right, down
 		valid_[0] = s.frog_y < s.params.lanes + 1;

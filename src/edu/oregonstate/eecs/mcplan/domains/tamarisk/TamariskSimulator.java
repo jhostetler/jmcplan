@@ -9,6 +9,7 @@ import java.util.Deque;
 
 import org.apache.commons.math3.distribution.BetaDistribution;
 import org.apache.commons.math3.distribution.BinomialDistribution;
+import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.JointAction;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
@@ -62,7 +63,7 @@ public class TamariskSimulator implements UndoSimulator<TamariskState, TamariskA
 		}
 
 		@Override
-		public void doAction( final TamariskState s )
+		public void doAction( final RandomGenerator rng, final TamariskState s )
 		{
 			assert( deaths_ == null );
 			deaths_ = new ArrayList<Cell>();
@@ -132,7 +133,7 @@ public class TamariskSimulator implements UndoSimulator<TamariskState, TamariskA
 		}
 
 		@Override
-		public void doAction( final TamariskState s )
+		public void doAction( final RandomGenerator rng, final TamariskState s )
 		{
 			assert( births_ == null );
 			// Plants propagate:

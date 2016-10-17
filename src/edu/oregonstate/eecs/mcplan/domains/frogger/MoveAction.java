@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.frogger;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 /**
  * @author jhostetler
  *
@@ -59,7 +61,7 @@ public class MoveAction extends FroggerAction
 	}
 
 	@Override
-	public void doAction( final FroggerState s )
+	public void doAction( final RandomGenerator rng, final FroggerState s )
 	{
 		assert( !done_ );
 		old_x_ = s.frog_x;

@@ -10,7 +10,6 @@ import edu.oregonstate.eecs.mcplan.State;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.domains.cards.InfiniteSpanishDeck;
 import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjAction;
-import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjFsssAbstractionTrivial;
 import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjFsssModel;
 import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjState;
 
@@ -90,7 +89,6 @@ public class FsssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 		
 		final RandomGenerator rng = new MersenneTwister( 76925342 );
 		final SpBjFsssModel model = new SpBjFsssModel( rng );
-		final SpBjFsssAbstractionTrivial abstraction = new SpBjFsssAbstractionTrivial( model );
 		final InfiniteSpanishDeck deck = new InfiniteSpanishDeck( rng );
 		final SpBjState s0 = new SpBjState( deck );
 		s0.init();

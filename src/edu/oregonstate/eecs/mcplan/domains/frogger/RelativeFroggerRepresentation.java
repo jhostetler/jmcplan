@@ -13,12 +13,12 @@ import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
  */
 public class RelativeFroggerRepresentation extends FactoredRepresentation<FroggerState>
 {
-	private final double[] phi_;
+	private final float[] phi_;
 	
 	public RelativeFroggerRepresentation( final FroggerState s, final int vision )
 	{
 		final int Npos = (2*vision + 1)*(2*vision + 1) - 1;
-		phi_ = new double[2 + Npos];
+		phi_ = new float[2 + Npos];
 		int idx = 0;
 		phi_[idx++] = s.frog_x;
 		phi_[idx++] = s.frog_y;
@@ -30,7 +30,7 @@ public class RelativeFroggerRepresentation extends FactoredRepresentation<Frogge
 				final int dx = j + s.frog_x;
 				final int dy = i + s.frog_y;
 				if( dx >= 0 && dx < s.params.road_length && dy >= 1 && dy <= s.params.lanes ) {
-					phi_[idx] = s.grid[dy][dx] == Tile.Car ? 1.0 : 0.0; // fv[2 + (dy-1)*road_length + dx]
+					phi_[idx] = s.grid[dy][dx] == Tile.Car ? 1 : 0; // fv[2 + (dy-1)*road_length + dx]
 				}
 				idx += 1;
 			}
@@ -44,7 +44,7 @@ public class RelativeFroggerRepresentation extends FactoredRepresentation<Frogge
 	}
 	
 	@Override
-	public double[] phi()
+	public float[] phi()
 	{
 		return phi_;
 	}

@@ -6,7 +6,6 @@ package edu.oregonstate.eecs.mcplan.domains.tamarisk;
 import java.util.Arrays;
 
 import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
-import edu.oregonstate.eecs.mcplan.Representation;
 
 /**
  * @author jhostetler
@@ -14,11 +13,11 @@ import edu.oregonstate.eecs.mcplan.Representation;
  */
 public class PrimitiveTamariskRepresentation extends FactoredRepresentation<TamariskState>
 {
-	private final double[] phi_;
+	private final float[] phi_;
 	
 	public PrimitiveTamariskRepresentation( final TamariskState s )
 	{
-		phi_ = new double[s.params.Nreaches * s.params.Nhabitats];
+		phi_ = new float[s.params.Nreaches * s.params.Nhabitats];
 		int idx = 0;
 		for( int r = 0; r < s.params.Nreaches; ++r ) {
 			final Species[] reach = s.habitats[r];
@@ -34,13 +33,13 @@ public class PrimitiveTamariskRepresentation extends FactoredRepresentation<Tama
 	}
 	
 	@Override
-	public double[] phi()
+	public float[] phi()
 	{
 		return phi_;
 	}
 
 	@Override
-	public Representation<TamariskState> copy()
+	public PrimitiveTamariskRepresentation copy()
 	{
 		return new PrimitiveTamariskRepresentation( this );
 	}

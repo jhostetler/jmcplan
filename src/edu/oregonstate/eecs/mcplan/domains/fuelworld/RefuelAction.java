@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.fuelworld;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 /**
  * @author jhostetler
  *
@@ -22,7 +24,7 @@ public class RefuelAction extends FuelWorldAction
 	}
 
 	@Override
-	public void doAction( final FuelWorldState s )
+	public void doAction( final RandomGenerator rng, final FuelWorldState s )
 	{
 		assert( !done_ );
 		assert( s.fuel_depots.contains( s.location ) );

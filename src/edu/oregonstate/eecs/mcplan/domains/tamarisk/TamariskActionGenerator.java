@@ -25,7 +25,7 @@ public class TamariskActionGenerator extends ActionGenerator<TamariskState, Tama
 	}
 
 	@Override
-	public void setState( final TamariskState s, final long t, final int[] turn )
+	public void setState( final TamariskState s, final long t )
 	{
 		category_ = 0;
 		reach_ = 0;

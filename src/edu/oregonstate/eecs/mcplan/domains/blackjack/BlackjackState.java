@@ -111,4 +111,8 @@ public class BlackjackState implements State
 		}
 		return true;
 	}
+
+	@Override
+	public void close()
+	{ }
 }

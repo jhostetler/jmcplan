@@ -43,7 +43,7 @@ public class FroggerSimulator implements UndoSimulator<FroggerState, FroggerActi
 		}
 
 		@Override
-		public void doAction( final FroggerState s )
+		public void doAction( final RandomGenerator rng, final FroggerState s )
 		{
 			assert( old_grid_ == null );
 			

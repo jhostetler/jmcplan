@@ -101,4 +101,8 @@ public class TamariskState implements State
 		}
 		return sb.toString();
 	}
+
+	@Override
+	public void close()
+	{ }
 }

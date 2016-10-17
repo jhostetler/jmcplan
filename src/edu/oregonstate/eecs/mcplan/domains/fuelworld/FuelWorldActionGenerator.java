@@ -27,7 +27,7 @@ public class FuelWorldActionGenerator extends ActionGenerator<FuelWorldState, Fu
 	}
 
 	@Override
-	public void setState( final FuelWorldState s, final long t, final int[] turn )
+	public void setState( final FuelWorldState s, final long t )
 	{
 		actions_.clear();
 		

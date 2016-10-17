@@ -5,6 +5,8 @@ package edu.oregonstate.eecs.mcplan.domains.blackjack;
 
 import java.util.ArrayList;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.domains.cards.Card;
 
 /**
@@ -35,7 +37,7 @@ public class HitAction extends BlackjackAction
 	}
 
 	@Override
-	public void doAction( final BlackjackState s )
+	public void doAction( final RandomGenerator rng, final BlackjackState s )
 	{
 		assert( !done_ );
 		c_ = s.deck().deal();

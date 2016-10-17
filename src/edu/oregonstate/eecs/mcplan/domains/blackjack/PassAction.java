@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.blackjack;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 
 /**
  * @author jhostetler
@@ -28,7 +30,7 @@ public class PassAction extends BlackjackAction
 	}
 
 	@Override
-	public void doAction( final BlackjackState s )
+	public void doAction( final RandomGenerator rng, final BlackjackState s )
 	{
 		assert( !done_ );
 		s.setPassed( player, true );

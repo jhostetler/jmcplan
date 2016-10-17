@@ -25,7 +25,7 @@ public class BlackjackActionGenerator extends ActionGenerator<BlackjackState, Bl
 	}
 
 	@Override
-	public void setState( final BlackjackState s, final long t, final int[] turn )
+	public void setState( final BlackjackState s, final long t )
 	{
 		actions_.clear();
 		actions_.add( new HitAction( 0 ) );

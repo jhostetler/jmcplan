@@ -20,7 +20,7 @@ public class HandValueAbstraction extends FactoredRepresentation<BlackjackState>
 	public final int[] player_values;
 	public final boolean[] player_aces;
 	
-	private final double[] phi_;
+	private final float[] phi_;
 	
 	private final BlackjackParameters params_;
 	
@@ -68,10 +68,10 @@ public class HandValueAbstraction extends FactoredRepresentation<BlackjackState>
 		repr_ = sb.toString();
 	}
 	
-	public static double[] makePhi( final BlackjackParameters params,
+	public static float[] makePhi( final BlackjackParameters params,
 									final int player_value, final int player_aces, final int dealer_value )
 	{
-		final double[] phi = new double[3];
+		final float[] phi = new float[3];
 		phi[0] = (player_value <= params.max_score ? player_value : params.busted_score);
 		phi[1] = player_aces;
 		phi[2] = (dealer_value <= params.max_score ? dealer_value : params.busted_score);
@@ -93,7 +93,7 @@ public class HandValueAbstraction extends FactoredRepresentation<BlackjackState>
 	}
 	
 	@Override
-	public double[] phi()
+	public float[] phi()
 	{
 		return phi_;
 	}

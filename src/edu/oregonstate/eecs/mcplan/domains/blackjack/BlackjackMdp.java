@@ -186,6 +186,12 @@ public class BlackjackMdp extends MarkovDecisionProblem<BlackjackMdpState, Black
 		}
 	}
 	
+	@Override
+	public double R( final BlackjackMdpState s )
+	{
+		return 0;
+	}
+	
 	public Pair<String[][], String[][]> solve()
 	{
 		final SparseValueIterationSolver<BlackjackMdpState, BlackjackAction> vi
@@ -368,7 +374,8 @@ public class BlackjackMdp extends MarkovDecisionProblem<BlackjackMdpState, Black
 			}
 
 			final Deck deck = new InfiniteDeck();
-			final BlackjackSimulator sim = new BlackjackSimulator( deck, 1, params );
+			final BlackjackState s0 = new BlackjackState( deck, 1, params );
+			final BlackjackSimulator sim = new BlackjackSimulator( s0 );
 
 			final Episode<BlackjackState, BlackjackAction> episode
 				= new Episode<BlackjackState, BlackjackAction>(	sim, pi_mod );

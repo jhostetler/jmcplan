@@ -13,24 +13,24 @@ import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
  */
 public class PrimitiveFuelWorldRepresentation extends FactoredRepresentation<FuelWorldState>
 {
-	final double[] phi_;
+	final float[] phi_;
 	
 	public PrimitiveFuelWorldRepresentation( final FuelWorldState s )
 	{
-		phi_ = new double[3];
+		phi_ = new float[3];
 		int idx = 0;
 		phi_[idx++] = s.location;
 		phi_[idx++] = s.fuel;
 		phi_[idx++] = (s.fuel_depots.contains( s.location ) ? 1 : 0);
 	}
 	
-	private PrimitiveFuelWorldRepresentation( final double[] phi )
+	private PrimitiveFuelWorldRepresentation( final float[] phi )
 	{
 		phi_ = phi;
 	}
 	
 	@Override
-	public double[] phi()
+	public float[] phi()
 	{
 		return phi_;
 	}

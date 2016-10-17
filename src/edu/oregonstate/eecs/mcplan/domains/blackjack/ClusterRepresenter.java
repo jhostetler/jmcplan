@@ -9,6 +9,7 @@ import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.Representer;
 import edu.oregonstate.eecs.mcplan.abstraction.ClusterAbstraction;
 import edu.oregonstate.eecs.mcplan.ml.VoronoiClassifier;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * @author jhostetler
@@ -40,7 +41,7 @@ public class ClusterRepresenter implements Representer<BlackjackState, ClusterAb
 		if( s.passed( 0 ) ) {
 			return new ClusterAbstraction<BlackjackState>( neg_idx_-- );
 		}
-		final int label = classifier_.classify( new ArrayRealVector( repr_.encode( s ).phi() ) );
+		final int label = classifier_.classify( new ArrayRealVector( Fn.vcopy_as_double( repr_.encode( s ).phi() ) ) );
 		return new ClusterAbstraction<BlackjackState>( label );
 	}
 

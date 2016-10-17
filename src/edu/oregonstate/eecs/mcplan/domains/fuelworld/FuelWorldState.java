@@ -242,4 +242,8 @@ public class FuelWorldState implements State
 	{
 		return "FuelWorldState[location = " + location + "; fuel = " + fuel + "]";
 	}
+
+	@Override
+	public void close()
+	{ }
 }
