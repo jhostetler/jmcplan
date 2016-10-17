@@ -56,10 +56,13 @@ def on_error( s ):
 def process_data( master, data ):
 	global options
 	for fv in data.feature_vectors:
+		if len(fv) != len(data.attributes):
+			on_error( "len(fv) " + str(len(fv)) + " != len(attributes) " + str(len(data.attributes)) )
 		expanded_fv = ["" for i in range(0, len(master.attributes))]
-		for i in range(0, len(fv)):
-			j = master.attribute_index( data.attributes[i] )
-			expanded_fv[j] = fv[i]
+		for i in range(0, len(data.attributes)):
+			if i < len(fv):
+				j = master.attribute_index( data.attributes[i] )
+				expanded_fv[j] = fv[i]
 		master.feature_vectors.append( expanded_fv )
 	
 class HeaderAccumulator:
@@ -96,6 +99,7 @@ headers = HeaderAccumulator()
 for file in args:
 	input_file = open( file, "r" )
 	in_data = CsvDataset( input_file )
+	print( file + ": " + str(len(in_data.attributes)) )
 	headers.add( in_data.attributes )
 	input_file.close()
 print( headers.attributes )

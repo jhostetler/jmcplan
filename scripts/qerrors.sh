@@ -28,7 +28,8 @@ do
 		echo "ERROR: $outfile"
 		# Use submit.sh so that the script is re-generated. This allows you
 		# to use a new blacklist.
-		$(bash submit.sh "$1" "$f")
+		# $(bash submit.sh "$1" "$f")
+		$(bash "$1" "$2" "$f")
 	fi
 	# else
 		# echo "$outfile"
