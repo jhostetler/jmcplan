@@ -48,7 +48,7 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 		}
 
 		@Override
-		public void doAction( final RacegridState s )
+		public void doAction( final RandomGenerator rng, final RacegridState s )
 		{
 			assert( !done_ );
 //			System.out.println( "*** Step" );
@@ -110,11 +110,11 @@ public class RacegridSimulator implements UndoSimulator<RacegridState, RacegridA
 	public void takeAction( final JointAction<RacegridAction> a )
 	{
 		final RacegridAction a0 = a.get( 0 );
-		a0.doAction( s_ );
+		a0.doAction( null, s_ );
 		action_history_.push( a0 );
 		
 		final StepAction step = new StepAction();
-		step.doAction( s_ );
+		step.doAction( null, s_ );
 		action_history_.push( step );
 		
 //		s_.t += 1;

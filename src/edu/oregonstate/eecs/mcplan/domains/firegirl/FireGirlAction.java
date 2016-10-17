@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.firegirl;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.Action;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 
@@ -29,7 +31,7 @@ public enum FireGirlAction implements Action<FireGirlState>, VirtualConstructor<
 	}
 
 	@Override
-	public void doAction( final FireGirlState s )
+	public void doAction( final RandomGenerator rng, final FireGirlState s )
 	{
 		// TODO Auto-generated method stub
 		throw new UnsupportedOperationException();
