@@ -46,7 +46,7 @@ public class SingleStepAdapter<S, A> extends Policy<S, Option<S, A>>
 	public Option<S, A> getAction()
 	{
 		final Option<S, A> o = pi_.getAction();
-		return new DurativeAction<S, A>( o.pi, 1 );
+		return new DurativeAction<S, A>( o.pi(), 1 );
 	}
 
 	@Override

@@ -3,13 +3,15 @@
  */
 package edu.oregonstate.eecs.mcplan;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 
 /**
  * @author jhostetler
  *
  */
 public class PolicyAction<S, A extends UndoableAction<S>>
-	implements UndoableAction<S>, VirtualConstructor<PolicyAction<S, A>>
+	extends UndoableAction<S> implements VirtualConstructor<PolicyAction<S, A>>
 {
 	private final Policy<S, A> pi_;
 	private final long t_;
@@ -29,7 +31,7 @@ public class PolicyAction<S, A extends UndoableAction<S>>
 	}
 	
 	@Override
-	public void doAction( final S s )
+	public void doAction( final RandomGenerator rng, final S s )
 	{
 		assert( !done_ );
 		pi_.setState( s, t_ );

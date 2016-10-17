@@ -37,7 +37,7 @@ public class ConstantActionGenerator<S, A extends VirtualConstructor<A>>
 	}
 
 	@Override
-	public void setState( final S s, final long t, final int turn )
+	public void setState( final S s, final long t )
 	{
 		itr_ = actions_.iterator();
 	}

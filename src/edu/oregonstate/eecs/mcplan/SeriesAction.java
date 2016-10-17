@@ -7,11 +7,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.ListIterator;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 /**
  * @author jhostetler
  *
  */
-public class SeriesAction<S, A extends UndoableAction<S>> implements UndoableAction<S>
+public class SeriesAction<S, A extends UndoableAction<S>> extends UndoableAction<S>
 {
 	private final List<A> actions_;
 	private boolean done_ = false;
@@ -22,7 +24,7 @@ public class SeriesAction<S, A extends UndoableAction<S>> implements UndoableAct
 	}
 	
 	@Override
-	public void doAction( final S s )
+	public void doAction( final RandomGenerator rng, final S s )
 	{
 		assert( !done_ );
 		final ListIterator<A> itr = actions_.listIterator();

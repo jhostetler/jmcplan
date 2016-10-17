@@ -30,9 +30,9 @@ public class SingleAgentJointActionGenerator<S, A extends VirtualConstructor<A>>
 	}
 
 	@Override
-	public void setState( final S s, final long t, final int[] turn )
+	public void setState( final S s, final long t )
 	{
-		base_.setState( s, t, turn );
+		base_.setState( s, t );
 	}
 
 	@Override

@@ -9,8 +9,8 @@ import edu.oregonstate.eecs.mcplan.search.DepthRecorder;
  * @author jhostetler
  *
  */
-public class VariableDurationActionGenerator<S, A extends UndoableAction<S, A>>
-	implements ActionGenerator<S, DurativeAction<S, A>>
+public class VariableDurationActionGenerator<S, A extends UndoableAction<S>>
+	extends ActionGenerator<S, DurativeAction<S, A>>
 {
 	private final ActionGenerator<S, AnytimePolicy<S, A>> base_;
 	private final int[] epochs_;
@@ -43,15 +43,9 @@ public class VariableDurationActionGenerator<S, A extends UndoableAction<S, A>>
 	}
 
 	@Override
-	public void remove()
+	public void setState( final S s, final long t )
 	{
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public void setState( final S s, final long t, final int turn )
-	{
-		base_.setState( s, t, turn );
+		base_.setState( s, t );
 	}
 
 	@Override

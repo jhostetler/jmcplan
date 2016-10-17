@@ -1,6 +1,6 @@
 package edu.oregonstate.eecs.mcplan;
 
-public class PolicyActionGenerator<S, A extends UndoableAction<S>> implements ActionGenerator<S, UndoableAction<S>>
+public class PolicyActionGenerator<S, A extends UndoableAction<S>> extends ActionGenerator<S, UndoableAction<S>>
 {
 	public static <S, A extends UndoableAction<S>>
 	PolicyActionGenerator<S, A> create( final ActionGenerator<S, ? extends Policy<S, A>> base )
@@ -10,7 +10,6 @@ public class PolicyActionGenerator<S, A extends UndoableAction<S>> implements Ac
 	
 	private final ActionGenerator<S, ? extends Policy<S, A>> base_;
 	
-	private S s_ = null;
 	private long t_ = 0L;
 	
 	public PolicyActionGenerator( final ActionGenerator<S, ? extends Policy<S, A>> base )
@@ -38,17 +37,10 @@ public class PolicyActionGenerator<S, A extends UndoableAction<S>> implements Ac
 	}
 
 	@Override
-	public void remove()
+	public void setState( final S s, final long t )
 	{
-		throw new UnsupportedOperationException();
-	}
-
-	@Override
-	public void setState( final S s, final long t, final int turn )
-	{
-		s_ = s;
 		t_ = t;
-		base_.setState( s, t, turn );
+		base_.setState( s, t );
 	}
 
 	@Override

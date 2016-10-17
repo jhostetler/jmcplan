@@ -89,19 +89,19 @@ public class OptionPolicy<S, A> extends Policy<S, A>
 			o.start( s_, t_ );
 		}
 		System.out.println( getName() );
-		o.setState( s_, t_ );
-		return o.getAction();
+		o.pi().setState( s_, t_ );
+		return o.pi().getAction();
 	}
 
 	@Override
 	public void actionResult( final S sprime, final double[] r )
 	{
-		o.pi.actionResult( sprime, r );
+		o.pi().actionResult( sprime, r );
 	}
 
 	@Override
 	public String getName()
 	{
-		return "OptionPolicy[" + o.pi.getName() + "]";
+		return "OptionPolicy[" + o.pi().getName() + "]";
 	}
 }
