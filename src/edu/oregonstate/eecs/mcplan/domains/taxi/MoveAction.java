@@ -46,7 +46,7 @@ public class MoveAction extends TaxiAction
 	}
 
 	@Override
-	public void doAction( final TaxiState s, final RandomGenerator rng )
+	public void doAction( final RandomGenerator rng, final TaxiState s )
 	{
 		assert( !done_ );
 		old_illegal_ = s.illegal_pickup_dropoff;

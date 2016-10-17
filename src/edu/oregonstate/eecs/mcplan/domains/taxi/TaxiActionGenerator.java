@@ -33,7 +33,7 @@ public class TaxiActionGenerator extends ActionGenerator<TaxiState, TaxiAction>
 	}
 
 	@Override
-	public void setState( final TaxiState s, final long t, final int[] turn )
+	public void setState( final TaxiState s, final long t )
 	{
 		idx_ = 0;
 	}

@@ -13,7 +13,7 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  * @author jhostetler
  *
  */
-public class SailingAction implements UndoableAction<SailingState>, VirtualConstructor<SailingAction>
+public class SailingAction extends UndoableAction<SailingState> implements VirtualConstructor<SailingAction>
 {
 	public static final double obstacle_penalty = -1;
 	

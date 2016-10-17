@@ -3,8 +3,9 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.taxi;
 
+import edu.oregonstate.eecs.mcplan.ActionSet;
 import edu.oregonstate.eecs.mcplan.ActionSpace;
-import edu.oregonstate.eecs.mcplan.util.Generator;
+import edu.oregonstate.eecs.mcplan.util.Fn;
 
 /**
  * @author jhostetler
@@ -13,12 +14,6 @@ import edu.oregonstate.eecs.mcplan.util.Generator;
 public class TaxiActionSpace extends ActionSpace<TaxiState, TaxiAction>
 {
 	private final TaxiActionGenerator action_gen_ = new TaxiActionGenerator();
-	
-	@Override
-	public void setState( final TaxiState s )
-	{
-		action_gen_.setState( s, 0L, new int[] { 0 } );
-	}
 
 	@Override
 	public int cardinality()
@@ -37,16 +32,17 @@ public class TaxiActionSpace extends ActionSpace<TaxiState, TaxiAction>
 	{
 		return true;
 	}
-
-	@Override
-	public Generator<TaxiAction> generator()
-	{
-		return action_gen_.create();
-	}
 	
 	@Override
 	public int index( final TaxiAction a )
 	{
 		return TaxiActionGenerator.actions.indexOf( a );
+	}
+
+	@Override
+	public ActionSet<TaxiState, TaxiAction> getActionSet( final TaxiState s )
+	{
+		action_gen_.setState( s, 0L );
+		return ActionSet.constant( Fn.in(action_gen_) );
 	}
 }

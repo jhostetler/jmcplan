@@ -10,7 +10,7 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  * @author jhostetler
  *
  */
-public abstract class FroggerAction implements UndoableAction<FroggerState>, VirtualConstructor<FroggerAction>
+public abstract class FroggerAction extends UndoableAction<FroggerState> implements VirtualConstructor<FroggerAction>
 {
 
 }

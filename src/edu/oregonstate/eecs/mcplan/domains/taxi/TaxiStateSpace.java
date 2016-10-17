@@ -5,6 +5,9 @@ package edu.oregonstate.eecs.mcplan.domains.taxi;
 
 import java.util.ArrayList;
 
+import org.apache.commons.math3.random.MersenneTwister;
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.util.Generator;
 
 /**
@@ -141,7 +144,8 @@ public class TaxiStateSpace extends edu.oregonstate.eecs.mcplan.StateSpace<TaxiS
 	
 	public static void main( final String[] argv )
 	{
-		final TaxiState s = TaxiWorlds.dietterich2000( 2, 0.1 );
+		final RandomGenerator rng = new MersenneTwister( 42 );
+		final TaxiState s = TaxiWorlds.dietterich2000( rng, 2, 0.1 );
 		final TaxiStateSpace ss = new TaxiStateSpace( s );
 		final Generator<TaxiState> g = ss.generator();
 		

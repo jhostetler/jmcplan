@@ -11,7 +11,7 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  *
  */
 public abstract class TamariskAction
-	implements UndoableAction<TamariskState>, VirtualConstructor<TamariskAction>
+	extends UndoableAction<TamariskState> implements VirtualConstructor<TamariskAction>
 {
 	public abstract double cost();
 	

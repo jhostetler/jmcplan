@@ -30,7 +30,7 @@ public class PickupAction extends TaxiAction
 	}
 
 	@Override
-	public void doAction( final TaxiState s, final RandomGenerator rng_unused )
+	public void doAction( final RandomGenerator rng_unused, final TaxiState s )
 	{
 		assert( !done_ );
 		old_passenger_ = s.passenger;

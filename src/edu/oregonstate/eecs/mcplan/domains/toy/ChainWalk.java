@@ -61,9 +61,13 @@ public class ChainWalk
 		{
 			return Math.abs( x ) == Ns;
 		}
+
+		@Override
+		public void close()
+		{ }
 	}
 	
-	public static abstract class Action implements UndoableAction<State>, VirtualConstructor<Action>
+	public static abstract class Action extends UndoableAction<State> implements VirtualConstructor<Action>
 	{
 		@Override
 		public abstract Action create();
@@ -71,28 +75,22 @@ public class ChainWalk
 	
 	public class LeftAction extends Action
 	{
-		private final RandomGenerator rng_;
 		private boolean done_ = false;
 		private int x_old_ = 0;
 		private int i_old_ = 0;
-		
-		public LeftAction( final RandomGenerator rng )
-		{
-			rng_ = rng;
-		}
-		
+
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			x_old_ = s.x;
 			i_old_ = s.i;
-			if( rng_.nextDouble() > slip ) {
+			if( rng.nextDouble() > slip ) {
 				s.x -= 1;
 			}
 			else {
 				s.x += 1;
 			}
-			s.i = rng_.nextInt( Ni );
+			s.i = rng.nextInt( Ni );
 			done_ = true;
 		}
 
@@ -110,7 +108,7 @@ public class ChainWalk
 
 		@Override
 		public LeftAction create()
-		{ return new LeftAction( rng_ ); }
+		{ return new LeftAction(); }
 		
 		@Override
 		public int hashCode()
@@ -129,28 +127,22 @@ public class ChainWalk
 	
 	public class RightAction extends Action
 	{
-		private final RandomGenerator rng_;
 		private boolean done_ = false;
 		private int x_old_ = 0;
 		private int i_old_ = 0;
-		
-		public RightAction( final RandomGenerator rng )
-		{
-			rng_ = rng;
-		}
-		
+
 		@Override
-		public void doAction( final State s )
+		public void doAction( final RandomGenerator rng, final State s )
 		{
 			x_old_ = s.x;
 			i_old_ = s.i;
-			if( rng_.nextDouble() > slip ) {
+			if( rng.nextDouble() > slip ) {
 				s.x += 1;
 			}
 			else {
 				s.x -= 1;
 			}
-			s.i = rng_.nextInt( Ni );
+			s.i = rng.nextInt( Ni );
 			done_ = true;
 		}
 
@@ -168,7 +160,7 @@ public class ChainWalk
 
 		@Override
 		public RightAction create()
-		{ return new RightAction( rng_ ); }
+		{ return new RightAction(); }
 		
 		@Override
 		public int hashCode()
@@ -187,11 +179,13 @@ public class ChainWalk
 	
 	public class Simulator implements UndoSimulator<State, Action>
 	{
+		private final RandomGenerator rng_;
 		private final State s_;
 		private final Deque<Action> h_ = new ArrayDeque<Action>();
 		
-		public Simulator( final State s )
+		public Simulator( final RandomGenerator rng, final State s )
 		{
+			rng_ = rng;
 			s_ = s;
 		}
 		
@@ -203,7 +197,7 @@ public class ChainWalk
 		public void takeAction( final JointAction<Action> j )
 		{
 			final Action a = j.get( 0 );
-			a.doAction( s_ );
+			a.doAction( rng_, s_ );
 			h_.push( a );
 		}
 
@@ -256,11 +250,11 @@ public class ChainWalk
 	
 	public static class IdentityRepresentation extends FactoredRepresentation<State>
 	{
-		private final double[] phi_;
+		private final float[] phi_;
 		
 		public IdentityRepresentation( final State s )
 		{
-			phi_ = new double[] { s.x, s.i };
+			phi_ = new float[] { s.x, s.i };
 		}
 		
 		public static ArrayList<Attribute> attributes()
@@ -301,7 +295,7 @@ public class ChainWalk
 		}
 
 		@Override
-		public double[] phi()
+		public float[] phi()
 		{
 			return phi_;
 		}
@@ -387,11 +381,11 @@ public class ChainWalk
 		{ return new ActionGen( rng_ ); }
 
 		@Override
-		public void setState( final State s, final long t, final int[] turn )
+		public void setState( final State s, final long t )
 		{
 			as_.clear();
-			as_.add( new LeftAction( rng_ ) );
-			as_.add( new RightAction( rng_ ) );
+			as_.add( new LeftAction() );
+			as_.add( new RightAction() );
 			itr_ = as_.listIterator();
 		}
 
@@ -404,13 +398,6 @@ public class ChainWalk
 	{
 		private State s_ = null;
 		
-		private final RandomGenerator rng_;
-		
-		public OptimalPolicy( final RandomGenerator rng )
-		{
-			rng_ = rng;
-		}
-		
 		@Override
 		public void setState( final State s, final long t )
 		{
@@ -421,10 +408,10 @@ public class ChainWalk
 		public Action getAction()
 		{
 			if( s_.x <= 0 ) {
-				return new LeftAction( rng_ );
+				return new LeftAction();
 			}
 			else {
-				return new RightAction( rng_ );
+				return new RightAction();
 			}
 		}
 
@@ -458,13 +445,13 @@ public class ChainWalk
 	{
 		final MersenneTwister rng = new MersenneTwister( 42 );
 		final ChainWalk domain = new ChainWalk( 4, 0.1, 100 );
-		final Simulator sim = domain.new Simulator( domain.new State() );
+		final Simulator sim = domain.new Simulator( rng, domain.new State() );
 		final ResetAdapter<State, Action> resetable = new ResetAdapter<State, Action>( sim );
 		
 		final MeanVarianceAccumulator vbar = new MeanVarianceAccumulator();
 		for( int i = 0; i < 100000; ++i ) {
 			final Episode<State, Action> episode = new Episode<State, Action>(
-				resetable, new JointPolicy<State, Action>( domain.new OptimalPolicy( rng ) ) );
+				resetable, new JointPolicy<State, Action>( domain.new OptimalPolicy() ) );
 			final RewardAccumulator<State, Action> racc = new RewardAccumulator<State, Action>( 1, 1.0 );
 			episode.addListener( racc );
 			episode.run();

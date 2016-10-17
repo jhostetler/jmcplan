@@ -10,7 +10,7 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  * @author jhostetler
  *
  */
-public abstract class PwEvent implements UndoableAction<PwState>, VirtualConstructor<PwEvent>
+public abstract class PwEvent extends UndoableAction<PwState> implements VirtualConstructor<PwEvent>
 {
 	@Override
 	public abstract int hashCode();

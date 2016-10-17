@@ -10,7 +10,7 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  * @author jhostetler
  *
  */
-public abstract class RacegridAction implements UndoableAction<RacegridState>, VirtualConstructor<RacegridAction>
+public abstract class RacegridAction extends UndoableAction<RacegridState> implements VirtualConstructor<RacegridAction>
 {
 
 }

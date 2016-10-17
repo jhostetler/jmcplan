@@ -10,7 +10,7 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  * @author jhostetler
  *
  */
-public abstract class BlackjackAction implements UndoableAction<BlackjackState>, VirtualConstructor<BlackjackAction>
+public abstract class BlackjackAction extends UndoableAction<BlackjackState> implements VirtualConstructor<BlackjackAction>
 {
 
 }

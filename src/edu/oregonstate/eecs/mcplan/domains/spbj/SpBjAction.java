@@ -20,7 +20,7 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
  * @author jhostetler
  *
  */
-public class SpBjAction implements UndoableAction<SpBjState>, VirtualConstructor<SpBjAction>
+public class SpBjAction extends UndoableAction<SpBjState> implements VirtualConstructor<SpBjAction>
 {
 	public final SpBjActionCategory[] cat;
 	

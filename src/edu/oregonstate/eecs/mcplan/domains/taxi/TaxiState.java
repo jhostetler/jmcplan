@@ -165,4 +165,8 @@ public class TaxiState implements State
 	{
 		return new PrimitiveTaxiRepresentation( this ).toString();
 	}
+
+	@Override
+	public void close()
+	{ }
 }

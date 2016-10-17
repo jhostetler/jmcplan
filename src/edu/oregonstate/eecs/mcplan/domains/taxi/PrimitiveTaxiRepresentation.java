@@ -13,14 +13,14 @@ import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
  */
 public class PrimitiveTaxiRepresentation extends FactoredRepresentation<TaxiState>
 {
-	private final double[] phi_;
+	private final float[] phi_;
 	
 	public PrimitiveTaxiRepresentation( final TaxiState s )
 	{
 		// Taxi location, other taxi locations, passenger location indicators +
 		// destination indicators.
 		final int Nfeatures = 2 + 2*s.Nother_taxis + (2*s.locations.size() + 1);
-		phi_ = new double[Nfeatures];
+		phi_ = new float[Nfeatures];
 		int idx = 0;
 		phi_[idx++] = s.taxi[0];
 		phi_[idx++] = s.taxi[1];
@@ -28,9 +28,9 @@ public class PrimitiveTaxiRepresentation extends FactoredRepresentation<TaxiStat
 			phi_[idx++] = other[0];
 			phi_[idx++] = other[1];
 		}
-		phi_[idx + s.passenger + 1] = 1.0;
+		phi_[idx + s.passenger + 1] = 1.0f;
 		idx += s.locations.size() + 1;
-		phi_[idx + s.destination] = 1.0;
+		phi_[idx + s.destination] = 1.0f;
 		idx += s.locations.size();
 		
 		assert( idx == Nfeatures );
@@ -42,7 +42,7 @@ public class PrimitiveTaxiRepresentation extends FactoredRepresentation<TaxiStat
 	}
 	
 	@Override
-	public double[] phi()
+	public float[] phi()
 	{
 		return phi_;
 	}

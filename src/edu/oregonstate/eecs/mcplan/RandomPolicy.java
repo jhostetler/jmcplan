@@ -61,29 +61,17 @@ public class RandomPolicy<S, A> extends AnytimePolicy<S, A>
 	{
 		return "RandomPolicy";
 	}
-
-	@Override
-	public long minControl()
-	{
-		return 0;
-	}
-
-	@Override
-	public long maxControl()
-	{
-		return 0;
-	}
-
-	@Override
-	public A getAction( final long control )
-	{
-		return getAction();
-	}
 	
 	@Override
 	public String toString()
 	{
 		return getName();
+	}
+
+	@Override
+	public boolean improvePolicy()
+	{
+		return false;
 	}
 
 }

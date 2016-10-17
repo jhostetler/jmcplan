@@ -7,6 +7,9 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import org.apache.commons.math3.random.MersenneTwister;
+import org.apache.commons.math3.random.RandomGenerator;
+
 import weka.core.Attribute;
 import weka.core.DenseInstance;
 import weka.core.Instances;
@@ -202,7 +205,8 @@ public class TaxiMDP extends MarkovDecisionProblem<TaxiState, TaxiAction>
 		final int Nother_taxis = 2;
 		final double slip = 0.1;
 		final double discount = 0.9;
-		final TaxiState template = TaxiWorlds.dietterich2000( Nother_taxis, slip );
+		final RandomGenerator rng = new MersenneTwister( 42 );
+		final TaxiState template = TaxiWorlds.dietterich2000( rng, Nother_taxis, slip );
 		final TaxiMDP mdp = new TaxiMDP( template );
 		final int Nfeatures = new PrimitiveTaxiRepresentation( template ).phi().length;
 		final SparseValueIterationSolver<TaxiState, TaxiAction> vi
@@ -221,7 +225,7 @@ public class TaxiMDP extends MarkovDecisionProblem<TaxiState, TaxiAction>
 			pistar.setState( s, 0L );
 			final TaxiAction astar = pistar.getAction();
 			final double[] phi = new double[Nfeatures + 1];
-			Fn.memcpy( phi, new PrimitiveTaxiRepresentation( s ).phi(), Nfeatures );
+			Fn.memcpy_as_double( phi, new PrimitiveTaxiRepresentation( s ).phi(), Nfeatures );
 			phi[Nfeatures] = mdp.A().index( astar );
 			WekaUtil.addInstance( instances, new DenseInstance( 1.0, phi ) );
 		}

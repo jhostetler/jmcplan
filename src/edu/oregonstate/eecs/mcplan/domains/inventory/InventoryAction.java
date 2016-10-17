@@ -10,7 +10,7 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  * @author jhostetler
  *
  */
-public abstract class InventoryAction implements UndoableAction<InventoryState>, VirtualConstructor<InventoryAction>
+public abstract class InventoryAction extends UndoableAction<InventoryState> implements VirtualConstructor<InventoryAction>
 {
 	public abstract double reward();
 }

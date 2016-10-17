@@ -9,7 +9,7 @@ import edu.oregonstate.eecs.mcplan.UndoableAction;
  * @author jhostetler
  *
  */
-public abstract class IncrementEvent implements UndoableAction<IncrementState, IncrementEvent>
+public abstract class IncrementEvent extends UndoableAction<IncrementState>
 {
 
 }

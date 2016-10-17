@@ -34,7 +34,7 @@ public class TaxiSimulator implements UndoSimulator<TaxiState, TaxiAction>
 		}
 
 		@Override
-		public void doAction( final TaxiState s, final RandomGenerator rng_unused )
+		public void doAction( final RandomGenerator rng_unused, final TaxiState s )
 		{
 			assert( old_taxis_ == null );
 			old_taxis_ = Fn.copy( s.other_taxis );
@@ -117,11 +117,11 @@ public class TaxiSimulator implements UndoSimulator<TaxiState, TaxiAction>
 	public void takeAction( final JointAction<TaxiAction> a )
 	{
 		final TaxiAction a0 = a.get( 0 );
-		a0.doAction( s_, rng_ );
+		a0.doAction( rng_, s_ );
 		action_history_.push( a0 );
 		
 		final StepAction step = new StepAction();
-		step.doAction( s_, null );
+		step.doAction( s_ );
 		action_history_.push( step );
 		
 		s_.t += 1;

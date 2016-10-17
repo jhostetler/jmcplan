@@ -1385,7 +1385,27 @@ public final class Fn
 		return dest;
 	}
 	
+	public static float[] memcpy( final float[] dest, final float[] src, final int n )
+	{
+		assert( dest.length >= n );
+		assert( src.length >= n );
+		for( int i = 0; i < n; ++i ) {
+			dest[i] = src[i];
+		}
+		return dest;
+	}
+	
 	public static double[] memcpy_as_double( final double[] dest, final int[] src, final int n )
+	{
+		assert( dest.length >= n );
+		assert( src.length >= n );
+		for( int i = 0; i < n; ++i ) {
+			dest[i] = src[i];
+		}
+		return dest;
+	}
+	
+	public static double[] memcpy_as_double( final double[] dest, final float[] src, final int n )
 	{
 		assert( dest.length >= n );
 		assert( src.length >= n );

@@ -41,8 +41,7 @@ public class TaxiRolloutEvaluator implements EvaluationFunction<TaxiState, TaxiA
 		
 		final Policy<TaxiState, JointAction<TaxiAction>> rollout_policy
 			= new RandomPolicy<TaxiState, JointAction<TaxiAction>>(
-				0 /*Player*/, rng.nextInt(),
-				SingleAgentJointActionGenerator.create( actions.create() ) );
+				rng, SingleAgentJointActionGenerator.create( actions.create() ) );
 		final EvaluationFunction<TaxiState, TaxiAction> heuristic = new EvaluationFunction<TaxiState, TaxiAction>() {
 			@Override
 			public double[] evaluate( final Simulator<TaxiState, TaxiAction> sim )

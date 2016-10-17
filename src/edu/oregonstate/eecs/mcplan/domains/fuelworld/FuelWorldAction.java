@@ -10,7 +10,7 @@ import edu.oregonstate.eecs.mcplan.VirtualConstructor;
  * @author jhostetler
  *
  */
-public abstract class FuelWorldAction implements UndoableAction<FuelWorldState>, VirtualConstructor<FuelWorldAction>
+public abstract class FuelWorldAction extends UndoableAction<FuelWorldState> implements VirtualConstructor<FuelWorldAction>
 {
 	@Override
 	public abstract int hashCode();
