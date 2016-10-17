@@ -80,7 +80,7 @@ public class QLearner<S extends State, X extends Representation<S>, A extends Vi
 		TObjectDoubleMap<A> Qfunction = values.get( x );
 		if( Qfunction == null ) {
 			Qfunction = new TObjectDoubleHashMap<A>();
-			action_gen_.setState( s, t, turn );
+			action_gen_.setState( s, t );
 			while( action_gen_.hasNext() ) {
 				Qfunction.put( action_gen_.next(), Vmax );
 			}
@@ -139,7 +139,7 @@ public class QLearner<S extends State, X extends Representation<S>, A extends Vi
 		final double r = rng_.nextDouble();
 		
 		if( r < epsilon ) {
-			action_gen_.setState( s_, t_, turn_ );
+			action_gen_.setState( s_, t_ );
 			a_ = Fn.uniform_choice( rng_, action_gen_ );
 		}
 		else {
@@ -190,8 +190,9 @@ public class QLearner<S extends State, X extends Representation<S>, A extends Vi
 		final RandomGenerator rng = new MersenneTwister( 43 );
 		
 		final int Nother_taxis = 0;
-		final TaxiState state_prototype = TaxiWorlds.dietterich2000( Nother_taxis );
 		final double slip = 0.0;
+		final TaxiState state_prototype = TaxiWorlds.dietterich2000( rng, Nother_taxis, slip );
+		
 		final int T = 100000;
 		
 		final double gamma = 0.9;
@@ -221,7 +222,7 @@ public class QLearner<S extends State, X extends Representation<S>, A extends Vi
 		
 		int count = 0;
 		while( true ) {
-			final TaxiState state = TaxiWorlds.dietterich2000( Nother_taxis );
+			final TaxiState state = TaxiWorlds.dietterich2000( rng, Nother_taxis, slip );
 			final TaxiSimulator sim = new TaxiSimulator( rng, state, slip, T );
 			final Episode<TaxiState, TaxiAction> episode
 				= new Episode<TaxiState, TaxiAction>( sim, JointPolicy.create( learner ), T );

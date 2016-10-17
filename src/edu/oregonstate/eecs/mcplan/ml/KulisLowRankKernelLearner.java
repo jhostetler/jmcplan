@@ -18,12 +18,14 @@ import edu.oregonstate.eecs.mcplan.util.Fn;
 /**
  * @author jhostetler
  *
- * @inproceedings{davis2007information,
- *   title={Information-theoretic metric learning},
- *   author={Davis, Jason V and Kulis, Brian and Jain, Prateek and Sra, Suvrit and Dhillon, Inderjit S},
- *   booktitle={Proceedings of the 24th international conference on Machine learning},
- *   pages={209--216},
- *   year={2007}
+ * @article{kulis2009low,
+ *  title={Low-rank kernel learning with Bregman matrix divergences},
+ *  author={Kulis, Brian and Sustik, M{\'a}ty{\'a}s A and Dhillon, Inderjit S},
+ *  journal={Journal of Machine Learning Research},
+ *  volume={10},
+ *  number={Feb},
+ *  pages={341--376},
+ *  year={2009}
  * }
  */
 public class KulisLowRankKernelLearner implements Runnable
@@ -103,7 +105,7 @@ public class KulisLowRankKernelLearner implements Runnable
 	@Override
 	public void run()
 	{
-		System.out.println( "\tITML run()" );
+		System.out.println( "\tKLRKL run()" );
 		
 		final RealMatrix B = MatrixUtils.createRealIdentityMatrix( r_ );
 		final double[] nu = new double[Nc_];
@@ -140,7 +142,7 @@ public class KulisLowRankKernelLearner implements Runnable
 					alpha = nu[c];
 				}
 				else {
-					// FIXME: The bastards didn't include cannot-link constraints
+					// FIXME: The paper didn't include cannot-link constraints
 					// in their pseudocode. I'm NOT HANDLING THEM right now, because
 					// to do so would require re-deriving part of the algorithm.
 					alpha = Math.min( nu[c],

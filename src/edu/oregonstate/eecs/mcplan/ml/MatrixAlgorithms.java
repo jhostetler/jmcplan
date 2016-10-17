@@ -14,8 +14,6 @@ import org.apache.commons.math3.linear.SingularValueDecomposition;
  */
 public class MatrixAlgorithms
 {
-	public static RealMatrix gramian( final List<double[]> )
-	
 	/**
 	 * Computes the inverse of a matrix using the singular value decomposition.
 	 * 

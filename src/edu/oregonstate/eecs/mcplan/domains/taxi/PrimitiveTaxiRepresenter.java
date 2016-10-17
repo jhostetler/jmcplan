@@ -6,14 +6,13 @@ package edu.oregonstate.eecs.mcplan.domains.taxi;
 import java.util.ArrayList;
 
 import weka.core.Attribute;
-import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
 import edu.oregonstate.eecs.mcplan.FactoredRepresenter;
 
 /**
  * @author jhostetler
  *
  */
-public class PrimitiveTaxiRepresenter implements FactoredRepresenter<TaxiState, FactoredRepresentation<TaxiState>>
+public class PrimitiveTaxiRepresenter implements FactoredRepresenter<TaxiState, PrimitiveTaxiRepresentation>
 {
 	private final ArrayList<Attribute> attributes_;
 
@@ -46,7 +45,7 @@ public class PrimitiveTaxiRepresenter implements FactoredRepresenter<TaxiState, 
 	}
 	
 	@Override
-	public FactoredRepresenter<TaxiState, FactoredRepresentation<TaxiState>> create()
+	public FactoredRepresenter<TaxiState, PrimitiveTaxiRepresentation> create()
 	{
 		return new PrimitiveTaxiRepresenter( this );
 	}

@@ -239,7 +239,7 @@ public abstract class ConstrainedKMeans implements Runnable
 		C.put( 13, Pair.makePair( new int[] { 20 }, new double[] { 1.0 } ) );
 		C.put( 10, Pair.makePair( new int[] { 16 }, new double[] { 1.0 } ) );
 		
-		final ArrayList<int[]> S = new ArrayList<int[]>();
+		final ArrayList<double[]> S = new ArrayList<double[]>();
 		M.forEachKey( new TIntProcedure() {
 			@Override
 			public boolean execute( final int i )
@@ -247,14 +247,14 @@ public abstract class ConstrainedKMeans implements Runnable
 				final Pair<int[], double[]> p = M.get( i );
 				if( p != null ) {
 					for( final int j : p.first ) {
-						S.add( new int[] { i, j } );
+						S.add( new double[] { i, j } );
 					}
 				}
 				return true;
 			}
 		} );
 		
-		final ArrayList<int[]> D = new ArrayList<int[]>();
+		final ArrayList<double[]> D = new ArrayList<double[]>();
 		C.forEachKey( new TIntProcedure() {
 			@Override
 			public boolean execute( final int i )
@@ -262,7 +262,7 @@ public abstract class ConstrainedKMeans implements Runnable
 				final Pair<int[], double[]> p = C.get( i );
 				if( p != null ) {
 					for( final int j : p.first ) {
-						D.add( new int[] { i, j } );
+						D.add( new double[] { i, j } );
 					}
 				}
 				return true;
@@ -300,12 +300,12 @@ public abstract class ConstrainedKMeans implements Runnable
 				}
 				Dmax_ = max_distance;
 			}
-
+			
 			@Override
 			protected boolean updateDistanceFunction()
 			{
 				final InformationTheoreticMetricLearner itml = new InformationTheoreticMetricLearner(
-					X, S, D, u, ell, A_, gamma, rng_ );
+					S, D, u, ell, A_, gamma, rng_ );
 				itml.run();
 				final double delta = A_.subtract( itml.A() ).getFrobeniusNorm();
 				A_ = itml.A();

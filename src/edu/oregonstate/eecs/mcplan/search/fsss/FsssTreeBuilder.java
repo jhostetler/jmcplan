@@ -7,6 +7,7 @@ import org.apache.commons.math3.random.MersenneTwister;
 import org.apache.commons.math3.random.RandomGenerator;
 
 import edu.oregonstate.eecs.mcplan.State;
+import edu.oregonstate.eecs.mcplan.VirtualConstructor;
 import edu.oregonstate.eecs.mcplan.domains.cards.InfiniteSpanishDeck;
 import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjAction;
 import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjFsssAbstractionTrivial;
@@ -17,7 +18,7 @@ import edu.oregonstate.eecs.mcplan.domains.spbj.SpBjState;
  * @author jhostetler
  *
  */
-public class FsssTreeBuilder<S extends State, A>
+public class FsssTreeBuilder<S extends State, A extends VirtualConstructor<A>>
 {
 	private final FsssModel<S, A> m;
 	private final int width;
@@ -87,9 +88,9 @@ public class FsssTreeBuilder<S extends State, A>
 		final int width = 20;
 		final int depth = 4;
 		
-		final SpBjFsssModel model = new SpBjFsssModel();
-		final SpBjFsssAbstractionTrivial abstraction = new SpBjFsssAbstractionTrivial( model );
 		final RandomGenerator rng = new MersenneTwister( 76925342 );
+		final SpBjFsssModel model = new SpBjFsssModel( rng );
+		final SpBjFsssAbstractionTrivial abstraction = new SpBjFsssAbstractionTrivial( model );
 		final InfiniteSpanishDeck deck = new InfiniteSpanishDeck( rng );
 		final SpBjState s0 = new SpBjState( deck );
 		s0.init();
