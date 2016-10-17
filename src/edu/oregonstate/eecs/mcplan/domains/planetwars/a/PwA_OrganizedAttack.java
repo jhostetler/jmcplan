@@ -35,8 +35,6 @@ public class PwA_OrganizedAttack extends Option<PwState, PwEvent>
 			//    attack
 			// 2. Otherwise, find a good planet to send reinforcements.
 			
-			if( )
-			
 			return null;
 		}
 	

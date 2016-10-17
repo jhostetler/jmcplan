@@ -71,4 +71,8 @@ public class RacetrackState implements State
 	{
 		return crashed || laps_to_go == 0;
 	}
+
+	@Override
+	public void close()
+	{ }
 }

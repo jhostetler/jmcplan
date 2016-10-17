@@ -13,27 +13,27 @@ import edu.oregonstate.eecs.mcplan.FactoredRepresentation;
  */
 public class PrimitiveRacetrackState extends FactoredRepresentation<RacetrackState>
 {
-	private final double[] phi_;
+	private final float[] phi_;
 	
 	public PrimitiveRacetrackState( final RacetrackState s )
 	{
-		phi_ = new double[2 + 2];
+		phi_ = new float[2 + 2];
 		int idx = 0;
-		phi_[idx++] = s.car_x;
-		phi_[idx++] = s.car_y;
+		phi_[idx++] = (float) s.car_x;
+		phi_[idx++] = (float) s.car_y;
 		final double speed = Math.sqrt( s.car_dx*s.car_dx + s.car_dy*s.car_dy );
-		phi_[idx++] = s.car_theta;
-		phi_[idx++] = speed;
+		phi_[idx++] = (float) s.car_theta;
+		phi_[idx++] = (float) speed;
 		assert( idx == phi_.length );
 	}
 	
-	private PrimitiveRacetrackState( final double[] phi )
+	private PrimitiveRacetrackState( final float[] phi )
 	{
 		phi_ = phi;
 	}
 	
 	@Override
-	public double[] phi()
+	public float[] phi()
 	{
 		return phi_;
 	}

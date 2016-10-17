@@ -37,7 +37,8 @@ public class Circuits
 		};
 		final LinearRing ring = gfact.createLinearRing( coords );
 		final Polygon poly = gfact.createPolygon( ring, new LinearRing[] { } );
-		return new Circuit( gfact, width, length, poly, poly, new Coordinate( 5, 5 ), 0 );
+		final ArrayList<Polygon> sectors = new ArrayList<Polygon>();
+		return new Circuit( gfact, width, length, poly, poly, sectors, 0 );
 	}
 	
 	private static LinearRing createCircle( final GeometryFactory gfact, final double cx, final double cy,
@@ -56,16 +57,26 @@ public class Circuits
 	
 	public static Circuit Donut( final int inner_radius, final int outer_radius, final int subdivisions )
 	{
+		final int width = 2*(outer_radius + 10);
+		final int height = 2*(outer_radius + 10);
 		final GeometryFactory gfact = new GeometryFactory( new PrecisionModel( 10 * one_billion ) );
 		final double r = outer_radius + 10;
 		final LinearRing outer = createCircle( gfact, r, r, outer_radius, subdivisions );
 		final LinearRing inner = createCircle( gfact, r, r, inner_radius, subdivisions );
 		final LinearRing wall = createCircle( gfact, r, r, outer_radius + 10, subdivisions );
 		final double start_r = inner_radius + ((outer_radius - inner_radius) / 2.0);
-		return new Circuit( gfact, 2*(outer_radius + 10), 2*(outer_radius + 10),
+		final ArrayList<Polygon> sectors = new ArrayList<>();
+		final Coordinate[] bounds = new Coordinate[] {
+			new Coordinate( 0, 0 ),
+			new Coordinate( width, 0 ),
+			new Coordinate( width, height ),
+			new Coordinate( 0, height )
+		};
+		sectors.add( gfact.createPolygon( gfact.createLinearRing( bounds ), new LinearRing[] { } ) );
+		return new Circuit( gfact, width, height,
 							gfact.createPolygon( outer, new LinearRing[] { inner } ),
 							gfact.createPolygon( wall, new LinearRing[] { } ),
-							new Coordinate( r + start_r, r ), -Math.PI / 2 );
+							sectors, -Math.PI / 2 );
 	}
 	
 	public static Circuit PaperClip( final int length, final int width )

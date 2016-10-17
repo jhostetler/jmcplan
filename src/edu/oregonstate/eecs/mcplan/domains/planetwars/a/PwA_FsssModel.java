@@ -35,6 +35,24 @@ public class PwA_FsssModel extends FsssModel<PwState, JointAction<PwEvent>>
 	}
 	
 	@Override
+	public FsssModel<PwState, JointAction<PwEvent>> create( final RandomGenerator rng )
+	{
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public double Vmin( final PwState s, final JointAction<PwEvent> a )
+	{
+		return -1;
+	}
+
+	@Override
+	public double Vmax( final PwState s, final JointAction<PwEvent> a )
+	{
+		return 1;
+	}
+	
+	@Override
 	public double Vmin( final PwState s )
 	{
 		return -1;

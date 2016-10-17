@@ -28,7 +28,7 @@ public class RacetrackActionGenerator extends ActionGenerator<RacetrackState, Ra
 	}
 
 	@Override
-	public void setState( final RacetrackState s, final long t, final int[] turn )
+	public void setState( final RacetrackState s, final long t )
 	{
 		s_ = s;
 		t_ = t;

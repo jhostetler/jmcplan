@@ -49,7 +49,7 @@ public class RacetrackSimulator implements UndoSimulator<RacetrackState, Racetra
 		}
 
 		@Override
-		public void doAction( final RacetrackState s )
+		public void doAction( final RandomGenerator rng, final RacetrackState s )
 		{
 //			System.out.println( "*** Step" );
 			

@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.racetrack;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 
 /**
  * @author jhostetler
@@ -38,7 +40,7 @@ public class AccelerateAction extends RacetrackAction
 	}
 
 	@Override
-	public void doAction( final RacetrackState s )
+	public void doAction( final RandomGenerator rng, final RacetrackState s )
 	{
 		assert( !done_ );
 

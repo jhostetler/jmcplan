@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.planetwars.a;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 import edu.oregonstate.eecs.mcplan.domains.planetwars.PwEvent;
 import edu.oregonstate.eecs.mcplan.domains.planetwars.PwLaunchAction;
 import edu.oregonstate.eecs.mcplan.domains.planetwars.PwPlanet;
@@ -33,7 +35,7 @@ public class PwA_AttackTargetAction extends PwEvent
 	}
 
 	@Override
-	public void doAction( final PwState s )
+	public void doAction( final RandomGenerator rng, final PwState s )
 	{
 		// Find neighbor of 'target' controlled by 'player' with maximum
 		// population.
