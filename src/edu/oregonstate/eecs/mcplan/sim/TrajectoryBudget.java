@@ -21,28 +21,24 @@ public class TrajectoryBudget<S, A> implements Budget, SimulationListener<S, A>
 	
 	@Override
 	public void onInitialStateSample( final StateNode<S, A> s0 )
-	{ }
+	{
+		trajectories += 1;
+	}
 	
 	@Override
 	public void onTransitionSample( final ActionNode<S, A> trans )
 	{ }
 
 	@Override
-	public void onTrajectorySample( final StateNode<S, A> traj )
-	{
-		trajectories += 1;
-	}
-
-	@Override
 	public boolean isExceeded()
 	{
-		return trajectories >= budget;
+		return Math.max( 0, trajectories - 1 ) >= budget;
 	}
 
 	@Override
 	public double actualDouble()
 	{
-		return trajectories;
+		return Math.max( 0, trajectories - 1 );
 	}
 
 	@Override

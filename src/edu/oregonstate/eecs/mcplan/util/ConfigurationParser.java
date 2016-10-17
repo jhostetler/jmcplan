@@ -12,7 +12,7 @@ import java.util.HashMap;
  * @author jhostetler
  *
  */
-public class ConfigurationParser implements KeyValueStore
+public class ConfigurationParser extends KeyValueStore
 {
 	private final HashMap<String, String> options_ = new HashMap<String, String>();
 	
@@ -44,16 +44,10 @@ public class ConfigurationParser implements KeyValueStore
 	{
 		return options_.get( key );
 	}
-	
+
 	@Override
-	public int getInt( final String key )
+	public Iterable<String> keys()
 	{
-		return Integer.parseInt( get( key ) );
-	}
-	
-	@Override
-	public double getDouble( final String key )
-	{
-		return Double.parseDouble( get( key ) );
+		return options_.keySet();
 	}
 }

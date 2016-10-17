@@ -19,13 +19,13 @@ import gnu.trove.map.TObjectIntMap;
  */
 public class RddlRepresentation extends FactoredRepresentation<RDDLState>
 {
-	private final double[] phi;
+	private final float[] phi;
 	
 	public RddlRepresentation( final RddlSpec spec, final rddl.State s )
 	{
 //		System.out.println( "RddlRepresentation:" );
 //		phi = Fn.copy( spec.state_defaults );
-		phi = new double[spec.Nstate_vars];
+		phi = new float[spec.Nstate_vars];
 		for( final Map.Entry<PVAR_NAME, HashMap<ArrayList<LCONST>, Object>> e : s._state.entrySet() ) {
 			final PVAR_NAME name = e.getKey();
 //			System.out.println( "\t" + name );
@@ -39,7 +39,7 @@ public class RddlRepresentation extends FactoredRepresentation<RDDLState>
 				
 				final int idx = assign_map.get( a );
 				
-				phi[idx] = spec.valueToDouble( name, v );
+				phi[idx] = (float) spec.valueToDouble( name, v );
 			}
 		}
 		
@@ -52,7 +52,7 @@ public class RddlRepresentation extends FactoredRepresentation<RDDLState>
 	}
 	
 	@Override
-	public double[] phi()
+	public float[] phi()
 	{
 		return phi;
 	}

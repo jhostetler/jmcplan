@@ -5,6 +5,7 @@ package edu.oregonstate.eecs.mcplan.rddl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
 
 import rddl.EvalException;
 import rddl.RDDL.LCONST;
@@ -20,6 +21,7 @@ import edu.oregonstate.eecs.mcplan.sim.ResetSimulator;
  */
 public class RddlSimulatorAdapter implements ResetSimulator<RDDLState, RDDLAction>
 {
+	private final Random rand;
 	private final RddlSpec spec;
 	private final RDDLState s0;
 	private RDDLState state = null;
@@ -31,8 +33,9 @@ public class RddlSimulatorAdapter implements ResetSimulator<RDDLState, RDDLActio
 	private double cur_discount = 1.0d;
 	private final ArrayList<Double> rewards;
 	
-	public RddlSimulatorAdapter( final RddlSpec spec, final RDDLState state )
+	public RddlSimulatorAdapter( final Random rand, final RddlSpec spec, final RDDLState state )
 	{
+		this.rand = rand;
 		this.spec = spec;
 		this.s0 = state;
 		this.state = new RDDLState( s0 );
@@ -70,11 +73,11 @@ public class RddlSimulatorAdapter implements ResetSimulator<RDDLState, RDDLActio
 			state.checkStateActionConstraints(action_list);
 			
 			// Compute next state (and all intermediate / observation variables)
-			state.computeNextState(action_list, spec._rand);
+			state.computeNextState(action_list, rand);
 			
 			// Calculate reward / objective and store
 			final double reward = ((Number)state._reward.sample(
-				new HashMap<LVAR,LCONST>(), state, spec._rand)).doubleValue();
+				new HashMap<LVAR,LCONST>(), state, rand)).doubleValue();
 			rewards.add(reward);
 			accum_reward += cur_discount * reward;
 			cur_discount *= spec.rddl_instance._dDiscount;

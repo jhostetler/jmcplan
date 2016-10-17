@@ -35,13 +35,7 @@ public class RddlSpec
 		public abstract double convert( final Object o );
 	}
 	
-//	public RDDLState cur_state;
-//	public RDDLFactoredTransition _rddlTransition;
 	public TreeMap<String, UnorderedPair<PVAR_NAME, ArrayList<LCONST>>> _rddlVars;
-//	public RDDLFactoredReward _rddlReward;
-//	public final Random _rand;
-//	public RDDLFactoredStateSpace _rddlStateSpace;
-//	public RDDLFactoredActionSpace _rddlActionSpace;
 	public final String _simName;
 	public final int _numAgents;
 	
