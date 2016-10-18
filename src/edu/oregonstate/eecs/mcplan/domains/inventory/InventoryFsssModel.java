@@ -48,6 +48,25 @@ public class InventoryFsssModel extends FsssModel<InventoryState, InventoryActio
 	}
 	
 	@Override
+	public FsssModel<InventoryState, InventoryAction> create(
+			final RandomGenerator rng )
+	{
+		return new InventoryFsssModel( rng, problem );
+	}
+
+	@Override
+	public double Vmin( final InventoryState s, final InventoryAction a )
+	{
+		return Vmin;
+	}
+
+	@Override
+	public double Vmax( final InventoryState s, final InventoryAction a )
+	{
+		return Vmax;
+	}
+	
+	@Override
 	public double Vmin( final InventoryState s )
 	{
 		return Vmin;

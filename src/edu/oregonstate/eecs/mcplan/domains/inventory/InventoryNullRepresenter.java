@@ -46,7 +46,7 @@ public class InventoryNullRepresenter implements FactoredRepresenter<InventorySt
 	@Override
 	public FactoredRepresentation<InventoryState> encode( final InventoryState s )
 	{
-		final double[] phi = new double[3*s.problem.Nproducts];
+		final float[] phi = new float[3*s.problem.Nproducts];
 		int idx = 0;
 		for( int i = 0; i < s.problem.Nproducts; ++i ) {
 			phi[idx++] = s.inventory[i];

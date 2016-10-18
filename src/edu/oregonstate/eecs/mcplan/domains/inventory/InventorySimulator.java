@@ -63,7 +63,7 @@ public class InventorySimulator implements UndoSimulator<InventoryState, Invento
 		}
 
 		@Override
-		public void doAction( final InventoryState s )
+		public void doAction( final RandomGenerator rng, final InventoryState s )
 		{
 			assert( !done );
 			
@@ -222,8 +222,8 @@ public class InventorySimulator implements UndoSimulator<InventoryState, Invento
 		final int max_demand = 5;
 		final int[] price = new int[] { 1, 2 };
 		
-		final InventoryProblem problem = new InventoryProblem(
-			Nproducts, price, max_inventory, warehouse_cost, min_order, max_order, delivery_probability, max_demand );
+		final InventoryProblem problem = InventoryProblem.TwoProducts();
+//			Nproducts, price, max_inventory, warehouse_cost, min_order, max_order, delivery_probability, max_demand );
 		
 		while( true ) {
 			

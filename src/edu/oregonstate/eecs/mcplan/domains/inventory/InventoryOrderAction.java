@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.inventory;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 
 
 /**
@@ -38,7 +40,7 @@ public class InventoryOrderAction extends InventoryAction
 	}
 
 	@Override
-	public void doAction( final InventoryState s )
+	public void doAction( final RandomGenerator rng, final InventoryState s )
 	{
 		assert( !done );
 		s.orders[product] += quantity;

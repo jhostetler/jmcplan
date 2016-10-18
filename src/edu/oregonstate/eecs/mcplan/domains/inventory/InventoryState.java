@@ -59,4 +59,8 @@ public class InventoryState implements State
 		  .append( ", d: " ).append( Arrays.toString( demand ) );
 		return sb.toString();
 	}
+
+	@Override
+	public void close()
+	{ }
 }
