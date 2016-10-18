@@ -11,7 +11,7 @@ import edu.oregonstate.eecs.mcplan.AnytimePolicy;
  * 
  * @author jhostetler
  */
-public class IncrementFocusPolicy implements AnytimePolicy<IncrementState, IncrementEvent>
+public class IncrementFocusPolicy extends AnytimePolicy<IncrementState, IncrementEvent>
 {
 	public final int player;
 	public final int counter;
@@ -43,21 +43,22 @@ public class IncrementFocusPolicy implements AnytimePolicy<IncrementState, Incre
 	}
 
 	@Override
-	public long minControl()
+	public boolean improvePolicy()
 	{
-		return 0;
+		return false;
 	}
 
 	@Override
-	public long maxControl()
+	public int hashCode()
 	{
-		return 0;
+		return getName().hashCode();
 	}
 
 	@Override
-	public IncrementEvent getAction( final long control )
+	public boolean equals( final Object obj )
 	{
-		return getAction();
+		final IncrementFocusPolicy that = (IncrementFocusPolicy) obj;
+		return player == that.player && counter == that.counter;
 	}
 
 }

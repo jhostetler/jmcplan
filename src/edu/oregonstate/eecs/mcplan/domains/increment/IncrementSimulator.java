@@ -90,7 +90,7 @@ public class IncrementSimulator extends SimultaneousMoveSimulator<IncrementState
 	@Override
 	public double[] reward()
 	{
-		return reward_history_.peek();
+		return new double[] { reward_history_.peek(), -reward_history_.peek() };
 	}
 
 	@Override

@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.increment;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 
 /**
  * The only kind of action for the Increment Game.
@@ -23,7 +25,7 @@ public class IncrementAction extends IncrementEvent
 	}
 
 	@Override
-	public void doAction( final IncrementState s )
+	public void doAction( final RandomGenerator rng, final IncrementState s )
 	{
 		assert( !done_ );
 		s.counters[counter] += (player == 0 ? -1 : +1);
@@ -35,7 +37,7 @@ public class IncrementAction extends IncrementEvent
 	{
 		return done_;
 	}
-
+	
 	@Override
 	public IncrementAction create()
 	{

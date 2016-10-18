@@ -3,6 +3,8 @@
  */
 package edu.oregonstate.eecs.mcplan.domains.increment;
 
+import org.apache.commons.math3.random.RandomGenerator;
+
 /**
  * @author jhostetler
  *
@@ -24,10 +26,7 @@ public class IncrementReset extends IncrementEvent
 		this.counter = counter;
 		this.limit = limit;
 	}
-
-	/* (non-Javadoc)
-	 * @see edu.oregonstate.eecs.mcplan.agents.galcon.UndoableAction#undoAction(java.lang.Object)
-	 */
+	
 	@Override
 	public void undoAction( final IncrementState s )
 	{
@@ -37,11 +36,8 @@ public class IncrementReset extends IncrementEvent
 		done_ = false;
 	}
 
-	/* (non-Javadoc)
-	 * @see edu.oregonstate.eecs.mcplan.agents.galcon.Action#doAction(java.lang.Object)
-	 */
 	@Override
-	public void doAction( final IncrementState s )
+	public void doAction( final RandomGenerator rng, final IncrementState s )
 	{
 		assert( !done_ );
 		assert( s.counters[counter] * (player == 0 ? -1 : +1) >= limit );
@@ -49,18 +45,12 @@ public class IncrementReset extends IncrementEvent
 		done_ = true;
 	}
 
-	/* (non-Javadoc)
-	 * @see edu.oregonstate.eecs.mcplan.agents.galcon.Action#isDone()
-	 */
 	@Override
 	public boolean isDone()
 	{
 		return done_;
 	}
 
-	/* (non-Javadoc)
-	 * @see edu.oregonstate.eecs.mcplan.agents.galcon.Action#create()
-	 */
 	@Override
 	public IncrementEvent create()
 	{
