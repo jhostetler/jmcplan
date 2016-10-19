@@ -3,23 +3,13 @@
  */
 package edu.oregonstate.eecs.mcplan.search;
 
-import java.io.FileNotFoundException;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.oregonstate.eecs.mcplan.ActionGenerator;
-import edu.oregonstate.eecs.mcplan.Agent;
 import edu.oregonstate.eecs.mcplan.VirtualConstructor;
-import edu.oregonstate.eecs.mcplan.agents.galcon.ExpandPolicy;
-import edu.oregonstate.eecs.mcplan.domains.galcon.FastGalconEvent;
-import edu.oregonstate.eecs.mcplan.domains.galcon.FastGalconNothingAction;
-import edu.oregonstate.eecs.mcplan.domains.galcon.FastGalconState;
-import edu.oregonstate.eecs.mcplan.domains.galcon.FastPlanet;
-import edu.oregonstate.eecs.mcplan.domains.galcon.GalconSimulator;
 import edu.oregonstate.eecs.mcplan.sim.UndoSimulator;
 
 /**
@@ -205,75 +195,5 @@ public class NegamaxSearch<S, A extends VirtualConstructor<A>> implements GameTr
 		
 		visitor.finishVertex( s );
 		return ret;
-	}
-	
-	// -----------------------------------------------------------------------
-	
-	public static void main( final String[] args ) throws FileNotFoundException
-	{
-		final int epoch = 10;
-		final int horizon = 5000;
-		final int Nplanets = 10;
-		final double min_launch_percentage = 0.2;
-		final int launch_size_steps = 10;
-		final GalconSimulator sim = new GalconSimulator(
-			horizon, epoch, false, false, 641, Nplanets, min_launch_percentage, launch_size_steps );
-		final FastGalconState fast_state = new FastGalconState(
-			sim, horizon, epoch, min_launch_percentage, launch_size_steps );
-		final List<Agent> policies = new ArrayList<Agent>();
-		policies.add( new ExpandPolicy( "true 1.0 0.1 1.0 10000 0.1 2.0".split( " " ) ) );
-		policies.add( new ExpandPolicy( "true 1.0 0.1 1.0 100000 0.1 2.0".split( " " ) ) );
-		final NegamaxVisitor<FastGalconState, FastGalconEvent> visitor =
-			new LoggingNegamaxVisitor<FastGalconState, FastGalconEvent>( System.out )
-		{
-			@Override
-			public boolean isGoal( final FastGalconState s )
-			{
-				return false;
-			}
-			
-			@Override
-			public double heuristic( final FastGalconState s )
-			{
-				final int player = s.turn();
-				final int lookahead = 40;
-				final FastGalconEvent nothing = new FastGalconNothingAction();
-				// Run simulator forward
-				for( int i = 0; i < lookahead; ++i ) {
-					s.takeAction( nothing );
-				}
-				// Compute heuristic
-				int friendly_pop = 0;
-				int enemy_pop = 0;
-				for( final FastPlanet p : s.planets_ ) {
-					if( p.owner_ == player ) {
-						friendly_pop += p.population_;
-					}
-					else if( p.owner_ == (1 - player) ) {
-						enemy_pop += p.population_;
-					}
-				}
-				// Undo simulation
-				for( int i = lookahead - 1; i >= 0; --i ) {
-					s.untakeLastAction();
-				}
-
-				return (double) friendly_pop - enemy_pop;
-			}
-		};
-		final ActionGenerator<FastGalconState, FastGalconEvent> action_gen
-			= new FastGalconState.Actions();
-		
-		final NegamaxSearch<FastGalconState, FastGalconEvent> search
-			= new NegamaxSearch<FastGalconState, FastGalconEvent>(
-				fast_state, 4,
-				action_gen, visitor );
-//				new NegamaxVisitorBase<GalconState, GalconAction>() );
-//				new LoggingNegamaxVisitor<GalconState, GalconAction>( System.out ) );
-		final long start = System.currentTimeMillis();
-		search.run();
-		final long stop = System.currentTimeMillis();
-		System.out.println( "PV: " + search.principalVariation() );
-		System.out.println( "Time: " + (stop - start) + " ms" );
 	}
 }
