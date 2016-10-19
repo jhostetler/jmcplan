@@ -9,9 +9,12 @@ cl_parser.add_argument( "input_file", type=str, nargs=1,
 cl_parser.add_argument( "--name", type=str, default=None,
 					  help="The root name of the dataset. Individual file names are derived from this." )
 cl_parser.add_argument( "-N", type=int, default=0, help="Size of each subset" )
-cl_parser.add_argument( "-k", type=int, default=0, help="Number of subsets for cross-validation" )
+cl_parser.add_argument( "-k", type=int, default=1, help="Number of subsets for cross-validation" )
 cl_parser.add_argument( "--seed", type=int, default=0, help="RNG seed (default: no particular seed)" )
 args = cl_parser.parse_args()
+
+if args.N == 0 and args.k != 1:
+	raise RuntimeError( "If args.N == 0, then args.k must be 1" )
 
 with open( args.input_file[0] ) as input_file:
 	data = CsvDataset( input_file )
@@ -32,6 +35,7 @@ with open( args.input_file[0] ) as input_file:
 	for i in range(0, args.k):
 		filename = args.name + str(i) + ".txt"
 		with open( filename, "w" ) as fold_i:
-			for j in range(0, args.N):
+			N = len(recoverable_faults) if args.N == 0 else args.N
+			for j in range(0, N):
 				fold_i.write( recoverable_faults[next] + "\n" )
 				next += 1
