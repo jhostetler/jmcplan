@@ -3,6 +3,7 @@
 The source code in this repository is licensed as follows:
 
 ---
+
 Copyright (c) 2013-2016, Jesse Hostetler (jessehostetler@gmail.com)
 All rights reserved.
 
@@ -25,6 +26,7 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 ---
 
 # 3rd-party Libraries
