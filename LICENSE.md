@@ -29,10 +29,28 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
+# rddlsim 
+### https://github.com/ssanner/rddlsim
+
+The library '/lib/rddlsim.jar' and the problem domain specifications in /rddl
+are licensed under the **GPLv3 License**
+
+Copyright (C) 2010, Scott Sanner (ssanner@gmail.com) and Sungwook Yoon
+(sungwook.yoon@gmail.com)
+
+---
+
+# Cosmic
+### https://github.com/jhostetler/cosmic
+
+The library '/lib/jcosmic.jar' is licensed under the **GPLv3 License**
+
+---
+
 # 3rd-party Libraries
 
-The libraries in lib/ are licensed per the terms of their respective projects.
+The libraries in /lib are licensed per the terms of their respective projects.
 Note that some of these libraries use the GPL license, which makes programs
 linked against those libraries subject to the GPL. If you want to distribute
 code based on jmcplan and you do *not* want your code to be subject to the GPL,
-do not include the GPL-licensed components in lib/ in your Java build path.
+do not include the GPL-licensed components in /lib in your Java build path.

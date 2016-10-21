@@ -11,7 +11,7 @@ modification, are permitted provided that the following conditions are met:
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -844,8 +844,8 @@ public class FsssJairExperiments
 			}
 			
 			if( "advising".equals( config.domain ) ) {
-				final File domain = new File( config.root_directory, config.get( "rddl.domain" ) + ".rddl" );
-				final File instance = new File( config.root_directory, config.get( "rddl.instance" ) + ".rddl" );
+				final File domain = new File( config.get( "rddl.domain" ) + ".rddl" );
+				final File instance = new File( config.get( "rddl.instance" ) + ".rddl" );
 				final int max_grade = config.getInt( "advising.max_grade" );
 				final int passing_grade = config.getInt( "advising.passing_grade" );
 				final AdvisingParameters params = AdvisingRddlParser.parse(

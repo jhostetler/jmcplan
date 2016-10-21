@@ -1,0 +1,2 @@
+algorithm,domain,Nepisodes,budget_type,budget,Tstable,Tepisode,epoch,fault,seed.agent,seed.world,cosmic.simgrid_max_recursion,cosmic.simgrid_method,cosmic.verbose,cosmic.version,log.agent,log.domain,log.history,log.history.pretty,log.world,action_space,shed_zone.amounts,pr.bandit,pr.depth,pr.policy_set
+pr,rts96,1,trajectory,999999,10,300,10,45;63,42,42,200,recursive,FALSE,v2,info,warn,small,FALSE,info,ShedZone.Island,0.02;0.05;0.1,cyclic,20,Nothing
