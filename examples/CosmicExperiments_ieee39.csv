@@ -1,3 +1,3 @@
-algorithm,domain,Nepisodes,budget_type,budget,Tstable,Tepisode,epoch,fault,seed.agent,seed.world,cosmic.simgrid_max_recursion,cosmic.simgrid_method,cosmic.verbose,cosmic.version,log.agent,log.domain,log.history,log.history.pretty,log.world,action_space,shed_zone.amounts,pr.bandit,pr.depth,pr.policy_set
-nothing,ieee39,1,trajectory,999999,10,300,10,11;21,42,42,200,recursive,FALSE,v2,info,warn,small,FALSE,info,ShedZone.Island,0.02;0.05;0.1,cyclic,20,Nothing
-pr,rts96,1,trajectory,999999,10,300,10,45;63,42,42,200,recursive,FALSE,v2,info,warn,small,FALSE,info,ShedZone.Island,0.02;0.05;0.1,cyclic,20,Nothing
+algorithm,domain,Nepisodes,budget_type,budget,Tstable,Tepisode,epoch,fault,seed.agent,seed.world,cosmic.random.loads,cosmic.random.load_min,cosmic.random.load_max,cosmic.random.load_sigma,cosmic.simgrid_max_recursion,cosmic.simgrid_method,cosmic.verbose,cosmic.version,log.agent,log.domain,log.history,log.history.pretty,log.world,action_space,shed_zone.amounts,pr.bandit,pr.depth,pr.policy_set
+nothing,ieee39,1,trajectory,999999,10,300,10,11;21,42,42,TRUE,0.8,1.2,0.01,200,recursive,FALSE,v2,info,warn,small,FALSE,info,ShedZone.Island,0.02;0.05;0.1,cyclic,20,Nothing
+pr,ieee39,1,trajectory,999999,10,300,10,11;21,42,42,TRUE,0.8,1.2,0.01,200,recursive,FALSE,v2,info,warn,small,FALSE,info,ShedZone.Island,0.02;0.05;0.1,cyclic,20,Nothing
