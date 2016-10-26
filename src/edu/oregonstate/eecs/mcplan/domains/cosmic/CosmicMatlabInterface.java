@@ -11,7 +11,7 @@ modification, are permitted provided that the following conditions are met:
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -177,19 +177,22 @@ public final class CosmicMatlabInterface implements AutoCloseable
 	 * @param delta_t
 	 * @return
 	 */
-	public CosmicState take_action2( final CosmicState s, final CosmicAction a, final double delta_t )
+	public CosmicState take_action2( final String context, final CosmicState s, final CosmicAction a, final double delta_t )
 	{
 		Object[] cprime = null;
 		try( final CosmicState scopy = s.copy() ) {
 			
 			// [ ps, t, x, y, event ] = take_action( ps, opt, t, x, y, event, a, delta_t )
 //			cprime = m.take_action( 5, s.ps, opt, s.t, s.mx, s.my, s.event, a.toMatlab( params, s.t ), delta_t );
+//			MWCharArray mcontext = null;
 			MWNumericArray ma = null;
 			try {
+//				mcontext = new MWCharArray( context );
 				ma = a.toMatlab( params, scopy.t );
-				cprime = m.take_action2( 1, scopy.ps, opt, scopy.t, ma, delta_t );
+				cprime = m.take_action2( 1, context, scopy.ps, opt, scopy.t, ma, delta_t );
 			}
 			finally {
+//				mcontext.dispose();
 				ma.dispose();
 			}
 			

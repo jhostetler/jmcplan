@@ -11,7 +11,7 @@ modification, are permitted provided that the following conditions are met:
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -43,10 +43,12 @@ public class CosmicTransitionSimulator extends TransitionSimulator<CosmicState, 
 {
 	private final ch.qos.logback.classic.Logger Log = LoggerManager.getLogger( "log.domain" );
 	
+	private final String context;
 	private final CosmicParameters params;
 	
-	public CosmicTransitionSimulator( final CosmicParameters params )
+	public CosmicTransitionSimulator( final String context, final CosmicParameters params )
 	{
+		this.context = context;
 		this.params = params;
 	}
 	
@@ -72,7 +74,7 @@ public class CosmicTransitionSimulator extends TransitionSimulator<CosmicState, 
 			sprime = params.cosmic.take_action_iter( s, a, params.delta_t );
 			break;
 		case take_action2:
-			sprime = params.cosmic.take_action2( s, a, params.delta_t );
+			sprime = params.cosmic.take_action2( context, s, a, params.delta_t );
 			break;
 		default:
 			throw new AssertionError();

@@ -11,7 +11,7 @@ modification, are permitted provided that the following conditions are met:
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -191,7 +191,7 @@ public class CosmicExperiments
 		
 		public Policy<CosmicState, CosmicAction> createAgent( final RandomGenerator rng, final CosmicParameters params )
 		{
-			final CosmicTransitionSimulator sim = new CosmicTransitionSimulator( params );
+			final CosmicTransitionSimulator sim = new CosmicTransitionSimulator( "agent", params );
 			final Budget budget = installBudget( sim );
 			
 			final AnytimePolicy<CosmicState, CosmicAction> base;
@@ -287,6 +287,12 @@ public class CosmicExperiments
 				.verbose( cosmic_verbose )
 				.simgrid_max_recursion( getInt( "cosmic.simgrid_max_recursion" ) )
 				.simgrid_method( CosmicOptions.SimgridMethod.valueOf( get( "cosmic.simgrid_method" ) ) )
+				.random_generator( "agent", getInt( "seed.agent" ) )
+				.random_generator( "world", getInt( "seed.world" ) )
+				.random_loads( getBoolean( "cosmic.random.loads" ) )
+				.random_load_min( getDouble( "cosmic.random.load_min" ) )
+				.random_load_max( getDouble( "cosmic.random.load_max" ) )
+				.random_load_sigma( getDouble( "cosmic.random.load_sigma" ) )
 				.finish();
 			final String name = get( "domain" );
 			final CosmicMatlabInterface.Problem c;
@@ -696,7 +702,7 @@ public class CosmicExperiments
 					
 					// Simulator
 					final RandomGenerator world_rng = new MersenneTwister( config.getInt( "seed.world" ) );
-					final CosmicTransitionSimulator world = new CosmicTransitionSimulator( params );
+					final CosmicTransitionSimulator world = new CosmicTransitionSimulator( "world", params );
 					world.addSimulationListener( new SimulationListener<CosmicState, CosmicAction>() {
 		
 						@Override
