@@ -11,7 +11,7 @@ modification, are permitted provided that the following conditions are met:
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -32,9 +32,7 @@ import edu.oregonstate.eecs.mcplan.LoggerManager;
 import gnu.trove.iterator.TIntIterator;
 import gnu.trove.list.TIntList;
 import gnu.trove.list.array.TIntArrayList;
-import gnu.trove.map.TIntIntMap;
 import gnu.trove.map.TIntObjectMap;
-import gnu.trove.map.hash.TIntIntHashMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
 import gnu.trove.procedure.TIntProcedure;
 import gnu.trove.set.TIntSet;
@@ -42,6 +40,7 @@ import gnu.trove.set.hash.TIntHashSet;
 
 import java.lang.reflect.Field;
 import java.util.LinkedHashMap;
+import java.util.Map;
 
 import ch.qos.logback.classic.Logger;
 
@@ -94,7 +93,7 @@ public final class CosmicParameters implements AutoCloseable
 	public static final int ev_change_by_amount		= 0;
 	public static final int ev_change_by_percent	= 1;
 	
-	public final TIntIntMap bus_matlab_index = new TIntIntHashMap();
+	public final Map<Integer, Integer> bus_matlab_index = new LinkedHashMap();
 	private final TIntObjectMap<TIntList> bus_to_shunts = new TIntObjectHashMap<>();
 	
 	public final int Nzones;
@@ -255,14 +254,17 @@ public final class CosmicParameters implements AutoCloseable
 		}
 		
 		// Initialize bus_to_shunts map
-		bus_matlab_index.forEachKey( new TIntProcedure() {
-			@Override
-			public boolean execute( final int id )
-			{
-				bus_to_shunts.put( id, new TIntArrayList() );
-				return true;
-			}
-		} );
+		for( final Map.Entry<Integer, Integer> e : bus_matlab_index.entrySet() ) {
+			bus_to_shunts.put( e.getKey(), new TIntArrayList() );
+		}
+//		bus_matlab_index.forEachKey( new TIntProcedure() {
+//			@Override
+//			public boolean execute( final int id )
+//			{
+//				bus_to_shunts.put( id, new TIntArrayList() );
+//				return true;
+//			}
+//		} );
 		MWNumericArray mshunts = null;
 		try {
 			mshunts = (MWNumericArray) ps.getField( "shunt", 1 );
@@ -283,7 +285,7 @@ public final class CosmicParameters implements AutoCloseable
 		
 		// Initialize zone_to_buses map
 //		for( int mi = 1; mi <= Nbus; ++mi ) {
-		for( final int id : bus_matlab_index.keys() ) {
+		for( final int id : bus_matlab_index.keySet() ) {
 //			final Bus bus = new Bus( mi, this, ps );
 			final Bus bus = new Bus( id, this, ps );
 			final int zone = bus.zone();

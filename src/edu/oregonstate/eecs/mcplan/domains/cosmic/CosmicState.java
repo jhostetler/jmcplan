@@ -11,7 +11,7 @@ modification, are permitted provided that the following conditions are met:
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -31,6 +31,7 @@ package edu.oregonstate.eecs.mcplan.domains.cosmic;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Map;
 
 import com.google.gson.Gson;
 import com.google.gson.TypeAdapter;
@@ -44,7 +45,6 @@ import com.mathworks.toolbox.javabuilder.MWNumericArray;
 import com.mathworks.toolbox.javabuilder.MWStructArray;
 
 import edu.oregonstate.eecs.mcplan.State;
-import gnu.trove.iterator.TIntIntIterator;
 import gnu.trove.list.TIntList;
 import gnu.trove.list.array.TIntArrayList;
 
@@ -390,7 +390,7 @@ public class CosmicState implements State
 			public Iterator<Bus> iterator()
 			{
 				return new Iterator<Bus>() {
-					TIntIntIterator itr = params.bus_matlab_index.iterator();
+					Iterator<Map.Entry<Integer, Integer>> itr = params.bus_matlab_index.entrySet().iterator();
 					
 					@Override
 					public boolean hasNext()
@@ -398,7 +398,7 @@ public class CosmicState implements State
 
 					@Override
 					public Bus next()
-					{ itr.advance(); return bus( itr.key() ); }
+					{ return bus( itr.next().getKey() ); }
 
 					@Override
 					public void remove()
@@ -411,6 +411,35 @@ public class CosmicState implements State
 	public Generator generator( final int id )
 	{
 		return new Generator( id, params, ps );
+	}
+	
+	public Machine machine( final int id )
+	{
+		return new Machine( id, params, ps );
+	}
+	
+	public Iterable<Machine> machines()
+	{
+		return new Iterable<Machine>() {
+			@Override
+			public Iterator<Machine> iterator()
+			{
+				return new Iterator<Machine>() {
+					int i = 1;
+					@Override
+					public boolean hasNext()
+					{ return i <= params.Nmachine; }
+
+					@Override
+					public Machine next()
+					{ return machine( i++ ); }
+
+					@Override
+					public void remove()
+					{ throw new UnsupportedOperationException(); }
+				};
+			}
+		};
 	}
 	
 	/**

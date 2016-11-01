@@ -189,7 +189,7 @@ public final class CosmicMatlabInterface implements AutoCloseable
 			try {
 //				mcontext = new MWCharArray( context );
 				ma = a.toMatlab( params, scopy.t );
-				cprime = m.take_action2( 1, context, scopy.ps, opt, scopy.t, ma, delta_t );
+				cprime = m.take_action2( 2, context, scopy.ps, opt, scopy.t, ma, delta_t );
 			}
 			finally {
 //				mcontext.dispose();
@@ -197,6 +197,8 @@ public final class CosmicMatlabInterface implements AutoCloseable
 			}
 			
 			final MWStructArray ps_prime = (MWStructArray) cprime[0];
+			// Update 'opt' in-place (to maintain state of RNG streams)
+			opt = (MWStructArray) cprime[1];
 			
 			// This is designed to verify that 'sprime' really has its own
 			// copy of all of the Cosmic data structures, by seeing if changes

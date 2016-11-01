@@ -65,6 +65,7 @@ import edu.oregonstate.eecs.mcplan.SequencePolicy;
 import edu.oregonstate.eecs.mcplan.bandit.CyclicFiniteBandit;
 import edu.oregonstate.eecs.mcplan.bandit.FiniteBandit;
 import edu.oregonstate.eecs.mcplan.bandit.UniformFiniteBandit;
+import edu.oregonstate.eecs.mcplan.domains.cosmic.Bus;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.CosmicAction;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.CosmicGson;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.CosmicMatlabInterface;
@@ -75,9 +76,11 @@ import edu.oregonstate.eecs.mcplan.domains.cosmic.CosmicState;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.CosmicTransitionSimulator;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.IslandActionSpace;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.LoadShedActionSpace;
+import edu.oregonstate.eecs.mcplan.domains.cosmic.Machine;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.NothingActionSpace;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.ShedZoneAction;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.ShedZoneActionSpace;
+import edu.oregonstate.eecs.mcplan.domains.cosmic.Shunt;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.TripBranchSetAction;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.policy.NothingPolicy;
 import edu.oregonstate.eecs.mcplan.op.PolicyRollout;
@@ -293,6 +296,8 @@ public class CosmicExperiments
 				.random_load_min( getDouble( "cosmic.random.load_min" ) )
 				.random_load_max( getDouble( "cosmic.random.load_max" ) )
 				.random_load_sigma( getDouble( "cosmic.random.load_sigma" ) )
+				.random_relays( getBoolean( "cosmic.random.relays" ) )
+				.random_relay_mu( getDouble( "cosmic.random.relay_mu" ) )
 				.finish();
 			final String name = get( "domain" );
 			final CosmicMatlabInterface.Problem c;
@@ -531,7 +536,8 @@ public class CosmicExperiments
 	{
 		private final Configuration config;
 		private final CosmicParameters params;
-		private final Csv.Writer csv;
+		private final Csv.Writer rewards;
+		private Csv.Writer trajectory = null;
 		
 		private final Gson gson;
 		private PrintWriter history_out = null;
@@ -543,20 +549,20 @@ public class CosmicExperiments
 		{
 			this.config = config;
 			this.params = params;
-			this.csv = new Csv.Writer( new PrintStream( new File( config.data_directory, "rewards.csv" ) ) );
+			this.rewards = new Csv.Writer( new PrintStream( new File( config.data_directory, "rewards.csv" ) ) );
 			this.gson = config.log_history != Configuration.HistoryLoggingMode.none
 						? config.createGson( params ) : null;
 			
 			// Initialize output files
-			csv.cell( "Tstable" ).cell( "Tepisode" ).cell( "fault" );
+			rewards.cell( "Tstable" ).cell( "Tepisode" ).cell( "fault" );
 			// Rewards are state + previous action, so there's one more reward
 			// column than action column
 			for( int i = 0; i < config.T; ++i ) {
-				csv.cell( "r" + i );
-				csv.cell( "a" + i );
+				rewards.cell( "r" + i );
+				rewards.cell( "a" + i );
 			}
-			csv.cell( "r" + config.T );
-			csv.newline();
+			rewards.cell( "r" + config.T );
+			rewards.newline();
 		}
 		
 		public void beginEpisode( final TrajectorySimulator<CosmicState, CosmicAction> world, final int episode ) throws IOException
@@ -567,7 +573,10 @@ public class CosmicExperiments
 				history_writer.beginArray();
 			}
 			
-			csv.cell( config.Tstable ).cell( config.Tepisode ).cell( StringUtils.join( config.branch_set, ';' ) );
+			rewards.cell( config.Tstable ).cell( config.Tepisode ).cell( StringUtils.join( config.branch_set, ';' ) );
+			
+			trajectory = new Csv.Writer( new PrintStream( new File(
+					config.data_directory, "trajectory_e" + episode + ".csv" ) ) );
 			
 			world.addSimulationListener( this );
 		}
@@ -580,7 +589,9 @@ public class CosmicExperiments
 				history_out = null;
 			}
 			
-			csv.newline();
+			rewards.newline();
+			
+			trajectory.close();
 			
 			if( sprev != null ) {
 				sprev.s.close();
@@ -590,17 +601,115 @@ public class CosmicExperiments
 		@Override
 		public void close()
 		{
-			csv.close();
+			rewards.close();
 			if( history_out != null ) {
 				history_out.close();
 				history_out = null;
 			}
 		}
+		
+		private String[] trajectoryColumns( final CosmicState s )
+		{
+			// Things to log:
+			// 0. time
+			// 1. Bus
+			//		A. Vmag
+			// 2. Machine
+			// 		A. omega
+			// 3. Shunt
+			//		A. P
+			//		B. Q
+			//		C. current_P
+			//		D. current_Q
+			
+			final int N = 1 + params.Nbus + params.Nmachine + 4*params.Nshunt;
+			final String[] v = new String[N];
+			
+			int idx = 0;
+			// Time
+			v[idx++] = "t";
+			// Bus fields
+			for( final Bus bu : s.buses() ) {
+				final String bus_string = "bus" + bu.id();
+				v[idx] = bus_string + "_Vmag";
+				idx += 1;
+			}
+			// Machine fields
+			for( final Machine ma : s.machines() ) {
+				v[idx] = "mac" + ma.id() + "_omega";
+				idx += 1;
+			}
+			// Shunt fields
+			for( final Shunt sh : s.shunts() ) {
+				final String shunt_string = "sh" + sh.id();
+				v[idx]					 = shunt_string + "_P";
+				v[idx + 1*params.Nshunt] = shunt_string + "_Q";
+				v[idx + 2*params.Nshunt] = shunt_string + "_current_P";
+				v[idx + 3*params.Nshunt] = shunt_string + "_current_Q";
+				idx += 1;
+			}
+			idx += 3*params.Nshunt;
+			
+			assert( idx == N );
+			return v;
+		}
+		
+		private double[] trajectoryState( final CosmicState s )
+		{
+			// Things to log:
+			// 0. time
+			// 1. Bus
+			//		A. Vmag
+			// 2. Machine
+			// 		A. omega
+			// 3. Shunt
+			//		A. P
+			//		B. Q
+			//		C. current_P
+			//		D. current_Q
+			
+			final int N = 1 + params.Nbus + params.Nmachine + 4*params.Nshunt;
+			final double[] v = new double[N];
+			
+			int idx = 0;
+			// Time
+			v[idx++] = s.t;
+			// Bus fields
+			for( final Bus bu : s.buses() ) {
+				v[idx] = bu.Vmag();
+				idx += 1;
+			}
+			// Machine fields
+			for( final Machine ma : s.machines() ) {
+				v[idx] = ma.omega();
+				idx += 1;
+			}
+			// Shunt fields
+			for( final Shunt sh : s.shunts() ) {
+				v[idx]					 = sh.P();
+				v[idx + 1*params.Nshunt] = sh.Q();
+				v[idx + 2*params.Nshunt] = sh.current_P();
+				v[idx + 3*params.Nshunt] = sh.current_Q();
+				idx += 1;
+			}
+			idx += 3*params.Nshunt;
+			
+			assert( idx == N );
+			return v;
+		}
 
 		@Override
 		public void onInitialStateSample( final StateNode<CosmicState, CosmicAction> s0 )
 		{
-			csv.cell( s0.r );
+			// We have to wait until now to initialize trajectory log because
+			// we need to iterate over elements of the state.
+			for( final String tcol : trajectoryColumns( s0.s ) ) {
+				trajectory.cell( tcol );
+			}
+			trajectory.newline();
+			trajectory.row( trajectoryState( s0.s ) );
+			
+			rewards.cell( s0.r );
 			sprev = s0;
 			
 			if( config.log_history != Configuration.HistoryLoggingMode.none  ) {
@@ -612,11 +721,12 @@ public class CosmicExperiments
 		@Override
 		public void onTransitionSample( final ActionNode<CosmicState, CosmicAction> trans )
 		{
-			csv.cell( trans.a );
+			rewards.cell( trans.a );
 			double r = trans.r;
 			final StateNode<CosmicState, CosmicAction> succ = Iterables.getOnlyElement( trans.successors() );
 			r += succ.r;
-			csv.cell( r );
+			rewards.cell( r );
+			trajectory.row( trajectoryState( succ.s ) );
 			
 			if( config.log_history != Configuration.HistoryLoggingMode.none  ) {
 				if( config.log_history == Configuration.HistoryLoggingMode.full

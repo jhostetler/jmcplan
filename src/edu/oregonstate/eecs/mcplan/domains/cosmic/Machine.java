@@ -31,48 +31,41 @@ package edu.oregonstate.eecs.mcplan.domains.cosmic;
 import com.mathworks.toolbox.javabuilder.MWStructArray;
 
 /**
- * This is a wrapper class to give names to the "bus" fields.
+ * This is a wrapper class to give names to the "mac" fields.
  * <p>
  * Refer to 'psconstants.m' for further documentation.
  * <p>
  * It holds the underlying Matlab array via WeakReference, so it will not keep
- * it alive. Do not store references to Shunt instances.
- * 
- * TODO: Strictly speaking we wouldn't leak Matlab memory anyway since it all
- * gets disposed when the corresponding CosmicState is disposed. So the
- * WeakReference is potentially unnecessary overhead.
+ * it alive. Do not store references to Machine instances.
  */
-public final class Bus extends CosmicFacade
+public final class Machine extends CosmicFacade
 {
-	public Bus( final int id, final CosmicParameters params, final MWStructArray ps )
+	public Machine( final int id, final CosmicParameters params, final MWStructArray ps )
 	{
-//		super( "bus", id, params.bu_col_names, ps );
-		super( "bus", params.bus_matlab_index.get( id ), params.bu_col_names, ps );
+		super( "mac", id, params.ma_col_names, ps );
 	}
 	
 	@Override
 	public String toString()
 	{
 		final StringBuilder sb = new StringBuilder();
-		sb.append( "Bus[" ).append( "id: " ).append( id() )
-		  .append( "; zone: " ).append( zone() )
-		  .append( "; Vmag: " ).append( Vmag() )
+		sb.append( "Machine[" ).append( "id: " ).append( id() )
+		  .append( "; omega: " ).append( omega() )
 		  .append( "]" );
 		return sb.toString();
 	}
 	
-	public double Vang()
+	@Override
+	public int id()
 	{
-		return getDouble( "Vang" );
+		// The unique identifier of a Machine is the *bus* number associated
+		// with the generator associated with the machine. This field is called
+		// 'gen' in psconstants.m, but it clearly refers to a bus.
+		return getInt( "gen" );
 	}
 	
-	public double Vmag()
+	public double omega()
 	{
-		return getDouble( "Vmag" );
-	}
-	
-	public int zone()
-	{
-		return getInt( "zone" );
+		return getDouble( "omega" );
 	}
 }

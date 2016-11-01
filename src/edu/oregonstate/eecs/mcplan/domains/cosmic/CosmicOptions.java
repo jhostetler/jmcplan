@@ -58,13 +58,16 @@ public final class CosmicOptions
 		// The model is P_{t+1} ~ P_t + Gaussian(0, sigma * P_0) where P_0 is
 		// the initial value of P
 		private double random_load_sigma = 0.01;
+		private boolean random_relays = false;
+		private double random_relay_mu = 1.0;
 		
 		public CosmicOptions finish()
 		{
 			return new CosmicOptions( verbose, write_log,
 									  simgrid_max_recursion, simgrid_method,
 									  ImmutableMap.copyOf( random_generators ),
-									  random_loads, random_load_min, random_load_max, random_load_sigma );
+									  random_loads, random_load_min, random_load_max, random_load_sigma,
+									  random_relays, random_relay_mu );
 		}
 		
 		public Builder verbose( final boolean verbose )
@@ -91,6 +94,12 @@ public final class CosmicOptions
 		public Builder random_load_sigma( final double sigma )
 		{ this.random_load_sigma = sigma; return this; }
 		
+		public Builder random_relays( final boolean b )
+		{ this.random_relays = b; return this; }
+		
+		public Builder random_relay_mu( final double mu )
+		{ this.random_relay_mu = mu; return this; }
+		
 		public Builder random_generator( final String name, final int seed )
 		{ this.random_generators.put( name, seed ); return this; }
 	}
@@ -107,12 +116,15 @@ public final class CosmicOptions
 	public final double random_load_min;
 	public final double random_load_max;
 	public final double random_load_sigma;
+	public final boolean random_relays;
+	public final double random_relay_mu;
 	
-	public CosmicOptions( final boolean verbose, final boolean write_log,
+	private CosmicOptions( final boolean verbose, final boolean write_log,
 						  final int simgrid_max_recursion, final SimgridMethod simgrid_method,
 						  final ImmutableMap<String, Integer> random_generators,
 						  final boolean random_loads, final double random_load_min,
-						  final double random_load_max, final double random_load_sigma )
+						  final double random_load_max, final double random_load_sigma,
+						  final boolean random_relays, final double random_relay_mu )
 	{
 		this.verbose = verbose;
 		this.write_log = write_log;
@@ -124,8 +136,10 @@ public final class CosmicOptions
 		this.random_load_min = random_load_min;
 		this.random_load_max = random_load_max;
 		this.random_load_sigma = random_load_sigma;
-		
+		this.random_relays = random_relays;
+		this.random_relay_mu = random_relay_mu;
 		assert( this.random_load_max >= 0 );
+		assert( this.random_relay_mu >= 0 );
 	}
 	
 	public MWStructArray toMatlab()
@@ -140,14 +154,16 @@ public final class CosmicOptions
 		// Simulator stochasticity
 		{
 			final MWStructArray random = new MWStructArray( 1, 1,
-				new String[] { "gen", "loads", "load_min", "load_max", "load_sigma" } );
+				new String[] { "gen",
+							   "loads", "load_min", "load_max", "load_sigma",
+							   "relays", "relay_mu" } );
 			{
 				final MWStructArray gen = new MWStructArray( 1, 1,
 					random_generators.keySet().toArray( new String[] { } ) );
 				for( final Map.Entry<String, Integer> e : random_generators.entrySet() ) {
+					// Note: the 'state' field is intentionally not initialized
 					final MWStructArray gen_i = new MWStructArray( 1, 1, new String[] { "seed", "state" } );
 					gen_i.set( "seed", 1, e.getValue() );
-		//			gen.set( "state", 1, MWArray.EMPTY_ARRAY );
 					gen.set( e.getKey(), 1, gen_i );
 				}
 				random.set( "gen", 1, gen );
@@ -156,6 +172,8 @@ public final class CosmicOptions
 			random.set( "load_min", 1, random_load_min );
 			random.set( "load_max", 1, random_load_max );
 			random.set( "load_sigma", 1, random_load_sigma );
+			random.set( "relays", 1, random_relays );
+			random.set( "relay_mu", 1, random_relay_mu );
 			struct.set( "random", 1, random );
 		}
 		return struct;
