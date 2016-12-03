@@ -23,41 +23,52 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/**
- * 
- */
-package edu.oregonstate.eecs.mcplan.domains.cosmic.policy;
+package edu.oregonstate.eecs.mcplan.sim;
 
-import edu.oregonstate.eecs.mcplan.domains.cosmic.Bus;
-import edu.oregonstate.eecs.mcplan.domains.cosmic.CosmicState;
-import edu.oregonstate.eecs.mcplan.domains.cosmic.Shunt;
+import edu.oregonstate.eecs.mcplan.search.fsss.Budget;
 
 /**
  * @author jhostetler
  *
  */
-public class FeatureVmag extends HystereticLoadShedding.Feature
+public class TransitionBudget<S, A> implements Budget, SimulationListener<S, A>
 {
-	@Override
-	public String toString()
+	private int transitions = 0;
+	public final int budget;
+	
+	public TransitionBudget( final int budget )
 	{
-		return "bus.Vmag";
+		this.budget = budget;
 	}
-
+	
 	@Override
-	public double[] forState( final CosmicState s )
+	public void onInitialStateSample( final StateNode<S, A> s0 )
+	{ }
+	
+	@Override
+	public void onTransitionSample( final ActionNode<S, A> trans )
 	{
-		final double[] result = new double[s.params.Nbus];
-		for( final Bus bus : s.buses() ) {
-			final int mi = s.params.matlabIndex( bus );
-			result[mi - 1] = bus.Vmag();
+		transitions += 1;
+		if( transitions < 0 ) {
+			throw new ArithmeticException( "integer overflow" );
 		}
-		return result;
 	}
 
 	@Override
-	public Shunt shunt( final CosmicState s, final int fault_idx )
+	public boolean isExceeded()
 	{
-		return SelectNearestShunt.forBus( s, s.busAt( fault_idx + 1 ) );
+		return transitions >= budget;
+	}
+
+	@Override
+	public double actualDouble()
+	{
+		return transitions;
+	}
+
+	@Override
+	public void reset()
+	{
+		transitions = 0;
 	}
 }

@@ -213,7 +213,8 @@ public final class CosmicMatlabInterface implements AutoCloseable
 			M.field_set( ps_prime, "bus", 1, new int[] { 1, 1 }, old_id );
 //			ps_prime.getField( "bus", 1 ).set( new int[] { 1, 1 }, old_id );
 			
-			final CosmicState sprime = new CosmicState(	params, ps_prime, scopy.t + delta_t );
+//			final CosmicState sprime = new CosmicState(	params, ps_prime, scopy.t + delta_t );
+			final CosmicState sprime = s.createSuccessor( params, a, ps_prime, s.t + delta_t );
 			return sprime;
 		}
 		catch( final MWException ex ) {

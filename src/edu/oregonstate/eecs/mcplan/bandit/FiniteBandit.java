@@ -11,7 +11,7 @@ modification, are permitted provided that the following conditions are met:
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -23,34 +23,66 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/**
- * 
- */
 package edu.oregonstate.eecs.mcplan.bandit;
 
 import java.util.ArrayList;
 
 import org.apache.commons.math3.random.RandomGenerator;
 
+import edu.oregonstate.eecs.mcplan.LoggerManager;
+import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
+
 /**
- * @author jhostetler
- *
+ * The base class for multi-armed bandit algorithms over a finite set.
  */
 public abstract class FiniteBandit<T>
 {
+	private final ch.qos.logback.classic.Logger LogAgent = LoggerManager.getLogger( "log.agent" );
+	
 	protected final ArrayList<T> arms;
 	protected final StochasticEvaluator<T> eval;
+	
+	private final ArrayList<MeanVarianceAccumulator> r;
+	private double rstar = Double.NEGATIVE_INFINITY;
+	private int istar = 0;
+	private int n = 0;
 	
 	public FiniteBandit()
 	{
 		arms = null;
 		eval = null;
+		r = null;
 	}
 	
 	public FiniteBandit( final ArrayList<T> arms, final StochasticEvaluator<T> eval )
 	{
 		this.arms = arms;
 		this.eval = eval;
+		
+		r = new ArrayList<MeanVarianceAccumulator>();
+		for( int i = 0; i < arms.size(); ++i ) {
+			r.add( null );
+		}
+	}
+	
+	public abstract FiniteBandit<T> create( final ArrayList<T> arms, final StochasticEvaluator<T> eval );
+	
+	// -----------------------------------------------------------------------
+	
+	public final int n()
+	{
+		return n;
+	}
+	
+	public final int n( final int i )
+	{
+		final MeanVarianceAccumulator ri = r.get( i );
+		return (ri != null ? ri.n() : 0);
+	}
+	
+	public final double mean( final int i )
+	{
+		return r.get( i ).mean();
 	}
 	
 	public final int Narms()
@@ -63,11 +95,43 @@ public abstract class FiniteBandit<T>
 		return arms.get( i );
 	}
 	
-	public abstract FiniteBandit<T> create( final ArrayList<T> arms, final StochasticEvaluator<T> eval );
+	public final T bestArm()
+	{
+		return arms.get( istar );
+	}
 	
-	public abstract void sampleArm( final RandomGenerator rng );
+	public final void sampleArm( final RandomGenerator rng )
+	{
+		final int i = selectArm( rng );
+		MeanVarianceAccumulator ri = r.get( i );
+		if( ri == null ) {
+			ri = new MeanVarianceAccumulator();
+			r.set( i, ri );
+		}
+		
+		final T t = arms.get( i );
+		LogAgent.debug( "FiniteBandit: sample arm {}", t );
+		final double rsample = eval.evaluate( rng, t );
+		LogAgent.debug( "FiniteBandit: sample arm {} => {}", t, rsample );
+		ri.add( rsample );
+		if( ri.mean() > rstar ) {
+			LogAgent.info( "FiniteBandit: lead change: {} => {}", bestArm(), t );
+			LogAgent.info( "\tr: {} => {}", rstar, ri.mean() );
+			rstar = ri.mean();
+			istar = i;
+		}
+		n += 1;
+	}
 	
-	public abstract T bestArm();
+	// -----------------------------------------------------------------------
+	// Subclass interface
+	
+	protected int bestIndex()
+	{
+		return istar;
+	}
+	
+	protected abstract int selectArm( final RandomGenerator rng );
 	
 	public boolean convergenceTest( final double epsilon, final double delta )
 	{

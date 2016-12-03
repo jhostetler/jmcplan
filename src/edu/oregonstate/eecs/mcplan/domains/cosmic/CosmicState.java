@@ -51,6 +51,12 @@ import gnu.trove.list.array.TIntArrayList;
 /**
  * Represents a Cosmic state.
  * <p>
+ * The state is considered *terminal* if current_P_total() == 0 at construction
+ * time.
+ * <p>
+ * CosmicState instances are intended to be *immutable*. They are not
+ * necessarily *actually immutable*, but don't try to change them!
+ * <p>
  * CosmicState owns all Matlab objects passed to its constructor.
  */
 public class CosmicState implements State
@@ -205,10 +211,12 @@ public class CosmicState implements State
 	
 	public final X x = new X();
 	
+	public final boolean blackout;
+	
 	// Non-Cosmic State ------------------------------------------------------
 	
 	private int error = CosmicError.None.code;
-	/*internal*/ final TIntList islands = new TIntArrayList();
+	public final TIntList islands = new TIntArrayList();
 	
 	// -----------------------------------------------------------------------
 	
@@ -246,6 +254,8 @@ public class CosmicState implements State
 		this.mx = x;
 		this.my = y;
 		this.event = event;
+		
+		this.blackout = (current_P_total() == 0);
 	}
 	
 	public CosmicState createSuccessor( final CosmicParameters params,
@@ -254,6 +264,16 @@ public class CosmicState implements State
 										final MWNumericArray x, final MWNumericArray y, final MWNumericArray event )
 	{
 		final CosmicState sprime = new CosmicState( params, ps, t, x, y, event );
+		copyNonCosmicStateInto( sprime );
+		a.applyNonCosmicChanges( sprime );
+		return sprime;
+	}
+	
+	public CosmicState createSuccessor( final CosmicParameters params,
+										final CosmicAction a,
+										final MWStructArray ps, final double t )
+	{
+		final CosmicState sprime = new CosmicState( params, ps, t );
 		copyNonCosmicStateInto( sprime );
 		a.applyNonCosmicChanges( sprime );
 		return sprime;
@@ -292,10 +312,22 @@ public class CosmicState implements State
 		}
 	}
 	
+	public double current_P_total()
+	{
+		double P = 0;
+		for( final Shunt sh : shunts() ) {
+			final double cur_p = sh.current_P();
+			P += Math.max( cur_p, 0 );
+		}
+		return P;
+	}
+	
 	@Override
 	public boolean isTerminal()
 	{
-		return error != CosmicError.None.code || t >= params.T;
+		// FIXME: The 't > 0' condition is a hack to work around the problem
+		// that current_P = 0 at t = 0 for some reason.
+		return error != CosmicError.None.code || (t > 0 && blackout) || t >= params.T;
 	}
 	
 	public void setError( final CosmicError err )
@@ -322,17 +354,17 @@ public class CosmicState implements State
 	 * @param bus
 	 * @return
 	 */
-	public DistanceBusPair[] nearestBusesByRowElectricalDistance( final CosmicParameters params, final int bus )
+	public DistanceBusPair[] nearestBusesByRowElectricalDistance( final CosmicParameters params, final int bus_id )
 	{
 		MWNumericArray E = null;
 		try {
 			E = (MWNumericArray) ps.getField( "Ebus", 1 );
-			final int[] idx = new int[] { bus, 1 };
+			final int[] idx = new int[] { params.matlabIndex( bus( bus_id ) ), 1 };
 			final DistanceBusPair[] result = new DistanceBusPair[params.Nbus];
 			for( int i = 0; i < params.Nbus; ++i ) {
 				idx[1] = i + 1;
 				final double d = E.getDouble( idx );
-				result[i] = new DistanceBusPair( d, i + 1 );
+				result[i] = new DistanceBusPair( d, params.bus_id_at(i + 1) );
 			}
 			Arrays.sort( result );
 			return result;
@@ -374,13 +406,23 @@ public class CosmicState implements State
 	}
 	
 	/**
-	 * Returns a Shunt instance for the given shunt id.
+	 * Returns a Bus instance for the bus with bus.id == 'id'.
 	 * @param id
 	 * @return
 	 */
 	public Bus bus( final int id )
 	{
 		return new Bus( id, params, ps );
+	}
+	
+	/**
+	 * Returns a Bus instance for the bus at Matlab index 'mi'.
+	 * @param mi
+	 * @return
+	 */
+	public Bus busAt( final int mi )
+	{
+		return new Bus( params.bus_id_at( mi ), params, ps );
 	}
 	
 	public Iterable<Bus> buses()
@@ -390,7 +432,7 @@ public class CosmicState implements State
 			public Iterator<Bus> iterator()
 			{
 				return new Iterator<Bus>() {
-					Iterator<Map.Entry<Integer, Integer>> itr = params.bus_matlab_index.entrySet().iterator();
+					Iterator<Map.Entry<Integer, Integer>> itr = params.bus_id_to_matlab_index.entrySet().iterator();
 					
 					@Override
 					public boolean hasNext()
@@ -474,6 +516,19 @@ public class CosmicState implements State
 				};
 			}
 		};
+	}
+	
+	public int[] liveShunts()
+	{
+		final TIntList live_shunts = new TIntArrayList();
+		for( final Shunt sh : shunts() ) {
+			// Exclude shunts that are already tripped, and shunts that
+			// generate negative power.
+			if( sh.factor() > 0 && sh.P() > 0 ) {
+				live_shunts.add( sh.id() );
+			}
+		}
+		return live_shunts.toArray();
 	}
 	
 	// -----------------------------------------------------------------------

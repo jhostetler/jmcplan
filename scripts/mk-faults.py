@@ -22,29 +22,13 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from optparse import OptionParser
+import argparse
+from csv import CsvAttribute, CsvDataset
 
-cl_parser = OptionParser( usage="%prog [options] file" )
-(options, args) = cl_parser.parse_args();
+cl_parser = argparse.ArgumentParser( description="Generates all N-2 faults" )
+cl_parser.add_argument( "--Nbranch", type=int, default=0, help="Number of branches in grid" )
+args = cl_parser.parse_args()
 
-Tstable = 10
-Tepisode = 300
-T = Tstable + Tepisode
-verbose = False
-Nfaults = 2
-
-# TODO: Make this a parameter
-Nbranch = 46
-
-headers = ["Tstable", "Tepisode", "Nfaults"]
-for i in range(0, Nfaults):
-	headers.append( "fault" + str(i) )
-headers.append( "verbose" )
-	
-print( ",".join( headers ) )
-
-for i in range(1, Nbranch+1):
-	for j in range(1, Nbranch+1):
-		if i < j:
-			line = [Tstable, Tepisode, Nfaults, i, j, verbose]
-			print( ",".join( map( str, line ) ) )
+for i in range(1, args.Nbranch+1):
+	for j in range(i+1, args.Nbranch+1):
+		print( ";".join( map(str, [i, j]) ) )

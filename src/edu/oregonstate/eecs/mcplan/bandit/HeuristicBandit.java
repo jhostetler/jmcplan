@@ -23,41 +23,55 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/**
- * 
- */
-package edu.oregonstate.eecs.mcplan.domains.cosmic.policy;
+package edu.oregonstate.eecs.mcplan.bandit;
 
-import edu.oregonstate.eecs.mcplan.domains.cosmic.Bus;
-import edu.oregonstate.eecs.mcplan.domains.cosmic.CosmicState;
-import edu.oregonstate.eecs.mcplan.domains.cosmic.Shunt;
+import java.util.ArrayList;
+
+import org.apache.commons.math3.random.RandomGenerator;
 
 /**
  * @author jhostetler
  *
  */
-public class FeatureVmag extends HystereticLoadShedding.Feature
+public abstract class HeuristicBandit<T> extends FiniteBandit<T>
 {
-	@Override
-	public String toString()
+	public HeuristicBandit()
 	{
-		return "bus.Vmag";
+		super();
 	}
-
-	@Override
-	public double[] forState( final CosmicState s )
+	
+	public HeuristicBandit( final ArrayList<T> arms, final StochasticEvaluator<T> eval )
 	{
-		final double[] result = new double[s.params.Nbus];
-		for( final Bus bus : s.buses() ) {
-			final int mi = s.params.matlabIndex( bus );
-			result[mi - 1] = bus.Vmag();
+		super( arms, eval );
+	}
+	
+	/**
+	 * The heuristic value of the arm. The arm that currently has the largest
+	 * heuristic value will be selected next. If heuristic( i ) returns
+	 * Double.POSITIVE_INFINITY, arm 'i' will be selected immediately without
+	 * evaluating the heuristic for any j > i.
+	 * @param i
+	 * @return
+	 */
+	protected abstract double heuristic( final int i );
+	
+	@Override
+	protected final int selectArm( final RandomGenerator rng )
+	{
+		int istar = 0;
+		double hstar = Double.NEGATIVE_INFINITY;
+		for( int i = 0; i < Narms(); ++i ) {
+			final double h = heuristic( i );
+			if( h > hstar ) {
+				hstar = h;
+				istar = i;
+			}
+			if( h == Double.POSITIVE_INFINITY ) {
+				// Since POSITIVE_INFINITY > POSITIVE_INFINITY is false, no
+				// other arm can replace istar in the future.
+				break;
+			}
 		}
-		return result;
-	}
-
-	@Override
-	public Shunt shunt( final CosmicState s, final int fault_idx )
-	{
-		return SelectNearestShunt.forBus( s, s.busAt( fault_idx + 1 ) );
+		return istar;
 	}
 }

@@ -47,7 +47,7 @@ public final class Bus extends CosmicFacade
 	public Bus( final int id, final CosmicParameters params, final MWStructArray ps )
 	{
 //		super( "bus", id, params.bu_col_names, ps );
-		super( "bus", params.bus_matlab_index.get( id ), params.bu_col_names, ps );
+		super( "bus", params.bus_id_to_matlab_index.get( id ), params.bu_col_names, ps );
 	}
 	
 	@Override

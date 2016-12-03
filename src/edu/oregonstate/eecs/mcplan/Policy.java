@@ -11,7 +11,7 @@ modification, are permitted provided that the following conditions are met:
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -34,14 +34,10 @@ package edu.oregonstate.eecs.mcplan;
  */
 public abstract class Policy<S, A>
 {
-	/**
-	 * Called when a new "episode" is about to begin.
-	 * <p>
-	 * A non-stationary policy can use this as an opportunity to start
-	 * recording a new history. Default implementation does nothing.
-	 */
-	public void reset()
-	{ }
+	public Policy<S, A> copy()
+	{
+		throw new UnsupportedOperationException();
+	}
 	
 	/**
 	 * Must return false if the policy exploits stored history information to

@@ -32,7 +32,9 @@ import edu.oregonstate.eecs.mcplan.LoggerManager;
 import gnu.trove.iterator.TIntIterator;
 import gnu.trove.list.TIntList;
 import gnu.trove.list.array.TIntArrayList;
+import gnu.trove.map.TIntIntMap;
 import gnu.trove.map.TIntObjectMap;
+import gnu.trove.map.hash.TIntIntHashMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
 import gnu.trove.procedure.TIntProcedure;
 import gnu.trove.set.TIntSet;
@@ -93,7 +95,8 @@ public final class CosmicParameters implements AutoCloseable
 	public static final int ev_change_by_amount		= 0;
 	public static final int ev_change_by_percent	= 1;
 	
-	public final Map<Integer, Integer> bus_matlab_index = new LinkedHashMap();
+	public final Map<Integer, Integer> bus_id_to_matlab_index = new LinkedHashMap<>();
+	public final TIntIntMap bus_matlab_index_to_id = new TIntIntHashMap();
 	private final TIntObjectMap<TIntList> bus_to_shunts = new TIntObjectHashMap<>();
 	
 	public final int Nzones;
@@ -246,7 +249,8 @@ public final class CosmicParameters implements AutoCloseable
 			mbuses = (MWNumericArray) ps.getField( "bus", 1 );
 			for( int mi = 1; mi <= Nbus; ++mi ) {
 				final int bus_id = mbuses.getInt( new int[] { mi, bu_col_names.get( "id" ) } );
-				bus_matlab_index.put( bus_id, mi );
+				bus_id_to_matlab_index.put( bus_id, mi );
+				bus_matlab_index_to_id.put( mi, bus_id );
 			}
 		}
 		finally {
@@ -254,7 +258,7 @@ public final class CosmicParameters implements AutoCloseable
 		}
 		
 		// Initialize bus_to_shunts map
-		for( final Map.Entry<Integer, Integer> e : bus_matlab_index.entrySet() ) {
+		for( final Map.Entry<Integer, Integer> e : bus_id_to_matlab_index.entrySet() ) {
 			bus_to_shunts.put( e.getKey(), new TIntArrayList() );
 		}
 //		bus_matlab_index.forEachKey( new TIntProcedure() {
@@ -285,7 +289,7 @@ public final class CosmicParameters implements AutoCloseable
 		
 		// Initialize zone_to_buses map
 //		for( int mi = 1; mi <= Nbus; ++mi ) {
-		for( final int id : bus_matlab_index.keySet() ) {
+		for( final int id : bus_id_to_matlab_index.keySet() ) {
 //			final Bus bus = new Bus( mi, this, ps );
 			final Bus bus = new Bus( id, this, ps );
 			final int zone = bus.zone();
@@ -362,6 +366,16 @@ public final class CosmicParameters implements AutoCloseable
 			cat.dispose();
 			col_names.dispose();
 		}
+	}
+	
+	public int matlabIndex( final Bus bus )
+	{
+		return bus_id_to_matlab_index.get( bus.id() );
+	}
+	
+	public int bus_id_at( final int mi )
+	{
+		return bus_matlab_index_to_id.get( mi );
 	}
 	
 	public TIntIterator shuntsForBus( final int bus_id )

@@ -129,6 +129,18 @@ public class Csv
 			return newline();
 		}
 		
+		public Writer row( final String[] v )
+		{
+			for( int i = 0; i < v.length; ++i ) {
+				if( comma_ ) {
+					out.print( "," );
+				}
+				comma_ = true;
+				out.print( v[i] );
+			}
+			return newline();
+		}
+		
 		public Writer row( final RealVector v )
 		{
 			for( int i = 0; i < v.getDimension(); ++i ) {

@@ -23,102 +23,75 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/**
- * 
- */
 package edu.oregonstate.eecs.mcplan.domains.cosmic;
 
-import gnu.trove.TIntCollection;
-import gnu.trove.iterator.TIntIterator;
-import gnu.trove.set.TIntSet;
-import gnu.trove.set.hash.TIntHashSet;
-
-import java.util.List;
-
-import org.apache.commons.lang3.StringUtils;
+import java.util.Arrays;
 
 import com.mathworks.toolbox.javabuilder.MWClassID;
 import com.mathworks.toolbox.javabuilder.MWComplexity;
 import com.mathworks.toolbox.javabuilder.MWNumericArray;
 
 /**
- * @author jhostetler
- *
+ * Sheds a fixed percentage of nominal load at every active shunt.
  */
-public final class IslandAction extends CosmicAction
+public class ShedGlobalAction extends CosmicAction
 {
-	private final TIntSet zone = new TIntHashSet();
-	private final TIntSet cutset = new TIntHashSet();
+	public final int[] shunts;
+	public final double amount;
 	
-	public IslandAction( final int zone, final int[] cutset )
+	public ShedGlobalAction( final int[] shunts, final double amount )
 	{
-		this.zone.add( zone );
-		this.cutset.addAll( cutset );
+		this.shunts = shunts;
+		this.amount = amount;
 	}
-	
-	public IslandAction( final TIntCollection zone, final List<int[]> cutset )
-	{
-		this.zone.addAll( zone );
-		for( final int[] cut : cutset ) {
-			this.cutset.addAll( cut );
-		}
-	}
-	
-	public IslandAction( final TIntCollection zone, final TIntSet cutset )
-	{
-		this.zone.addAll( zone );
-		this.cutset.addAll( cutset );
-	}
-	
+
 	@Override
-	public CosmicAction create()
+	public ShedGlobalAction create()
 	{
-		return new IslandAction( zone, cutset );
+		return new ShedGlobalAction( shunts, amount );
 	}
 
 	@Override
 	public MWNumericArray toMatlab( final CosmicParameters params, final double t )
 	{
-		final MWNumericArray m = MWNumericArray.newInstance(
-			new int[] { cutset.size(), params.ev_cols }, MWClassID.DOUBLE, MWComplexity.REAL );
-		int row = 1;
-		final TIntIterator itr = cutset.iterator();
-		while( itr.hasNext() ) {
-			final int branch_id = itr.next();
-			m.set( new int[] { row, params.ev_time }, t );
-			m.set( new int[] { row, params.ev_type }, params.ev_trip_branch );
-			m.set( new int[] { row, params.ev_branch_loc }, branch_id );
-			row += 1;
+		final MWNumericArray a = MWNumericArray.newInstance(
+			new int[] { params.Nshunt, params.ev_cols }, MWClassID.DOUBLE, MWComplexity.REAL );
+		for( int i = 0; i < shunts.length; ++i ) {
+			a.set( new int[] { i+1, params.ev_time }, t );
+			a.set( new int[] { i+1, params.ev_type }, params.ev_shed_load );
+			a.set( new int[] { i+1, params.ev_shunt_loc }, shunts[i] );
+			a.set( new int[] { i+1, params.ev_change_by }, CosmicParameters.ev_change_by_percent );
+			a.set( new int[] { i+1, params.ev_quantity }, amount );
 		}
-//		System.out.println( toString() + " -> " + m );
-		return m;
+		return a;
 	}
-	
+
 	@Override
 	public void applyNonCosmicChanges( final CosmicState sprime )
-	{
-		sprime.islands.addAll( zone );
-	}
+	{ }
 
 	@Override
 	public int hashCode()
 	{
-		return getClass().hashCode() ^ cutset.hashCode();
+		return getClass().hashCode() + 3*(Arrays.hashCode( shunts ) + 5*Double.valueOf( amount ).hashCode());
 	}
-
+	
 	@Override
 	public boolean equals( final Object obj )
 	{
-		if( !(obj instanceof IslandAction) ) {
+		if( !(obj instanceof ShedGlobalAction) ) {
 			return false;
 		}
-		final IslandAction that = (IslandAction) obj;
-		return zone.equals( that.zone ) && cutset.equals( that.cutset );
+		final ShedGlobalAction that = (ShedGlobalAction) obj;
+		return Arrays.equals( shunts, that.shunts )
+			   && amount == that.amount;
 	}
-
+	
 	@Override
 	public String toString()
 	{
-		return "Island({" + StringUtils.join( zone.toArray(), ';' ) + "})";
+		final StringBuilder sb = new StringBuilder();
+		sb.append( "ShedGlobal(" ).append( amount ).append( ")" );
+		return sb.toString();
 	}
 }

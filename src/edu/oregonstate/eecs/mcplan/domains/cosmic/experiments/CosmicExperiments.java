@@ -34,6 +34,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -63,8 +65,10 @@ import edu.oregonstate.eecs.mcplan.Policy;
 import edu.oregonstate.eecs.mcplan.ReducedFrequencyPolicy;
 import edu.oregonstate.eecs.mcplan.SequencePolicy;
 import edu.oregonstate.eecs.mcplan.bandit.CyclicFiniteBandit;
+import edu.oregonstate.eecs.mcplan.bandit.EpsilonGreedyBandit;
 import edu.oregonstate.eecs.mcplan.bandit.FiniteBandit;
-import edu.oregonstate.eecs.mcplan.bandit.UniformFiniteBandit;
+import edu.oregonstate.eecs.mcplan.bandit.UcbBandit;
+import edu.oregonstate.eecs.mcplan.bandit.UcbSqrtBandit;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.Bus;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.CosmicAction;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.CosmicGson;
@@ -78,12 +82,20 @@ import edu.oregonstate.eecs.mcplan.domains.cosmic.IslandActionSpace;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.LoadShedActionSpace;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.Machine;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.NothingActionSpace;
+import edu.oregonstate.eecs.mcplan.domains.cosmic.ShedGlobalActionSpace;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.ShedZoneAction;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.ShedZoneActionSpace;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.Shunt;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.TripBranchSetAction;
+import edu.oregonstate.eecs.mcplan.domains.cosmic.policy.FeatureFrequency;
+import edu.oregonstate.eecs.mcplan.domains.cosmic.policy.FeatureVmag;
+import edu.oregonstate.eecs.mcplan.domains.cosmic.policy.HystereticLoadShedding;
+import edu.oregonstate.eecs.mcplan.domains.cosmic.policy.IsolatePolicy;
 import edu.oregonstate.eecs.mcplan.domains.cosmic.policy.NothingPolicy;
+import edu.oregonstate.eecs.mcplan.domains.cosmic.policy.PartitionZonesPolicy;
+import edu.oregonstate.eecs.mcplan.domains.cosmic.policy.ShedGlobalPolicy;
 import edu.oregonstate.eecs.mcplan.op.PolicyRollout;
+import edu.oregonstate.eecs.mcplan.op.PolicySwitching;
 import edu.oregonstate.eecs.mcplan.search.fsss.Budget;
 import edu.oregonstate.eecs.mcplan.sim.ActionNode;
 import edu.oregonstate.eecs.mcplan.sim.SimulationListener;
@@ -92,6 +104,7 @@ import edu.oregonstate.eecs.mcplan.sim.StateNode;
 import edu.oregonstate.eecs.mcplan.sim.TrajectoryBudget;
 import edu.oregonstate.eecs.mcplan.sim.TrajectorySimulator;
 import edu.oregonstate.eecs.mcplan.sim.TrajectoryTraversal;
+import edu.oregonstate.eecs.mcplan.sim.TransitionBudget;
 import edu.oregonstate.eecs.mcplan.util.Csv;
 import edu.oregonstate.eecs.mcplan.util.CsvConfigurationParser;
 import edu.oregonstate.eecs.mcplan.util.Fn;
@@ -192,9 +205,97 @@ public class CosmicExperiments
 			return new PolicyRollout<>( rng, sim, as, bandit, Pi, depth_limit );
 		}
 		
+		/**
+		 * Returns Nothing immediate if total power is 0 in the current state,
+		 * else delegates to 'pi'.
+		 */
+		private static class ShortCircuitPolicy extends Policy<CosmicState, CosmicAction>
+		{
+			private final Policy<CosmicState, CosmicAction> pi;
+			private boolean terminal = false;
+			
+			public ShortCircuitPolicy( final Policy<CosmicState, CosmicAction> pi )
+			{
+				this.pi = pi;
+			}
+			
+			@Override
+			public void setState( final CosmicState s, final long t )
+			{
+				double P = 0;
+				for( final Shunt sh : s.shunts() ) {
+					final double cur_p = sh.current_P();
+					P += Math.max( cur_p, 0 );
+				}
+				terminal = (P == 0);
+				if( !terminal ) {
+					pi.setState( s, t );
+				}
+			}
+
+			@Override
+			public CosmicAction getAction()
+			{
+				if( terminal ) {
+					return new CosmicNothingAction();
+				}
+				else {
+					return pi.getAction();
+				}
+			}
+
+			@Override
+			public void actionResult( final CosmicState sprime, final double[] r )
+			{
+				if( !terminal ) {
+					pi.actionResult( sprime, r );
+				}
+			}
+
+			@Override
+			public String getName()
+			{
+				return pi.getName();
+			}
+
+			@Override
+			public int hashCode()
+			{
+				return pi.hashCode();
+			}
+
+			@Override
+			public boolean equals( final Object that )
+			{
+				return that instanceof ShortCircuitPolicy
+					   && ((ShortCircuitPolicy) that).pi.equals( pi );
+			}
+		}
+		
+		public Policy<CosmicState, CosmicAction> applyEpoch( final Policy<CosmicState, CosmicAction> pi )
+		{
+			final int epoch = getInt( "epoch" );
+			if( epoch <= 0 ) {
+				throw new IllegalArgumentException( "epoch" );
+			}
+			else if( epoch == 1 ) {
+				return pi;
+			}
+			else {
+				return new ReducedFrequencyPolicy<>( pi, new CosmicNothingAction(),
+													 new ReducedFrequencyPolicy.Skip<CosmicState, CosmicAction>( epoch ) );
+			}
+		}
+		
 		public Policy<CosmicState, CosmicAction> createAgent( final RandomGenerator rng, final CosmicParameters params )
 		{
-			final CosmicTransitionSimulator sim = new CosmicTransitionSimulator( "agent", params );
+			final CosmicTransitionSimulator sim;
+			if( getInt( "seed.agent" ) == 0 ) {
+				sim = new CosmicTransitionSimulator( "deterministic", params );
+			}
+			else {
+				sim = new CosmicTransitionSimulator( "agent", params );
+			}
 			final Budget budget = installBudget( sim );
 			
 			final AnytimePolicy<CosmicState, CosmicAction> base;
@@ -210,28 +311,96 @@ public class CosmicExperiments
 			case "nothing":
 				base = new NothingPolicy();
 				break;
+			case "ps": {
+				final ArrayList<Policy<CosmicState, CosmicAction>> Pi = new ArrayList<>();
+				Pi.add( applyEpoch( new HystereticLoadShedding( new FeatureVmag(), params, 0.05, 0.95, 0.98, 5, true ) ) );
+				Pi.add( applyEpoch( new HystereticLoadShedding( new FeatureVmag(), params, 0.1, 0.95, 0.98, 5, true ) ) );
+				Pi.add( new SequencePolicy<>( new int[] { 1 },
+					new IsolatePolicy(),
+					applyEpoch( new HystereticLoadShedding( new FeatureVmag(), params, 0.05, 0.95, 0.98, 5, true ) ) ) );
+				Pi.add( new SequencePolicy<>( new int[] { 1 },
+					new ShedGlobalPolicy( 0.1 ),
+					applyEpoch( new HystereticLoadShedding( new FeatureVmag(), params, 0.05, 0.95, 0.98, 5, true ) ) ) );
+				Pi.add( new SequencePolicy<>( new int[] { 1 },
+					new ShedGlobalPolicy( 0.2 ),
+					applyEpoch( new HystereticLoadShedding( new FeatureVmag(), params, 0.05, 0.95, 0.98, 5, true ) ) ) );
+				final FiniteBandit<Policy<CosmicState, CosmicAction>> bandit = createBandit();
+				final int depth_limit = getInt( "pr.depth" );
+				base = new PolicySwitching<>( rng, sim, bandit, Pi, depth_limit );
+				break;
+			}
+			case "psd": {
+				final ArrayList<Policy<CosmicState, CosmicAction>> Pi = new ArrayList<>();
+				Pi.add( new NothingPolicy() );
+				Pi.add( applyEpoch( new HystereticLoadShedding( new FeatureVmag(), params, 0.05, 0.95, 0.98, 5, true ) ) );
+				Pi.add( applyEpoch( new HystereticLoadShedding( new FeatureVmag(), params, 0.1, 0.95, 0.98, 5, true ) ) );
+				Pi.add( new SequencePolicy<>( new int[] { 1 },
+					new IsolatePolicy(), new NothingPolicy() ) );
+				Pi.add( new SequencePolicy<>( new int[] { 1 },
+					new ShedGlobalPolicy( 0.1 ), new NothingPolicy() ) );
+				Pi.add( new SequencePolicy<>( new int[] { 1 },
+					new ShedGlobalPolicy( 0.2 ), new NothingPolicy() ) );
+				Pi.add( new SequencePolicy<>( new int[] { 1 },
+					new IsolatePolicy(),
+					applyEpoch( new HystereticLoadShedding( new FeatureVmag(), params, 0.05, 0.95, 0.98, 5, true ) ) ) );
+				Pi.add( new SequencePolicy<>( new int[] { 1 },
+					new ShedGlobalPolicy( 0.1 ),
+					applyEpoch( new HystereticLoadShedding( new FeatureVmag(), params, 0.05, 0.95, 0.98, 5, true ) ) ) );
+				Pi.add( new SequencePolicy<>( new int[] { 1 },
+					new ShedGlobalPolicy( 0.2 ),
+					applyEpoch( new HystereticLoadShedding( new FeatureVmag(), params, 0.05, 0.95, 0.98, 5, true ) ) ) );
+				final FiniteBandit<Policy<CosmicState, CosmicAction>> bandit = createBandit();
+				final int depth_limit = getInt( "pr.depth" ) + 1;
+				base = new PolicySwitching<>( rng, sim, bandit, Pi, depth_limit );
+				break;
+			}
 			case "pr":
 				base = createPolicyRollout( rng, params, sim );
 				break;
+			case "shed_global":
+				base = new SequencePolicy<>( new int[] { getInt( "Tstable" ) + 1 },
+					new ShedGlobalPolicy( getDouble( "shed_global.p" ) ), new NothingPolicy() );
+//				assert( epoch == 1 );
+				break;
+			case "isolate":
+				base = new IsolatePolicy();
+//				assert( epoch == 1 );
+				break;
+			case "partition":
+				base = new PartitionZonesPolicy( getDouble( "Tstable" ) );
+//				assert( epoch == 1 );
+				break;
+			case "hls": {
+				final String fname = get( "hls.feature" );
+				final HystereticLoadShedding.Feature f;
+				if( "Vmag".equals( fname ) ) {
+					f = new FeatureVmag();
+				}
+				else if( "frequency".equals( fname ) ) {
+					f = new FeatureFrequency();
+				}
+				else {
+					throw new IllegalArgumentException( "hls.feature" );
+				}
+				base = new HystereticLoadShedding( f, params,
+												   getDouble( "hls.amount" ),
+												   getDouble( "hls.fault_threshold" ),
+												   getDouble( "hls.clear_threshold" ),
+												   getDouble( "hls.delay" ),
+												   true );
+//				assert( epoch == 1 );
+				break;
+			}
 			default:
 				throw new IllegalArgumentException( "algorithm" );
 			}
 			
 			final BudgetPolicy<CosmicState, CosmicAction> budget_agent = new BudgetPolicy<>( base, budget );
+			final Policy<CosmicState, CosmicAction> agent = applyEpoch( budget_agent );
 			
-			final Policy<CosmicState, CosmicAction> agent;
-			final int epoch = getInt( "epoch" );
-			if( epoch <= 0 ) {
-				throw new IllegalArgumentException( "epoch" );
-			}
-			else if( epoch == 1 ) {
-				agent = budget_agent;
-			}
-			else {
-				agent = new ReducedFrequencyPolicy<>( budget_agent, new CosmicNothingAction(),
-													  new ReducedFrequencyPolicy.Skip<CosmicState, CosmicAction>( epoch ) );
-			}
-			
+			// ShortCircuitPolicy avoids executing 'agent' if the current state
+			// is a total blackout.
+//			return new ShortCircuitPolicy( agent );
 			return agent;
 		}
 
@@ -257,6 +426,11 @@ public class CosmicExperiments
 				return new LoadShedActionSpace();
 			case "Island":
 				return new IslandActionSpace();
+			case "ShedGlobal": {
+				final String[] amount_strings = get( "shed_global.amounts" ).split( ";" );
+				final double[] amounts = Fn.mapParseDouble( amount_strings );
+				return new ShedGlobalActionSpace( amounts );
+			}
 			case "ShedZone": {
 				final String[] amount_strings = get( "shed_zone.amounts" ).split( ";" );
 				final double[] amounts = Fn.mapParseDouble( amount_strings );
@@ -276,11 +450,43 @@ public class CosmicExperiments
 			final Set<Policy<CosmicState, CosmicAction>> Pi_set = new HashSet<>();
 			
 			for( final String s : sets ) {
-				Pi_set.addAll( parsePolicySet( s ) );
+				Pi_set.addAll( parsePolicySet( s, params ) );
 			}
 			
 			final ArrayList<Policy<CosmicState, CosmicAction>> Pi = new ArrayList<>();
 			Pi.addAll( Pi_set );
+			return Pi;
+		}
+		
+		private ArrayList<Policy<CosmicState, CosmicAction>> parsePolicySet( final String name, final CosmicParameters params )
+		{
+			final ArrayList<Policy<CosmicState, CosmicAction>> Pi = new ArrayList<>();
+			if( name.startsWith( "Nothing" ) ) {
+				Pi.add( new NothingPolicy() );
+			}
+			else if( name.startsWith( "HLS" ) ) {
+				Pi.add( new HystereticLoadShedding( new FeatureVmag(), params, 0.05, 0.95, 0.98, 5, true ) );
+			}
+			else if( name.startsWith( "ShedGlobal" ) ) {
+				Pi.add( applyEpoch( new ShedGlobalPolicy( 0.1 ) ) );
+			}
+			/*
+			else if( name.startsWith( "LS" ) ) {
+				if( name.startsWith( "LS-H" ) ) {
+					final HystereticLoadShedding.Feature feature = new FeatureVmag();
+					final double fault_threshold = 0.9;
+					final double clear_threshold = 0.95;
+					final double delay = 3.0;
+					final HystereticLoadShedding ls = new HystereticLoadShedding(
+							new MersenneTwister( rng.nextInt() ), feature, params,
+							fault_threshold, clear_threshold, delay );
+					Pi.add( ls );
+				}
+			}
+			*/
+			else {
+				throw new IllegalArgumentException( "policy '" + name + "'" );
+			}
 			return Pi;
 		}
 		
@@ -326,7 +532,13 @@ public class CosmicExperiments
 			case "cyclic":
 				return new CyclicFiniteBandit<>();
 			case "uniform":
-				return new UniformFiniteBandit<>();
+				return new EpsilonGreedyBandit<>( EpsilonGreedyBandit.uniform );
+			case "ucb":
+				return new UcbBandit<>( getDouble( "pr.bandit.ucb.c" ) );
+			case "ucb-sqrt":
+				return new UcbSqrtBandit<>( getDouble( "pr.bandit.ucb.c" ) );
+			case "epsilon-greedy":
+				return new EpsilonGreedyBandit<>( getDouble( "pr.bandit.greedy.epsilon" ) );
 			default:
 				throw new IllegalArgumentException( "pr.bandit" );
 			}
@@ -337,10 +549,16 @@ public class CosmicExperiments
 			final String name = get( "budget_type" );
 			final double amount = getDouble( "budget" );
 			switch( name ) {
-			case "trajectory":
+			case "trajectory": {
 				final TrajectoryBudget<CosmicState, CosmicAction> b = new TrajectoryBudget<>( (int) amount );
 				sim.addSimulationListener( b );
 				return b;
+			}
+			case "transition": {
+				final TransitionBudget<CosmicState, CosmicAction> b = new TransitionBudget<>( (int) amount );
+				sim.addSimulationListener( b );
+				return b;
+			}
 			default:
 				throw new IllegalArgumentException( "budget_type" );
 			}
@@ -436,32 +654,6 @@ public class CosmicExperiments
 		}
 	}
 	
-	private static ArrayList<Policy<CosmicState, CosmicAction>> parsePolicySet( final String name )
-	{
-		final ArrayList<Policy<CosmicState, CosmicAction>> Pi = new ArrayList<>();
-		if( name.startsWith( "Nothing" ) ) {
-			Pi.add( new NothingPolicy() );
-		}
-		/*
-		else if( name.startsWith( "LS" ) ) {
-			if( name.startsWith( "LS-H" ) ) {
-				final HystereticLoadShedding.Feature feature = new FeatureVmag();
-				final double fault_threshold = 0.9;
-				final double clear_threshold = 0.95;
-				final double delay = 3.0;
-				final HystereticLoadShedding ls = new HystereticLoadShedding(
-						new MersenneTwister( rng.nextInt() ), feature, params,
-						fault_threshold, clear_threshold, delay );
-				Pi.add( ls );
-			}
-		}
-		*/
-		else {
-			throw new IllegalArgumentException( "policy '" + name + "'" );
-		}
-		return Pi;
-	}
-	
 	private static class FaultPolicy extends Policy<CosmicState, CosmicAction>
 	{
 		private int t = -1;
@@ -473,12 +665,6 @@ public class CosmicExperiments
 		{
 			this.fault_action = fault_action;
 			this.Tstable = Tstable;
-		}
-		
-		@Override
-		public void reset()
-		{
-			t = -1;
 		}
 
 		@Override
@@ -621,8 +807,9 @@ public class CosmicExperiments
 			//		B. Q
 			//		C. current_P
 			//		D. current_Q
+			//		E. factor
 			
-			final int N = 1 + params.Nbus + params.Nmachine + 4*params.Nshunt;
+			final int N = 1 + params.Nbus + params.Nmachine + 5*params.Nshunt;
 			final String[] v = new String[N];
 			
 			int idx = 0;
@@ -646,15 +833,16 @@ public class CosmicExperiments
 				v[idx + 1*params.Nshunt] = shunt_string + "_Q";
 				v[idx + 2*params.Nshunt] = shunt_string + "_current_P";
 				v[idx + 3*params.Nshunt] = shunt_string + "_current_Q";
+				v[idx + 4*params.Nshunt] = shunt_string + "_factor";
 				idx += 1;
 			}
-			idx += 3*params.Nshunt;
+			idx += 4*params.Nshunt;
 			
 			assert( idx == N );
 			return v;
 		}
 		
-		private double[] trajectoryState( final CosmicState s )
+		private String[] trajectoryState( final CosmicState s )
 		{
 			// Things to log:
 			// 0. time
@@ -667,8 +855,9 @@ public class CosmicExperiments
 			//		B. Q
 			//		C. current_P
 			//		D. current_Q
+			//		E. factor
 			
-			final int N = 1 + params.Nbus + params.Nmachine + 4*params.Nshunt;
+			final int N = 1 + params.Nbus + params.Nmachine + 5*params.Nshunt;
 			final double[] v = new double[N];
 			
 			int idx = 0;
@@ -690,12 +879,20 @@ public class CosmicExperiments
 				v[idx + 1*params.Nshunt] = sh.Q();
 				v[idx + 2*params.Nshunt] = sh.current_P();
 				v[idx + 3*params.Nshunt] = sh.current_Q();
+				v[idx + 4*params.Nshunt] = sh.factor();
 				idx += 1;
 			}
-			idx += 3*params.Nshunt;
+			idx += 4*params.Nshunt;
 			
 			assert( idx == N );
-			return v;
+			
+			final String[] vs = new String[N];
+			final int significant_figures = 5;
+			for( int i = 0; i < N; ++i ) {
+				final BigDecimal bd = new BigDecimal( v[i], new MathContext(significant_figures) );
+				vs[i] = bd.toPlainString();
+			}
+			return vs;
 		}
 
 		@Override
@@ -768,6 +965,8 @@ public class CosmicExperiments
 	 */
 	public static void main( final String[] args ) throws FileNotFoundException, IOException
 	{
+		System.out.println( "[Es beginnt!]" );
+		
 		final String experiment_file = args[0];
 		final File root_directory;
 		if( args.length > 1 ) {
@@ -815,9 +1014,13 @@ public class CosmicExperiments
 					final CosmicTransitionSimulator world = new CosmicTransitionSimulator( "world", params );
 					world.addSimulationListener( new SimulationListener<CosmicState, CosmicAction>() {
 		
+						int t = 0;
+						
 						@Override
 						public void onInitialStateSample( final StateNode<CosmicState, CosmicAction> s0 )
 						{
+							t = 0;
+							LogWorld.info( "world: t  : {}", t );
 							LogWorld.info( "world: s  : {}", s0.s );
 							LogWorld.info( "world: s.r: {}", s0.r );
 						}
@@ -829,6 +1032,9 @@ public class CosmicExperiments
 							LogWorld.info( "world: a  : {}", trans.a );
 							LogWorld.info( "world: a.r: {}", trans.r );
 							final StateNode<CosmicState, CosmicAction> sprime = Fn.head( trans.successors() );
+							
+							t += 1;
+							LogWorld.info( "world: t  : {}", t );
 							LogWorld.debug( "world: s  : {}", sprime.s );
 							LogWorld.info( "world: s.r: {}", sprime.r );
 							// Note: show_memory() will cause a crash on the cluster!
@@ -863,11 +1069,13 @@ public class CosmicExperiments
 					data_out.beginEpisode( world, episode );
 					world.sampleTrajectory( world_rng, s, pi, config.T );
 					data_out.endEpisode();
+					
+					System.out.println( "[Episode " + episode + " ok]" );
 				} // for each episode
 			} // RAII for data_out
 		} // RAII for cosmic interface
 		
-		System.out.println( "Alles gut!" );
+		System.out.println( "[Alles gut!]" );
 	}
 
 }

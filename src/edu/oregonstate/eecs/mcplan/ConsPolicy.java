@@ -11,7 +11,7 @@ modification, are permitted provided that the following conditions are met:
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -37,6 +37,7 @@ public final class ConsPolicy<S, A extends VirtualConstructor<A>> extends Anytim
 {
 	private final A a0;
 	private final Policy<S, A> pi;
+	private final Policy<S, A> pi_template;
 	/**
 	 * 0: reset and no state set; 1: reset and first state set, will return
 	 * a0 for the action; 2: following pi.
@@ -46,22 +47,30 @@ public final class ConsPolicy<S, A extends VirtualConstructor<A>> extends Anytim
 	public ConsPolicy( final A a0, final Policy<S, A> pi )
 	{
 		this.a0 = a0;
-		this.pi = pi;
+		this.pi_template = pi;
+		this.pi = this.pi_template.copy();
+	}
+	
+	private ConsPolicy( final ConsPolicy<S, A> that )
+	{
+		this.a0 = that.a0;
+		this.pi_template = that.pi_template;
+		this.pi = that.pi.copy();
+		this.nonstationary_step = that.nonstationary_step;
 	}
 	
 	@Override
-	public void reset()
+	public ConsPolicy<S, A> copy()
 	{
-		nonstationary_step = 0;
-		pi.reset();
+		return new ConsPolicy<S, A>( this );
 	}
 	
 	@Override
 	public void setState( final S s, final long t )
 	{
-		if( nonstationary_step > 0 ) {
+//		if( nonstationary_step > 0 ) {
 			pi.setState( s, t );
-		}
+//		}
 		if( nonstationary_step < 2 ) {
 			nonstationary_step += 1;
 		}
@@ -97,7 +106,7 @@ public final class ConsPolicy<S, A extends VirtualConstructor<A>> extends Anytim
 	@Override
 	public String toString()
 	{
-		return "ConsPolicy(" + a0 + "; " + pi + ")";
+		return "ConsPolicy(" + a0 + "; " + pi_template + "; nss: " + nonstationary_step + ")";
 	}
 
 	@Override

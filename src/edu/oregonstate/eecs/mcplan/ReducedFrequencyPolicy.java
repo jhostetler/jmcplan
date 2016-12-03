@@ -11,7 +11,7 @@ modification, are permitted provided that the following conditions are met:
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -37,6 +37,7 @@ public final class ReducedFrequencyPolicy<S, A extends VirtualConstructor<A>> ex
 	public static interface Criterion<S, A>
 	{
 		public abstract boolean decisionCheck( final S s );
+		public abstract Criterion<S, A> copy();
 		public abstract void reset();
 	}
 	
@@ -59,9 +60,23 @@ public final class ReducedFrequencyPolicy<S, A extends VirtualConstructor<A>> ex
 		}
 		
 		@Override
+		public Skip<S, A> copy()
+		{
+			final Skip<S, A> cp = new Skip<>( skip );
+			cp.t = this.t;
+			return cp;
+		}
+		
+		@Override
 		public void reset()
 		{
 			t = 0;
+		}
+		
+		@Override
+		public String toString()
+		{
+			return "Skip(" + skip + ")";
 		}
 	}
 	
@@ -76,6 +91,12 @@ public final class ReducedFrequencyPolicy<S, A extends VirtualConstructor<A>> ex
 		this.pi = pi;
 		this.default_action = default_action;
 		this.criterion = criterion;
+	}
+	
+	@Override
+	public ReducedFrequencyPolicy<S, A> copy()
+	{
+		return new ReducedFrequencyPolicy<>( pi.copy(), default_action.create(), criterion.copy() );
 	}
 	
 	@Override
@@ -132,6 +153,15 @@ public final class ReducedFrequencyPolicy<S, A extends VirtualConstructor<A>> ex
 		final ReducedFrequencyPolicy<S, A> that = (ReducedFrequencyPolicy<S, A>) obj;
 		return pi.equals( that.pi ) && default_action.equals( that.default_action )
 			   && criterion.equals( that.criterion );
+	}
+	
+	@Override
+	public String toString()
+	{
+		final StringBuilder sb = new StringBuilder();
+		sb.append( "Reduced(" ).append( pi ).append( "; " ).append( default_action )
+		  .append( "; " ).append( criterion ).append( ")" );
+		return sb.toString();
 	}
 
 }

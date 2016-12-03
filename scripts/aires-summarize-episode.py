@@ -25,8 +25,10 @@
 from csv import CsvDataset, CsvAttribute
 
 import glob
+import math
 from optparse import OptionParser
 import os
+import statistics
 
 cl_parser = OptionParser( usage="%prog [options] file..." )
 cl_parser.add_option( "-i", dest="input_file", type="string", default=None,
@@ -39,6 +41,8 @@ cl_parser.add_option( "--legacy", action="store_true", default=False,
 					  help="Enable corrections for earlier experiments with different output format" )
 cl_parser.add_option( "--named-faults", action="store_true", default=False,
 					  help="Indicates that the files use the old 'Nfaults,fault0,fault1...' format" )
+cl_parser.add_option( "--algorithm", type="string", default=None,
+					  help="If 'algorithm' is not a field in the input files, specify the name here" )
 (options, args) = cl_parser.parse_args();
 
 # Read input files from file
@@ -52,46 +56,70 @@ if options.output_file is None:
 else:
 	output_file = open( options.output_file, "w" )
 	
-out_fields = ["experiment", "faults", "V", "R_end", "t_blackout", "NLoadShed", "NIsland"]
+out_fields = ["experiment", "algorithm", "faults", "N", "Nblackout",
+			  "V", "V_stdev", "V_median", "V_min", "V_max",
+			  "R_end", "R_end_stdev", "R_end_median", "R_end_min", "R_end_max",
+			  "t_blackout", "t_blackout_stdev", "t_blackout_median", "t_blackout_min", "t_blackout_max",
+			  "NLoadShed", "NLoadShed_stdev", "NLoadShed_median", "NLoadShed_min", "NLoadShed_max",
+			  "NIsland", "NIsland_stdev", "NIsland_median", "NIsland_min", "NIsland_max"]
 out_data = CsvDataset( attributes=list( map( CsvAttribute, out_fields ) ), feature_vectors=[] )
 
+missing = []
 for filename in args:
 # for filename in glob.iglob( args[0] ):
 	# experiment = os.path.dirname( filename )
 	experiment = filename
 	print( "'" + experiment + "'" )
 	with open( experiment + ".csv" ) as fparams:
+		params = CsvDataset( fparams )
 		try:
 			f = open( os.path.join( filename, "rewards.csv" ) )
 		except IOError as ex:
 			print( "WARNING: Skipping " + filename )
 			print( str(ex) )
+			missing.append( params.feature_vectors[0][params.attribute_index("fault")] )
 		else:
 			with f:
-				params = CsvDataset( fparams )
 				data = CsvDataset( f )
-				assert( len(params.feature_vectors) == len(data.feature_vectors) )
+				# assert( len(params.feature_vectors) == len(data.feature_vectors) )
 				[iTstable, iTepisode] = map( params.attribute_index, ["Tstable", "Tepisode"] )
+				(sV, sR_end, st_blackout, sNLoadShed, sNIsland) = ([], [], [], [], [])
+				Nblackout = 0
+				params_fv = params.feature_vectors[0]
+				Tstable = int(params_fv[iTstable])
+				Tepisode = int(params_fv[iTepisode])
+				
+				if options.algorithm is not None:
+					algorithm = options.algorithm
+				else:
+					algorithm = params_fv[params.attribute_index( "algorithm" )]
+					alg_params = []
+					for i in range(0, len(params.attributes)):
+						attr = params.attributes[i]
+						if attr.name.startswith( algorithm ):
+							alg_params.append( params_fv[i] )
+					algorithm = algorithm + "[" + ";".join( alg_params ) + "]"
+				
+				if options.named_faults:
+					Nfaults = int( params_fv[params.attribute_index( "Nfaults" )] )
+					faults = []
+					for i in range(0, Nfaults):
+						ifault = params.attribute_index( "fault" + str(i) )
+						faults.append( params_fv[ifault] )
+					faults = ";".join( faults )
+				else:
+					faults = params_fv[params.attribute_index( "fault" )]
+				
 				for i in range(0, len(data.feature_vectors)):
-					params_fv = params.feature_vectors[i]
-					Tstable = int(params_fv[iTstable])
-					Tepisode = int(params_fv[iTepisode])
 					T = Tstable + Tepisode
 					fv = data.feature_vectors[i]
 					# Note: This is a low-effort way to detect errors, but it would be
 					# nice to read errors from a separate list file.
 					if len(fv) != len(data.attributes):
-						print( "Error: " + experiment )
-						break
-					if options.named_faults:
-						Nfaults = int( params_fv[params.attribute_index( "Nfaults" )] )
-						faults = []
-						for i in range(0, Nfaults):
-							ifault = params.attribute_index( "fault" + str(i) )
-							faults.append( params_fv[ifault] )
-						faults = ";".join( faults )
-					else:
-						faults = params_fv[params.attribute_index( "fault" )]
+						# assert( float(fv[-1]) == 0.0 )
+						if float(fv[-1]) != 0.0:
+							print( "Error: " + experiment + " episode " + str(i) )
+							break
 					V = 0.0
 					NLoadShed = 0
 					NIsland = 0
@@ -101,19 +129,25 @@ for filename in args:
 							if t == T:
 								# Legacy files don't include reward for time 'T', so
 								# we assume it's the same as at T-1
-								i = data.attribute_index( "t" + str(T-1) )
+								ri = data.attribute_index( "t" + str(T-1) )
 							else:
-								i = data.attribute_index( "t" + str(t) )
+								ri = data.attribute_index( "t" + str(t) )
 						else:
-							i = data.attribute_index( "r" + str(t) )
+							ri = data.attribute_index( "r" + str(t) )
 							if t < T:
 								ai = data.attribute_index( "a" + str(t) )
-								a = fv[ai]
-								if "ShedZone" in a:
-									NLoadShed += 1
-								elif "Island" in a:
-									NIsland += 1
-						vt = float(fv[i])
+								if ai < len(fv):
+									a = fv[ai]
+									# 'ShedZone', 'ShedGlobal', and 'ShedLoad'
+									# are all valid actions
+									if "Shed" in a or ("TripShunt" in a and t >= Tstable):
+										NLoadShed += 1
+									elif "Island" in a:
+										NIsland += 1
+						if ri < len(fv):
+							vt = float(fv[ri])
+						else:
+							vt = 0.0
 						V += vt
 						# FIXME: We shouldn't need 't > 0', but there is a bug
 						# with the problem domain that causes reward to be 0
@@ -121,21 +155,49 @@ for filename in args:
 						if t > 0 and vt == 0 and t_blackout > t:
 							t_blackout = t
 						if t == T: # Do this here so we don't have to lookup index again
-							Rend = float(fv[i])
+							Rend = vt
 					# Special case to fix early results that had the fault occur one
 					# step later: Duplicate last time step reward to compensate
 					if options.legacy:
 						V -= float(fv[data.attribute_index( "t8" )])
 						V += Rend
-					out_fv = list( map( str, [experiment, faults, V, Rend, t_blackout, NLoadShed, NIsland] ) )
-					assert( len(out_fv) == len(out_data.attributes) )
-					out_data.feature_vectors.append( out_fv )
+						
+					sV.append( V )
+					sR_end.append( Rend )
+					if t_blackout <= T:
+						Nblackout += 1
+						st_blackout.append( t_blackout )
+					sNLoadShed.append( NLoadShed )
+					sNIsland.append( NIsland )
+				
+				N = len(sV)
+				aggregate = [experiment, algorithm, faults, N, Nblackout]
+				for v in (sV, sR_end, st_blackout, sNLoadShed, sNIsland):
+					if len(v) > 0:
+						aggregate.append( statistics.mean( v ) )
+						if len(v) > 1:
+							aggregate.append( statistics.stdev( v ) )
+						else:
+							aggregate.append( 0 )
+						aggregate.append( statistics.median( v ) )
+						aggregate.append( min( v ) )
+						aggregate.append( max( v ) )
+					else:
+						aggregate.extend( [math.nan] * 5 )
+				out_fv = list( map( str, aggregate ) )
+				assert( len(out_fv) == len(out_data.attributes) )
+				out_data.feature_vectors.append( out_fv )
 
 if options.sort:
 	def key( fv ):
-		k = [float(fv[2]), float(fv[3])]
+		k = [float(fv[3]), float(fv[4])]
 		k.extend( map( float, faults.split( ";" ) ) )
 		return tuple( k )
 	out_data.feature_vectors.sort( key=key )
 output_file.write( repr(out_data) )
 output_file.close()
+
+if missing:
+	print( "WARNING: Missing faults:" )
+	for m in missing:
+		print( m )

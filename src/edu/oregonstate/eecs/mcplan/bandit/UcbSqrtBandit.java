@@ -11,7 +11,7 @@ modification, are permitted provided that the following conditions are met:
    this list of conditions and the following disclaimer in the documentation
    and/or other materials provided with the distribution.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
@@ -23,71 +23,54 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/**
- * 
- */
 package edu.oregonstate.eecs.mcplan.bandit;
 
 import java.util.ArrayList;
 
-import org.apache.commons.math3.random.RandomGenerator;
-
-import edu.oregonstate.eecs.mcplan.util.MeanVarianceAccumulator;
-
 /**
- * @author jhostetler
- *
+ * A modified UCB rule that uses sqrt() instead of log() in the numerator.
+ * Better than UCB in terms of simple regret. Empirically also better than
+ * alternative simple regret rules.
+ * 
+ * @inproceedings{tolpin2012mcts,
+ *   title={MCTS Based on Simple Regret},
+ *   author={Tolpin, David and Shimony, Solomon Eyal},
+ *   booktitle={AAAI},
+ *   year={2012}
+ * }
  */
-public class UniformFiniteBandit<T> extends FiniteBandit<T>
+public class UcbSqrtBandit<T> extends HeuristicBandit<T>
 {
-	private final ArrayList<MeanVarianceAccumulator> r;
-	private double rstar = -Double.MAX_VALUE;
-	private T tstar = null;
+	private final double c;
 	
-	public UniformFiniteBandit()
+	public UcbSqrtBandit( final double c )
 	{
-		super();
-		r = null;
+		this.c = c;
 	}
 	
-	public UniformFiniteBandit( final ArrayList<T> arms, final StochasticEvaluator<T> eval )
+	public UcbSqrtBandit( final ArrayList<T> arms, final StochasticEvaluator<T> eval, final double c )
 	{
 		super( arms, eval );
-		
-		r = new ArrayList<MeanVarianceAccumulator>();
-		for( int i = 0; i < arms.size(); ++i ) {
-			r.add( null );
-		}
+		this.c = c;
 	}
 	
 	@Override
-	public UniformFiniteBandit<T> create( final ArrayList<T> arms, final StochasticEvaluator<T> eval )
+	public UcbSqrtBandit<T> create( final ArrayList<T> arms, final StochasticEvaluator<T> eval )
 	{
-		return new UniformFiniteBandit<>( arms, eval );
+		return new UcbSqrtBandit<>( arms, eval, c );
 	}
-
+	
 	@Override
-	public void sampleArm( final RandomGenerator rng )
+	protected double heuristic( final int i )
 	{
-		final int i = rng.nextInt( arms.size() );
-		MeanVarianceAccumulator ri = r.get( i );
-		if( ri == null ) {
-			ri = new MeanVarianceAccumulator();
-			r.set( i, ri );
+		final int ni = n( i );
+		if( ni == 0 ) {
+			// Sample un-sampled arms first
+			return Double.POSITIVE_INFINITY;
 		}
-		final T t = arms.get( i );
-		final double rsample = eval.evaluate( rng, t );
-		System.out.println( "UniformFiniteBandit: arm " + t + " => " + rsample );
-		ri.add( rsample );
-		if( ri.mean() > rstar ) {
-			rstar = ri.mean();
-			tstar = t;
+		else {
+			// The only point of divergence from UCB: sqrt() rather than log()
+			return mean( i ) + Math.sqrt( (c * Math.sqrt( n() )) / ni );
 		}
-	}
-
-	@Override
-	public T bestArm()
-	{
-		return tstar;
 	}
 }

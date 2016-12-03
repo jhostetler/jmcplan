@@ -23,81 +23,79 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/**
- * 
- */
 package edu.oregonstate.eecs.mcplan.bandit;
 
 import java.util.ArrayList;
 
 import org.apache.commons.math3.random.RandomGenerator;
 
-import edu.oregonstate.eecs.mcplan.LoggerManager;
-
 /**
- * Samples each arm sequentially, then repeats. Useful for deterministic
- * problems.
+ * Chooses the current best arm with probability \epsilon, and any other arm
+ * with probability (1 - \epsilon) / (K - 1).
+ * 
+ * @inproceedings{tolpin2012mcts,
+ *   title={MCTS Based on Simple Regret},
+ *   author={Tolpin, David and Shimony, Solomon Eyal},
+ *   booktitle={AAAI},
+ *   year={2012}
+ * }
  */
-public class CyclicFiniteBandit<T> extends FiniteBandit<T>
+public class EpsilonGreedyBandit<T> extends FiniteBandit<T>
 {
-	private final ch.qos.logback.classic.Logger LogAgent = LoggerManager.getLogger( "log.agent" );
+	public static final double greedy = 1.0;
+	public static final double uniform = 0.0;
 	
-	private int next = 0;
-	private boolean all = false;
+	private final double epsilon;
 	
-	private final double Vmax;
-	private static final double Vmax_default = Double.POSITIVE_INFINITY;
-	
-	public CyclicFiniteBandit()
+	public EpsilonGreedyBandit( final double epsilon )
 	{
 		super();
-		this.Vmax = Vmax_default;
+		this.epsilon = epsilon;
 	}
 	
-	public CyclicFiniteBandit( final ArrayList<T> arms, final StochasticEvaluator<T> eval )
-	{
-		this( arms, eval, Vmax_default );
-	}
-	
-	public CyclicFiniteBandit( final ArrayList<T> arms, final StochasticEvaluator<T> eval, final double Vmax )
+	public EpsilonGreedyBandit( final ArrayList<T> arms, final StochasticEvaluator<T> eval, final double epsilon )
 	{
 		super( arms, eval );
-		this.Vmax = Vmax;
+		this.epsilon = epsilon;
 	}
 	
 	@Override
-	public CyclicFiniteBandit<T> create( final ArrayList<T> arms, final StochasticEvaluator<T> eval )
+	public EpsilonGreedyBandit<T> create( final ArrayList<T> arms, final StochasticEvaluator<T> eval )
 	{
-		return new CyclicFiniteBandit<>( arms, eval );
+		return new EpsilonGreedyBandit<>( arms, eval, epsilon );
 	}
 
 	@Override
-	public int selectArm( final RandomGenerator rng )
+	protected int selectArm( final RandomGenerator rng )
 	{
-		final int i = next++;
-		
-		if( next >= arms.size() ) {
-			next = 0;
-			all = true;
+		// Select un-sampled arms first
+		if( n() < Narms() ) {
+			for( int i = 0; i < Narms(); ++i ) {
+				if( n( i ) == 0 ) {
+					return i;
+				}
+			}
 		}
 		
-		return i;
-	}
-
-	@Override
-	public boolean convergenceTest( final double epsilon, final double delta )
-	{
-		if( n() == 0 ) {
-			return false;
+		// Avoid RNG if result is actually deterministic
+		final boolean greedy;
+		if( epsilon == 0 ) {
+			greedy = false;
 		}
-		else if( all ) {
-			return true;
+		else if( epsilon == 1 ) {
+			greedy = true;
 		}
 		else {
-			// This bandit is deterministic, so an arm that reaches the max
-			// value is optimal.
-			final int istar = bestIndex();
-			return mean( istar ) == Vmax;
+			greedy = rng.nextDouble() < epsilon;
+		}
+		
+		if( greedy ) {
+			return bestIndex();
+		}
+		else {
+			// Return random arm that is not best
+			final int i = rng.nextInt( arms.size() - 1 );
+			return (i < bestIndex() ? i : i + 1);
 		}
 	}
 }
